@@ -1,4 +1,5 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { App } from "@/wcm/App";
 
 import appCss from "../styles.css?url";
 
@@ -39,14 +40,25 @@ export const Route = createRootRoute({
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Wellcare Mart" },
       { name: "twitter:description", content: "Medical supplies & wellness essentials." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09b6ba9-9b2a-4f6f-9564-a90ba50af056/id-preview-c363edd0--30fdc899-5cfb-4160-b979-5995df6bbf8d.lovable.app-1777464826402.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09b6ba9-9b2a-4f6f-9564-a90ba50af056/id-preview-c363edd0--30fdc899-5cfb-4160-b979-5995df6bbf8d.lovable.app-1777464826402.png" },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09b6ba9-9b2a-4f6f-9564-a90ba50af056/id-preview-c363edd0--30fdc899-5cfb-4160-b979-5995df6bbf8d.lovable.app-1777464826402.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d09b6ba9-9b2a-4f6f-9564-a90ba50af056/id-preview-c363edd0--30fdc899-5cfb-4160-b979-5995df6bbf8d.lovable.app-1777464826402.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -69,5 +81,5 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return <App />;
 }

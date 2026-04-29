@@ -1,0 +1,48 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { PRODUCTS } from "@/wcm/data";
+import { ProductDetail } from "@/wcm/products";
+import { useWcm } from "@/wcm/context";
+import { Btn } from "@/wcm/ui";
+
+export const Route = createFileRoute("/products/$productId")({
+  component: ProductPage,
+  head: ({ params }: { params: { productId: string } }) => {
+    const p = PRODUCTS.find((x) => x.id === params.productId);
+    return {
+      meta: [
+        { title: p ? `${p.name} — Wellcare Mart` : "Product — Wellcare Mart" },
+        { name: "description", content: p ? p.blurb : "Product details" },
+      ],
+    };
+  },
+});
+
+function ProductPage() {
+  const { productId } = Route.useParams();
+  const { addToCart, cart } = useWcm();
+  const navigate = useNavigate();
+  const product = PRODUCTS.find((p) => p.id === productId);
+
+  if (!product) {
+    return (
+      <div style={{ padding: "64px 24px", textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🔎</div>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Product not found</div>
+        <div style={{ color: "var(--ink-4)", fontSize: 14, marginBottom: 20 }}>
+          This product doesn't exist or may have been removed.
+        </div>
+        <Btn onClick={() => navigate({ to: "/" })}>Back to shop</Btn>
+      </div>
+    );
+  }
+
+  return (
+    <ProductDetail
+      product={product}
+      cart={cart}
+      addToCart={addToCart}
+      onClose={() => navigate({ to: "/" })}
+      openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
+    />
+  );
+}
