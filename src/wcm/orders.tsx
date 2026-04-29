@@ -98,7 +98,10 @@ export function OrdersList({
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div
+        className="wcm-orders-head"
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+      >
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: -0.4 }}>
             Your orders
@@ -107,7 +110,7 @@ export function OrdersList({
             {orders.length} orders · all-time
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="wcm-orders-head-actions" style={{ display: "flex", gap: 8 }}>
           <Btn variant="outline" icon={Icons.filter}>
             Filter
           </Btn>
@@ -129,10 +132,12 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
     .map((it) => ({ ...it, p: products.find((p) => p.id === it.id) as Product }))
     .filter((x) => x.p);
   const totalQty = items.reduce((s, x) => s + x.qty, 0);
+  const currentIdx = statusToStep(order.status);
   return (
     <Section style={{ padding: 18 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div
+          className="wcm-order-card-meta"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -169,7 +174,10 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               Placed {order.placed} · {totalQty} {totalQty === 1 ? "item" : "items"}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            className="wcm-order-card-status"
+            style={{ display: "flex", alignItems: "center", gap: 10 }}
+          >
             <Pill tone={statusTone(order.status)}>
               {Icons.dot} {order.status}
             </Pill>
@@ -177,10 +185,12 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
           </div>
         </div>
 
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="wcm-order-card-timeline">
+          <div
+            className="wcm-order-card-rail"
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
             {STATUSES.map((s, i) => {
-              const currentIdx = statusToStep(order.status);
               const done = i <= currentIdx;
               return (
                 <React.Fragment key={s}>
@@ -216,6 +226,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
             })}
           </div>
           <div
+            className="wcm-order-card-labels"
             style={{
               display: "flex",
               justifyContent: "space-between",
@@ -229,8 +240,8 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               <span
                 key={s}
                 style={{
-                  color: i <= statusToStep(order.status) ? "var(--ink-2)" : "var(--ink-4)",
-                  fontWeight: i === statusToStep(order.status) ? 800 : 600,
+                  color: i <= currentIdx ? "var(--ink-2)" : "var(--ink-4)",
+                  fontWeight: i === currentIdx ? 800 : 600,
                   flex: 1,
                   textAlign: i === 0 ? "left" : i === STATUSES.length - 1 ? "right" : "center",
                 }}
@@ -239,9 +250,87 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               </span>
             ))}
           </div>
+          <div className="wcm-order-card-mobile-timeline">
+            {STATUSES.map((s, i) => {
+              const done = i <= currentIdx;
+              const current = i === currentIdx;
+              return (
+                <div
+                  key={`mobile-${s}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "22px 1fr",
+                    gap: 10,
+                    position: "relative",
+                    paddingBottom: i === STATUSES.length - 1 ? 0 : 10,
+                  }}
+                >
+                  {i < STATUSES.length - 1 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 10,
+                        top: 20,
+                        bottom: 0,
+                        width: 2,
+                        background: i < currentIdx ? "var(--green-500)" : "var(--chip)",
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 99,
+                      background: done
+                        ? current
+                          ? "var(--blue-600)"
+                          : "var(--green-500)"
+                        : "#fff",
+                      border: done ? "none" : "2px solid var(--line)",
+                      color: "#fff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 10,
+                      fontWeight: 800,
+                      boxShadow: current ? "0 0 0 4px var(--pill-info-bg)" : "none",
+                      zIndex: 1,
+                    }}
+                  >
+                    {done ? (
+                      current ? (
+                        <span
+                          style={{ width: 6, height: 6, borderRadius: 99, background: "#fff" }}
+                        />
+                      ) : (
+                        "✓"
+                      )
+                    ) : null}
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: current ? 800 : 700,
+                        color: done ? "var(--ink)" : "var(--ink-4)",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {s}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 2 }}>
+                      {done ? trackingDate(order, i) : "Pending"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         <div
+          className="wcm-order-card-footer"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -249,7 +338,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
             gap: 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div className="wcm-order-card-items" style={{ display: "flex", alignItems: "center" }}>
             {items.slice(0, 4).map((it, i) => (
               <div
                 key={it.id}
@@ -287,13 +376,16 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               </div>
             )}
             {items[0] && (
-              <div style={{ marginLeft: 14, fontSize: 13, color: "var(--ink-3)" }}>
+              <div
+                className="wcm-order-card-item-name"
+                style={{ marginLeft: 14, fontSize: 13, color: "var(--ink-3)" }}
+              >
                 {items[0].p.name}
                 {items.length > 1 ? ` and ${items.length - 1} more` : ""}
               </div>
             )}
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="wcm-order-card-actions" style={{ display: "flex", gap: 8 }}>
             {order.status !== "Delivered" && (
               <Btn variant="outline" size="sm" icon={Icons.truck}>
                 Track

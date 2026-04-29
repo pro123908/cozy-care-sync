@@ -376,6 +376,12 @@
 .wcm-detail-thumbs-mobile {
   display: none;
 }
+.wcm-pdp-sticky-cta {
+  display: none;
+}
+.wcm-order-card-mobile-timeline {
+  display: none;
+}
 /* Toast container */
 .wcm-toast-wrap {
   position: fixed;
@@ -471,6 +477,55 @@
 }
 
 @media (max-width: 520px) {
+  .wcm-orders-head {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+  .wcm-orders-head-actions {
+    width: 100%;
+  }
+  .wcm-orders-head-actions > * {
+    flex: 1;
+  }
+  .wcm-order-card-meta {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .wcm-order-card-status {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .wcm-order-card-rail,
+  .wcm-order-card-labels {
+    display: none !important;
+  }
+  .wcm-order-card-mobile-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .wcm-order-card-footer {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .wcm-order-card-items {
+    width: 100%;
+    min-width: 0;
+  }
+  .wcm-order-card-item-name {
+    min-width: 0;
+    line-height: 1.2;
+  }
+  .wcm-order-card-actions {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+  .wcm-order-card-actions > * {
+    width: 100%;
+  }
   .wcm-form-2 {
     grid-template-columns: 1fr !important;
   }
@@ -542,6 +597,24 @@
   }
   .wcm-detail-thumbs-mobile {
     display: grid;
+  }
+  .wcm-detail-info {
+    padding-bottom: 84px;
+  }
+  .wcm-pdp-sticky-cta {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.12);
   }
   /* Hide checkout step label text on small phones to avoid overflow */
   .wcm-co-step-label {

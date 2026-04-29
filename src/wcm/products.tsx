@@ -730,8 +730,8 @@ export function ProductsPage({
 }
 
 const qtyBtn: React.CSSProperties = {
-  width: 36,
-  height: 38,
+  width: 42,
+  height: 42,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
@@ -756,12 +756,19 @@ export function ProductDetail({
 }) {
   const { products } = useWcm();
   const [qty, setQty] = useState(1);
+  const [activeView, setActiveView] = useState(0);
+  const touchStartX = useRef<number | null>(null);
   const inCart = cart.find((c) => c.id === product.id);
   const cat = CATEGORIES.find((c) => c.id === product.cat)?.name;
   const related = products
     .filter((p: Product) => p.cat === product.cat && p.id !== product.id)
     .slice(0, 4);
   const thumbIndexes = [0, 1, 2, 3];
+  const imagePositions = ["center center", "25% center", "75% center", "center 25%"];
+
+  const cycleView = (dir: 1 | -1) => {
+    setActiveView((v) => (v + dir + thumbIndexes.length) % thumbIndexes.length);
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <button
@@ -783,35 +790,81 @@ export function ProductDetail({
       </button>
       <div className="wcm-detail-cols" style={{ alignItems: "start" }}>
         <Section className="wcm-detail-media" style={{ padding: 18 }}>
-          <div className="wcm-detail-media-hero">
-            <ProductImage product={product} />
+          <div
+            className="wcm-detail-media-hero"
+            onTouchStart={(e) => {
+              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(e) => {
+              const start = touchStartX.current;
+              const end = e.changedTouches[0]?.clientX ?? null;
+              if (start == null || end == null) return;
+              const delta = end - start;
+              if (Math.abs(delta) < 30) return;
+              cycleView(delta < 0 ? 1 : -1);
+            }}
+          >
+            {product.image_url ? (
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "1/1",
+                  overflow: "hidden",
+                  borderRadius: 12,
+                  border: "1px solid var(--line)",
+                  background: "var(--bg-elev)",
+                }}
+              >
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  loading="lazy"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: imagePositions[activeView],
+                    display: "block",
+                    transition: "object-position .25s ease, transform .25s ease",
+                    transform: activeView % 2 === 0 ? "scale(1)" : "scale(1.03)",
+                  }}
+                />
+              </div>
+            ) : (
+              <ProductImage product={product} />
+            )}
           </div>
           <div
             className="wcm-detail-thumbs-desktop"
             style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 12 }}
           >
             {thumbIndexes.map((i) => (
-              <div
+              <button
                 key={i}
+                onClick={() => setActiveView(i)}
+                aria-label={`Show image view ${i + 1}`}
                 style={{
                   aspectRatio: "1/1",
                   borderRadius: 9,
                   border: "1px solid var(--line)",
                   background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
-                  opacity: i === 0 ? 1 : 0.55,
+                  opacity: i === activeView ? 1 : 0.55,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: "var(--ink-4)",
                   fontSize: 10,
                   fontWeight: 700,
-                  ...(i === 0
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  ...(i === activeView
                     ? { borderColor: "var(--blue-600)", boxShadow: "0 0 0 2px var(--pill-info-bg)" }
                     : {}),
                 }}
               >
                 view {i + 1}
-              </div>
+              </button>
             ))}
           </div>
         </Section>
@@ -943,11 +996,19 @@ export function ProductDetail({
                 overflow: "hidden",
               }}
             >
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>
+              <button
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                style={qtyBtn}
+                aria-label="Decrease quantity"
+              >
                 {Icons.minus}
               </button>
               <div style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}>{qty}</div>
-              <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>
+              <button
+                onClick={() => setQty((q) => q + 1)}
+                style={qtyBtn}
+                aria-label="Increase quantity"
+              >
                 {Icons.plus}
               </button>
             </div>
@@ -956,32 +1017,83 @@ export function ProductDetail({
             </Btn>
             <Btn variant="outline" size="lg" icon={Icons.heart} aria-label="Favorite" />
           </div>
+          <div className="wcm-pdp-sticky-cta">
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0,
+                border: "1px solid var(--line)",
+                borderRadius: 11,
+                background: "var(--card)",
+                overflow: "hidden",
+              }}
+            >
+              <button
+                onClick={() => setQty((q) => Math.max(1, q - 1))}
+                style={qtyBtn}
+                aria-label="Decrease quantity"
+              >
+                {Icons.minus}
+              </button>
+              <div style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}>{qty}</div>
+              <button
+                onClick={() => setQty((q) => q + 1)}
+                style={qtyBtn}
+                aria-label="Increase quantity"
+              >
+                {Icons.plus}
+              </button>
+            </div>
+            <button
+              onClick={() => addToCart(product, qty)}
+              style={{
+                border: "none",
+                borderRadius: 12,
+                background: "var(--grad)",
+                color: "#fff",
+                fontWeight: 800,
+                fontSize: 14,
+                padding: "12px 14px",
+                fontFamily: "inherit",
+                cursor: "pointer",
+                flex: 1,
+                minHeight: 44,
+              }}
+            >
+              {(inCart ? "Update cart" : "Add to cart") + " · " + PKR(product.price * qty)}
+            </button>
+          </div>
           <div
             className="wcm-detail-thumbs-mobile"
             style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
           >
             {thumbIndexes.map((i) => (
-              <div
+              <button
                 key={`mobile-thumb-${i}`}
+                onClick={() => setActiveView(i)}
+                aria-label={`Show image view ${i + 1}`}
                 style={{
                   aspectRatio: "1/1",
                   borderRadius: 9,
                   border: "1px solid var(--line)",
                   background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
-                  opacity: i === 0 ? 1 : 0.55,
+                  opacity: i === activeView ? 1 : 0.55,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: "var(--ink-4)",
                   fontSize: 10,
                   fontWeight: 700,
-                  ...(i === 0
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  ...(i === activeView
                     ? { borderColor: "var(--blue-600)", boxShadow: "0 0 0 2px var(--pill-info-bg)" }
                     : {}),
                 }}
               >
                 view {i + 1}
-              </div>
+              </button>
             ))}
           </div>
           <Section style={{ padding: 16 }}>

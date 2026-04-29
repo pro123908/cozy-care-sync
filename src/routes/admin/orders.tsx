@@ -35,6 +35,9 @@ function AdminOrdersPage() {
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [segment, setSegment] = useState<"all" | "new" | "active" | "delivered" | "cancelled">(
+    "all",
+  );
   const [savingId, setSavingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [activeOrder, setActiveOrder] = useState<OrderRow | null>(null);
@@ -65,14 +68,27 @@ function AdminOrdersPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (o) =>
+    return rows.filter((o) => {
+      const queryMatch =
+        !q ||
         o.order_code.toLowerCase().includes(q) ||
         o.user_id.toLowerCase().includes(q) ||
-        o.status.toLowerCase().includes(q),
-    );
-  }, [rows, query]);
+        o.status.toLowerCase().includes(q);
+
+      const segmentMatch =
+        segment === "all"
+          ? true
+          : segment === "new"
+            ? o.status === "Order placed"
+            : segment === "active"
+              ? ["Processing", "Out for delivery"].includes(o.status)
+              : segment === "delivered"
+                ? o.status === "Delivered"
+                : o.status === "Cancelled";
+
+      return queryMatch && segmentMatch;
+    });
+  }, [rows, query, segment]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageStart = (page - 1) * PAGE_SIZE;
@@ -80,7 +96,7 @@ function AdminOrdersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, segment]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -168,6 +184,52 @@ function AdminOrdersPage() {
               placeholder="Search by order code, status, user id"
               style={searchInputStyle}
             />
+          </div>
+
+          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {[
+              { id: "all", label: "All", count: rows.length },
+              {
+                id: "new",
+                label: "New",
+                count: rows.filter((r) => r.status === "Order placed").length,
+              },
+              {
+                id: "active",
+                label: "In progress",
+                count: rows.filter((r) => ["Processing", "Out for delivery"].includes(r.status))
+                  .length,
+              },
+              {
+                id: "delivered",
+                label: "Delivered",
+                count: rows.filter((r) => r.status === "Delivered").length,
+              },
+              {
+                id: "cancelled",
+                label: "Cancelled",
+                count: rows.filter((r) => r.status === "Cancelled").length,
+              },
+            ].map((seg) => (
+              <button
+                key={seg.id}
+                onClick={() => setSegment(seg.id as typeof segment)}
+                style={{
+                  border:
+                    segment === seg.id ? "1px solid var(--blue-600)" : "1px solid var(--line)",
+                  background: segment === seg.id ? "var(--pill-info-bg)" : "var(--card)",
+                  color: segment === seg.id ? "var(--pill-info-fg)" : "var(--ink-3)",
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "6px 10px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {seg.label} ({seg.count})
+              </button>
+            ))}
           </div>
 
           <div style={{ marginTop: 10, color: "var(--ink-4)", fontSize: 12 }}>
@@ -553,6 +615,10 @@ const thStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   padding: "9px 12px",
+  position: "sticky",
+  top: 0,
+  background: "var(--bg-elev)",
+  zIndex: 1,
 };
 
 const tdStyle: CSSProperties = {

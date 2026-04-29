@@ -1,9 +1,14 @@
+import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { CheckoutContent, type PlacedOrderData } from "@/wcm/cart";
+import type { PlacedOrderData } from "@/wcm/cart";
 import { useWcm } from "@/wcm/context";
 import { type Order } from "@/wcm/data";
 import { Btn } from "@/wcm/ui";
+
+const CheckoutContent = lazy(() =>
+  import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
+);
 
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
@@ -80,11 +85,15 @@ function CheckoutPage() {
   }
 
   return (
-    <CheckoutContent
-      {...checkoutData}
-      user={user}
-      onClose={() => navigate({ to: "/" })}
-      onPlace={placeOrder}
-    />
+    <Suspense
+      fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading checkout…</div>}
+    >
+      <CheckoutContent
+        {...checkoutData}
+        user={user}
+        onClose={() => navigate({ to: "/" })}
+        onPlace={placeOrder}
+      />
+    </Suspense>
   );
 }

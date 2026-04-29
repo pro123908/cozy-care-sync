@@ -1,10 +1,11 @@
-import React, { useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { useWcm, WcmProvider } from "./context";
-import { CartDrawer } from "./cart";
-import { OrderSuccess } from "./orders";
-import { AuthModal } from "./auth";
+
+const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
+const OrderSuccess = lazy(() => import("./orders").then((m) => ({ default: m.OrderSuccess })));
+const AuthModal = lazy(() => import("./auth").then((m) => ({ default: m.AuthModal })));
 
 export function App() {
   return (
@@ -71,37 +72,59 @@ function AppLayout() {
       <Footer />
       <BottomNav cartCount={cartCount} onCartOpen={() => setCartOpen(true)} />
 
-      <CartDrawer
-        open={cartOpen}
-        cart={cart}
-        setCart={setCart}
-        onClose={() => setCartOpen(false)}
-        onCheckout={goCheckout}
-      />
-      {successOrder && (
-        <OrderSuccess
-          order={successOrder}
-          onClose={() => setSuccessOrder(null)}
-          onView={() => {
-            const o = successOrder!;
-            setSuccessOrder(null);
-            navigate({ to: "/orders/$orderId", params: { orderId: o.id } });
-          }}
+      <Suspense fallback={null}>
+        <CartDrawer
+          open={cartOpen}
+          cart={cart}
+          setCart={setCart}
+          onClose={() => setCartOpen(false)}
+          onCheckout={goCheckout}
         />
-      )}
-      {authOpen && (
-        <AuthModal
-          onClose={() => setAuthOpen(false)}
-          notify={push}
-          onSignIn={(u) => {
-            setUser(u);
-            setAuthOpen(false);
-            push(`Welcome, ${u.firstName}!`);
-          }}
-        />
-      )}
+        {successOrder && (
+          <OrderSuccess
+            order={successOrder}
+            onClose={() => setSuccessOrder(null)}
+            onView={() => {
+              const o = successOrder!;
+              setSuccessOrder(null);
+              navigate({ to: "/orders/$orderId", params: { orderId: o.id } });
+            }}
+          />
+        )}
+        {authOpen && (
+          <AuthModal
+            onClose={() => setAuthOpen(false)}
+            notify={push}
+            onSignIn={(u) => {
+              setUser(u);
+              setAuthOpen(false);
+              push(`Welcome, ${u.firstName}!`);
+            }}
+          />
+        )}
+      </Suspense>
       <Toaster />
     </div>
+  );
+}
+
+const RECENT_SEARCHES_KEY = "wcm_recent_searches";
+const POPULAR_SEARCHES = ["Glucometer", "Wheelchair", "Pulse oximeter", "Nebulizer"];
+
+function highlightText(text: string, query: string) {
+  const q = query.trim();
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark style={{ background: "var(--pill-info-bg)", color: "var(--pill-info-fg)", padding: 0 }}>
+        {text.slice(idx, idx + q.length)}
+      </mark>
+      {text.slice(idx + q.length)}
+    </>
   );
 }
 
@@ -118,6 +141,7 @@ function Header({
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { wishlist, products } = useWcm();
@@ -125,18 +149,53 @@ function Header({
   const isProducts = pathname === "/" || pathname.startsWith("/products");
   const isOrders = pathname.startsWith("/orders");
 
-  const results = search.trim()
-    ? products
-        .filter((p) => {
-          const q = search.toLowerCase();
-          return (
-            p.name.toLowerCase().includes(q) ||
-            p.brand.toLowerCase().includes(q) ||
-            p.blurb.toLowerCase().includes(q)
-          );
-        })
-        .slice(0, 8)
-    : [];
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) setRecentSearches(parsed.filter((x) => typeof x === "string"));
+    } catch {
+      // ignore malformed local storage payloads
+    }
+  }, []);
+
+  const results = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
+    return products
+      .map((p) => {
+        const name = p.name.toLowerCase();
+        const brand = p.brand.toLowerCase();
+        const blurb = p.blurb.toLowerCase();
+        const cat = p.cat.toLowerCase();
+        let score = 0;
+        if (name.startsWith(q)) score += 8;
+        if (name.includes(q)) score += 5;
+        if (brand.startsWith(q)) score += 4;
+        if (brand.includes(q)) score += 2;
+        if (cat.includes(q)) score += 2;
+        if (blurb.includes(q)) score += 1;
+        return { p, score };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map((x) => x.p);
+  }, [products, search]);
+
+  const persistRecentSearch = (term: string) => {
+    const cleaned = term.trim();
+    if (!cleaned) return;
+    setRecentSearches((prev) => {
+      const next = [
+        cleaned,
+        ...prev.filter((x) => x.toLowerCase() !== cleaned.toLowerCase()),
+      ].slice(0, 5);
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const clearSearch = () => {
     setSearch("");
@@ -144,8 +203,16 @@ function Header({
   };
 
   const goProduct = (id: string) => {
+    if (search.trim()) persistRecentSearch(search);
     clearSearch();
     navigate({ to: "/products/$productId", params: { productId: id } });
+  };
+
+  const applySearchSuggestion = (term: string) => {
+    setSearch(term);
+    setDropOpen(true);
+    inputRef.current?.focus();
+    persistRecentSearch(term);
   };
 
   return (
@@ -214,17 +281,25 @@ function Header({
               <input
                 ref={inputRef}
                 placeholder="Search products…"
+                aria-label="Search products"
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setDropOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && results[0]) {
+                    e.preventDefault();
+                    goProduct(results[0].id);
+                  }
                 }}
                 onFocus={() => setDropOpen(true)}
                 onBlur={() => setTimeout(() => setDropOpen(false), 150)}
                 style={{
                   width: "100%",
                   padding: "11px 14px 11px 42px",
-                  borderRadius: dropOpen && results.length > 0 ? "18px 18px 0 0" : 99,
+                  borderRadius:
+                    dropOpen && (results.length > 0 || !search.trim()) ? "18px 18px 0 0" : 99,
                   border: "1px solid var(--line)",
                   background: "var(--bg-elev)",
                   fontSize: 13.5,
@@ -244,7 +319,7 @@ function Header({
                   e.currentTarget.style.borderRadius = "99px";
                 }}
               />
-              {dropOpen && results.length > 0 && (
+              {dropOpen && (results.length > 0 || !search.trim()) && (
                 <div
                   style={{
                     position: "absolute",
@@ -260,57 +335,133 @@ function Header({
                     overflow: "hidden",
                   }}
                 >
-                  {results.map((p) => (
-                    <button
-                      key={p.id}
-                      onMouseDown={() => goProduct(p.id)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "10px 16px",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        borderBottom: "1px solid var(--line)",
-                        transition: "background .1s",
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-                    >
-                      <span style={{ color: "var(--ink-4)", flexShrink: 0 }}>{Icons.search}</span>
-                      <div style={{ minWidth: 0 }}>
+                  {!search.trim() ? (
+                    <div style={{ padding: 12 }}>
+                      {recentSearches.length > 0 && (
+                        <div style={{ marginBottom: 12 }}>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "var(--ink-4)",
+                              marginBottom: 8,
+                            }}
+                          >
+                            Recent searches
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                            {recentSearches.map((term) => (
+                              <button
+                                key={term}
+                                onMouseDown={() => applySearchSuggestion(term)}
+                                style={{
+                                  border: "1px solid var(--line)",
+                                  background: "var(--bg-elev)",
+                                  borderRadius: 99,
+                                  padding: "6px 10px",
+                                  fontSize: 12,
+                                  color: "var(--ink-3)",
+                                  cursor: "pointer",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                {term}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div>
                         <div
                           style={{
-                            fontSize: 13.5,
-                            fontWeight: 600,
-                            color: "var(--ink)",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "var(--ink-4)",
+                            marginBottom: 8,
                           }}
                         >
-                          {p.name}
+                          Popular
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
-                          {p.brand} &middot; {p.cat}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {POPULAR_SEARCHES.map((term) => (
+                            <button
+                              key={term}
+                              onMouseDown={() => applySearchSuggestion(term)}
+                              style={{
+                                border: "1px solid var(--line)",
+                                background: "var(--card)",
+                                borderRadius: 99,
+                                padding: "6px 10px",
+                                fontSize: 12,
+                                color: "var(--ink-2)",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {term}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                      <div
+                    </div>
+                  ) : results.length > 0 ? (
+                    results.map((p) => (
+                      <button
+                        key={p.id}
+                        onMouseDown={() => goProduct(p.id)}
                         style={{
-                          marginLeft: "auto",
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--blue-600)",
-                          flexShrink: 0,
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: "10px 16px",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          borderBottom: "1px solid var(--line)",
+                          transition: "background .1s",
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                       >
-                        Rs {p.price.toLocaleString()}
-                      </div>
-                    </button>
-                  ))}
+                        <span style={{ color: "var(--ink-4)", flexShrink: 0 }}>{Icons.search}</span>
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              fontSize: 13.5,
+                              fontWeight: 600,
+                              color: "var(--ink)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {highlightText(p.name, search)}
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
+                            {highlightText(p.brand, search)} &middot; {p.cat}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            marginLeft: "auto",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            color: "var(--blue-600)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          Rs {p.price.toLocaleString()}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div style={{ padding: "12px 16px", color: "var(--ink-4)", fontSize: 13 }}>
+                      No matching products found.
+                    </div>
+                  )}
                 </div>
               )}
             </div>

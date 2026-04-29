@@ -1,8 +1,10 @@
+import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { OrderDetail } from "@/wcm/orders";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
+
+const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
 
 export const Route = createFileRoute("/orders/$orderId")({
   component: OrderDetailPage,
@@ -69,6 +71,10 @@ function OrderDetailPage() {
   }
 
   return (
-    <OrderDetail order={order} onClose={() => navigate({ to: "/orders" })} onCancel={onCancel} />
+    <Suspense
+      fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading order detail…</div>}
+    >
+      <OrderDetail order={order} onClose={() => navigate({ to: "/orders" })} onCancel={onCancel} />
+    </Suspense>
   );
 }

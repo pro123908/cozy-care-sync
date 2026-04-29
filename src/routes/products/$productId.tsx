@@ -1,8 +1,12 @@
+import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PRODUCTS } from "@/wcm/data";
-import { ProductDetail } from "@/wcm/products";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
+
+const ProductDetail = lazy(() =>
+  import("@/wcm/products").then((m) => ({ default: m.ProductDetail })),
+);
 
 export const Route = createFileRoute("/products/$productId")({
   component: ProductPage,
@@ -37,12 +41,14 @@ function ProductPage() {
   }
 
   return (
-    <ProductDetail
-      product={product}
-      cart={cart}
-      addToCart={addToCart}
-      onClose={() => navigate({ to: "/" })}
-      openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
-    />
+    <Suspense fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading product…</div>}>
+      <ProductDetail
+        product={product}
+        cart={cart}
+        addToCart={addToCart}
+        onClose={() => navigate({ to: "/" })}
+        openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
+      />
+    </Suspense>
   );
 }

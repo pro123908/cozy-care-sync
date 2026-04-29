@@ -1,8 +1,10 @@
+import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { OrdersList } from "@/wcm/orders";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
+
+const OrdersList = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrdersList })));
 
 export const Route = createFileRoute("/orders/")({
   component: OrdersPage,
@@ -47,11 +49,13 @@ function OrdersPage() {
   }
 
   return (
-    <OrdersList
-      orders={orders}
-      ordersLoaded={ordersLoaded}
-      openOrder={(o) => navigate({ to: "/orders/$orderId", params: { orderId: o.id } })}
-      goShop={() => navigate({ to: "/" })}
-    />
+    <Suspense fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading orders…</div>}>
+      <OrdersList
+        orders={orders}
+        ordersLoaded={ordersLoaded}
+        openOrder={(o) => navigate({ to: "/orders/$orderId", params: { orderId: o.id } })}
+        goShop={() => navigate({ to: "/" })}
+      />
+    </Suspense>
   );
 }

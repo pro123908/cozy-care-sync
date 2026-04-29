@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PRODUCTS, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row } from "./ui";
@@ -343,8 +343,20 @@ export function CheckoutContent({
   const [promo, setPromo] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoErr, setPromoErr] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
   const PROMOS: Record<string, number> = { WELLCARE10: 0.1, HEALTH20: 0.2, CARE15: 0.15 };
   const discountPct = promoApplied ? (PROMOS[promo.trim().toUpperCase()] ?? 0) : 0;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("wcm_saved_addresses");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) setSavedAddresses(parsed.filter((x) => typeof x === "string"));
+    } catch {
+      // ignore invalid local storage payload
+    }
+  }, []);
   const discountAmt = Math.round(subtotal * discountPct);
   const finalTotal = total - discountAmt;
 
@@ -386,6 +398,16 @@ export function CheckoutContent({
   };
 
   const place = () => {
+    const compactAddress = `${ship.address}, ${ship.city}`.trim();
+    if (compactAddress.length > 3) {
+      const next = [compactAddress, ...savedAddresses.filter((x) => x !== compactAddress)].slice(
+        0,
+        4,
+      );
+      setSavedAddresses(next);
+      localStorage.setItem("wcm_saved_addresses", JSON.stringify(next));
+    }
+
     onPlace({
       ship,
       pay:
@@ -489,6 +511,43 @@ export function CheckoutContent({
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
                 Where should we deliver?
               </h3>
+              {savedAddresses.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--ink-3)",
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    QUICK FILL
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {savedAddresses.map((address) => (
+                      <button
+                        key={address}
+                        onClick={() => {
+                          const [street, city] = address.split(",").map((x) => x.trim());
+                          setShip({ ...ship, address: street || address, city: city || ship.city });
+                        }}
+                        style={{
+                          border: "1px solid var(--line)",
+                          background: "var(--bg-elev)",
+                          borderRadius: 99,
+                          padding: "6px 10px",
+                          fontSize: 12,
+                          color: "var(--ink-3)",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {address}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div
                 className="wcm-form-2"
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
@@ -524,10 +583,17 @@ export function CheckoutContent({
               >
                 <TextField
                   label="City"
+                  list="city-suggestions"
                   value={ship.city}
                   onChange={(e) => setShip({ ...ship, city: e.target.value })}
                   error={errs.city}
                 />
+                <datalist id="city-suggestions">
+                  <option value="Karachi" />
+                  <option value="Lahore" />
+                  <option value="Islamabad" />
+                  <option value="Rawalpindi" />
+                </datalist>
                 <TextField
                   label="Landmark (optional)"
                   value={ship.landmark}
