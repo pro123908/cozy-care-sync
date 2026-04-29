@@ -89,7 +89,7 @@ function ProductCard({ p, onAdd, onOpen, inCart }: { p: Product; onAdd: (p: Prod
   );
 }
 
-function Hero({ goTo }: { goTo: (p: string) => void }){
+function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }){
   return (
     <div style={{
       position:"relative", overflow:"hidden", borderRadius:"var(--radius-lg)",
@@ -156,7 +156,7 @@ type CartLine = { id: string; qty: number };
 
 export function ProductsPage({ search, addToCart, openProduct, cart, goTo }: {
   search: string; addToCart: (p: Product) => void; openProduct: (p: Product) => void;
-  cart: CartLine[]; goTo: (p: string) => void;
+  cart: CartLine[]; goTo: (p: "products" | "orders") => void;
 }){
   const [active, setActive] = useState("all");
   const [sort, setSort] = useState("popular");
