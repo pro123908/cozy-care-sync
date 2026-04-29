@@ -7,6 +7,19 @@ import { useWcm } from "./context";
 
 const STATUSES = ["Order placed", "Packed", "Shipped", "Out for delivery", "Delivered"];
 
+function statusToStep(status: string): number {
+  const map: Record<string, number> = {
+    "Order placed": 0,
+    Processing: 1,
+    Packed: 1,
+    Shipped: 2,
+    "Out for delivery": 3,
+    Delivered: 4,
+    Cancelled: -1,
+  };
+  return map[status] ?? 0;
+}
+
 function statusTone(s: string) {
   return s === "Delivered"
     ? "green"
@@ -167,7 +180,8 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {STATUSES.map((s, i) => {
-              const done = i <= order.progress;
+              const currentIdx = statusToStep(order.status);
+              const done = i <= currentIdx;
               return (
                 <React.Fragment key={s}>
                   <div
@@ -185,7 +199,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                       flexShrink: 0,
                     }}
                   >
-                    {done && (i < order.progress ? "✓" : "")}
+                    {done && (i < currentIdx ? "✓" : "")}
                   </div>
                   {i < STATUSES.length - 1 && (
                     <div
@@ -193,7 +207,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                         flex: 1,
                         height: 3,
                         borderRadius: 99,
-                        background: i < order.progress ? "var(--green-500)" : "var(--chip)",
+                        background: i < currentIdx ? "var(--green-500)" : "var(--chip)",
                       }}
                     />
                   )}
@@ -215,8 +229,8 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               <span
                 key={s}
                 style={{
-                  color: i <= order.progress ? "var(--ink-2)" : "var(--ink-4)",
-                  fontWeight: i === order.progress ? 800 : 600,
+                  color: i <= statusToStep(order.status) ? "var(--ink-2)" : "var(--ink-4)",
+                  fontWeight: i === statusToStep(order.status) ? 800 : 600,
                   flex: 1,
                   textAlign: i === 0 ? "left" : i === STATUSES.length - 1 ? "right" : "center",
                 }}
@@ -415,8 +429,8 @@ export function OrderDetail({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {STATUSES.map((s, i) => {
-              const done = i <= order.progress;
-              const current = i === order.progress;
+              const done = i <= statusToStep(order.status);
+              const current = i === statusToStep(order.status);
               return (
                 <div
                   key={s}
@@ -436,7 +450,8 @@ export function OrderDetail({
                         top: 30,
                         bottom: 0,
                         width: 2,
-                        background: i < order.progress ? "var(--green-500)" : "var(--chip)",
+                        background:
+                          i < statusToStep(order.status) ? "var(--green-500)" : "var(--chip)",
                       }}
                     />
                   )}

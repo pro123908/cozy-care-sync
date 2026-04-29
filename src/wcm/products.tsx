@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import { CATEGORIES, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill, Btn, Section } from "./ui";
@@ -488,6 +488,112 @@ function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   );
 }
 
+const SORT_OPTIONS = [
+  { value: "popular", label: "Most popular" },
+  { value: "rating", label: "Top rated" },
+  { value: "low", label: "Price: Low to High" },
+  { value: "high", label: "Price: High to Low" },
+];
+
+function SortDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const current = SORT_OPTIONS.find((o) => o.value === value)!;
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "9px 12px",
+          borderRadius: 11,
+          border: "1px solid var(--line)",
+          background: "var(--card)",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "var(--ink-2)",
+          fontFamily: "inherit",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {current.label}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            opacity: 0.5,
+            transition: "transform 0.15s",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            background: "var(--card)",
+            border: "1px solid var(--line)",
+            borderRadius: 12,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+            minWidth: 180,
+            zIndex: 100,
+            overflow: "hidden",
+          }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "10px 14px",
+                border: "none",
+                background: opt.value === value ? "var(--chip-2)" : "transparent",
+                fontSize: 13,
+                fontWeight: opt.value === value ? 700 : 500,
+                color: opt.value === value ? "var(--ink-1)" : "var(--ink-2)",
+                fontFamily: "inherit",
+                cursor: "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProductsPage({
   addToCart,
   openProduct,
@@ -503,6 +609,7 @@ export function ProductsPage({
   const [active, setActive] = useState("all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [gridKey, setGridKey] = useState(0);
 
   const filtered = useMemo(() => {
     let arr: Product[] = products;
@@ -518,21 +625,26 @@ export function ProductsPage({
 
   return (
     <div>
-      {active === "all" && <Hero goTo={goTo} />}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <CategoryRail active={active} setActive={setActive} />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <Hero goTo={goTo} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+        {/* Row 1: Category filter chips */}
+        <CategoryRail
+          active={active}
+          setActive={(v) => {
+            setActive(v);
+            setGridKey((k) => k + 1);
+          }}
+        />
+        {/* Row 2: In stock only, item count, sort */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
           <label
             style={{
               display: "flex",
@@ -548,7 +660,10 @@ export function ProductsPage({
             <input
               type="checkbox"
               checked={inStockOnly}
-              onChange={(e) => setInStockOnly(e.target.checked)}
+              onChange={(e) => {
+                setInStockOnly(e.target.checked);
+                setGridKey((k) => k + 1);
+              }}
               style={{ width: 15, height: 15, accentColor: "var(--blue-600)", cursor: "pointer" }}
             />
             In stock only
@@ -556,26 +671,13 @@ export function ProductsPage({
           <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
             {filtered.length} items
           </span>
-          <select
+          <SortDropdown
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            style={{
-              padding: "9px 12px",
-              borderRadius: 11,
-              border: "1px solid var(--line)",
-              background: "var(--card)",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--ink-2)",
-              fontFamily: "inherit",
-              cursor: "pointer",
+            onChange={(v) => {
+              setSort(v);
+              setGridKey((k) => k + 1);
             }}
-          >
-            <option value="popular">Most popular</option>
-            <option value="rating">Top rated</option>
-            <option value="low">Price: Low to High</option>
-            <option value="high">Price: High to Low</option>
-          </select>
+          />
         </div>
       </div>
 
@@ -592,7 +694,10 @@ export function ProductsPage({
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <Section style={{ padding: 48, textAlign: "center" }}>
+        <Section
+          key={gridKey}
+          style={{ padding: 48, textAlign: "center", animation: "fadeInUp 0.25s ease" }}
+        >
           <div style={{ fontSize: 48, marginBottom: 8 }}>🔎</div>
           <div style={{ fontWeight: 700, fontSize: 16 }}>No products in this category</div>
           <div style={{ color: "var(--ink-4)", fontSize: 13, marginTop: 4 }}>
@@ -601,10 +706,12 @@ export function ProductsPage({
         </Section>
       ) : (
         <div
+          key={gridKey}
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
             gap: 14,
+            animation: "fadeInUp 0.25s ease",
           }}
         >
           {filtered.map((p) => (

@@ -206,22 +206,9 @@ function AdminOrdersPage() {
                       <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
                       <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
                       <td style={tdStyle}>
-                        <select
-                          value={o.status}
-                          onChange={(e) =>
-                            setPendingStatus({ id: o.id, nextStatus: e.target.value })
-                          }
-                          disabled={savingId === o.id}
-                          style={selectStyle}
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s.status} value={s.status}>
-                              {s.status}
-                            </option>
-                          ))}
-                        </select>
-                        <div style={{ marginTop: 6, color: "var(--ink-4)", fontSize: 11 }}>
-                          Progress: {o.progress}%
+                        <StatusPill status={o.status} />
+                        <div style={{ marginTop: 4, color: "var(--ink-4)", fontSize: 11 }}>
+                          {o.progress}%
                         </div>
                       </td>
                       <td style={tdStyle}>{new Date(o.created_at).toLocaleString()}</td>
@@ -281,7 +268,12 @@ function AdminOrdersPage() {
       )}
 
       {activeOrder && (
-        <OrderDetailsDrawer order={activeOrder} onClose={() => setActiveOrder(null)} />
+        <OrderDetailsModal
+          order={activeOrder}
+          savingId={savingId}
+          onClose={() => setActiveOrder(null)}
+          onChangeStatus={(id, nextStatus) => setPendingStatus({ id, nextStatus })}
+        />
       )}
     </AdminGate>
   );
@@ -299,7 +291,7 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <div style={overlayStyle} onClick={onCancel}>
+    <div style={{ ...overlayStyle, zIndex: 200 }} onClick={onCancel}>
       <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ margin: 0, fontSize: 18, color: "var(--ink)" }}>{title}</h3>
         <p style={{ marginTop: 8, marginBottom: 16, color: "var(--ink-4)", fontSize: 14 }}>
@@ -318,66 +310,207 @@ function ConfirmDialog({
   );
 }
 
-function OrderDetailsDrawer({ order, onClose }: { order: OrderRow; onClose: () => void }) {
+function StatusPill({ status }: { status: string }) {
+  const colors: Record<string, { bg: string; color: string }> = {
+    "Order placed": { bg: "var(--pill-info-bg)", color: "var(--pill-info-fg)" },
+    Processing: { bg: "var(--pill-warn-bg)", color: "#b45309" },
+    "Out for delivery": { bg: "#ede9fe", color: "#6d28d9" },
+    Delivered: { bg: "var(--pill-ok-bg)", color: "var(--pill-ok-fg)" },
+    Cancelled: { bg: "var(--pill-rose-bg)", color: "var(--pill-rose-fg)" },
+  };
+  const c = colors[status] || { bg: "var(--chip-2)", color: "var(--ink-2)" };
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 8px",
+        borderRadius: 99,
+        fontSize: 11,
+        fontWeight: 700,
+        background: c.bg,
+        color: c.color,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+function OrderDetailsModal({
+  order,
+  savingId,
+  onClose,
+  onChangeStatus,
+}: {
+  order: OrderRow;
+  savingId: string | null;
+  onClose: () => void;
+  onChangeStatus: (id: string, nextStatus: string) => void;
+}) {
   const items = Array.isArray(order.items) ? order.items : [];
+  const isSaving = savingId === order.id;
 
   return (
-    <div style={drawerOverlayStyle} onClick={onClose}>
-      <aside style={drawerStyle} onClick={(e) => e.stopPropagation()}>
+    <div style={overlayStyle} onClick={onClose}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 600,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          background: "var(--card)",
+          border: "1px solid var(--line)",
+          borderRadius: 18,
+          padding: 24,
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
             gap: 10,
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 20, color: "var(--ink)" }}>Order {order.order_code}</h3>
-          <button onClick={onClose} style={miniBtnStyle}>
-            Close
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: "var(--ink-4)",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              Order
+            </div>
+            <h3
+              style={{ margin: "4px 0 0", fontSize: 22, color: "var(--ink)", letterSpacing: -0.3 }}
+            >
+              {order.order_code}
+            </h3>
+          </div>
+          <button onClick={onClose} style={{ ...miniBtnStyle, flexShrink: 0 }}>
+            ✕ Close
           </button>
         </div>
 
-        <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-          <DetailRow label="Status" value={`${order.status} (${order.progress}%)`} />
+        {/* Order meta */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <DetailRow label="Placed" value={new Date(order.created_at).toLocaleString()} />
           <DetailRow label="Payment" value={order.payment} />
-          <DetailRow label="Address" value={order.address} />
           <DetailRow label="Subtotal" value={`Rs ${order.subtotal.toLocaleString()}`} />
           <DetailRow label="Shipping" value={`Rs ${order.shipping.toLocaleString()}`} />
           <DetailRow label="Total" value={`Rs ${order.total.toLocaleString()}`} />
+          <DetailRow label="Address" value={order.address} />
         </div>
 
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>
+        {/* Items */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>
             Items
           </div>
           <div style={{ border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
             {items.length === 0 ? (
               <div style={{ padding: 12, color: "var(--ink-4)", fontSize: 13 }}>
-                No order items recorded.
+                No items recorded.
               </div>
             ) : (
               items.map((item: any, idx: number) => (
                 <div
                   key={`${item.id || "item"}-${idx}`}
                   style={{
-                    padding: "10px 12px",
+                    padding: "10px 14px",
                     borderTop: idx === 0 ? "none" : "1px solid var(--line)",
                     display: "flex",
                     justifyContent: "space-between",
+                    alignItems: "center",
                     gap: 10,
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: "var(--ink)" }}>{item.id || item.name || "Item"}</span>
-                  <span style={{ color: "var(--ink-4)" }}>Qty {item.qty || 1}</span>
+                  <span style={{ color: "var(--ink)", fontWeight: 600 }}>
+                    {item.name || item.id || "Item"}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                    {item.price != null && (
+                      <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>
+                        Rs {Number(item.price).toLocaleString()}
+                      </span>
+                    )}
+                    <span style={{ color: "var(--ink-4)" }}>× {item.qty || 1}</span>
+                  </div>
                 </div>
               ))
             )}
           </div>
         </div>
-      </aside>
+
+        {/* Status change */}
+        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", marginBottom: 10 }}>
+            Order Status
+          </div>
+          {/* Progress bar */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <StatusPill status={order.status} />
+              <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                {order.progress}% complete
+              </span>
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: "var(--line)" }}>
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 99,
+                  background:
+                    order.status === "Cancelled" ? "var(--pill-rose-fg)" : "var(--blue-600)",
+                  width: `${order.progress}%`,
+                  transition: "width 0.4s ease",
+                }}
+              />
+            </div>
+          </div>
+          {/* Status option pills */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {STATUS_OPTIONS.map((s) => {
+              const isActive = s.status === order.status;
+              return (
+                <button
+                  key={s.status}
+                  disabled={isActive || isSaving}
+                  onClick={() => onChangeStatus(order.id, s.status)}
+                  style={{
+                    padding: "7px 13px",
+                    borderRadius: 99,
+                    border: isActive ? "2px solid var(--blue-600)" : "1px solid var(--line)",
+                    background: isActive ? "var(--blue-600)" : "var(--card)",
+                    color: isActive ? "#fff" : "var(--ink-2)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: isActive || isSaving ? "default" : "pointer",
+                    opacity: isSaving && !isActive ? 0.5 : 1,
+                    fontFamily: "inherit",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {s.status}
+                </button>
+              );
+            })}
+          </div>
+          {isSaving && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "var(--ink-4)" }}>Saving…</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
