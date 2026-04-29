@@ -1,6 +1,6 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -356,6 +356,26 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.wcm-detail-price-card {
+  flex-wrap: wrap;
+}
+.wcm-detail-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.wcm-detail-stock-pill {
+  align-self: flex-end;
+}
+.wcm-detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.wcm-detail-thumbs-mobile {
+  display: none;
+}
 /* Toast container */
 .wcm-toast-wrap {
   position: fixed;
@@ -422,6 +442,34 @@
   }
 }
 
+@media (max-width: 760px) {
+  .wcm-header-pad {
+    padding: 10px 14px;
+  }
+  .wcm-header-grid {
+    grid-template-columns: 1fr auto;
+    gap: 10px 8px;
+    align-items: center;
+  }
+  .wcm-brand-btn {
+    justify-self: start;
+    min-width: 0;
+  }
+  .wcm-header-right {
+    justify-self: end;
+    gap: 8px;
+  }
+  .wcm-header-mid {
+    grid-column: 1 / -1;
+    order: 3;
+    width: 100%;
+  }
+  .wcm-search-wrap {
+    max-width: none;
+    width: 100%;
+  }
+}
+
 @media (max-width: 520px) {
   .wcm-form-2 {
     grid-template-columns: 1fr !important;
@@ -451,6 +499,49 @@
   /* Collapse product badges to 1 col */
   .wcm-product-badges {
     grid-template-columns: 1fr !important;
+  }
+  .wcm-detail-meta-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .wcm-add-row > * {
+    width: 100%;
+  }
+  .wcm-add-row > div {
+    width: auto;
+  }
+  .wcm-detail-price-card {
+    flex-direction: column;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    gap: 10px;
+  }
+  .wcm-detail-price-row {
+    row-gap: 6px;
+  }
+  .wcm-detail-price-row > * {
+    white-space: nowrap;
+  }
+  .wcm-detail-stock-pill {
+    align-self: flex-start;
+  }
+  .wcm-detail-tax-note {
+    line-height: 1.4;
+  }
+  .wcm-detail-media {
+    order: 1;
+  }
+  .wcm-detail-info {
+    order: 2;
+  }
+  .wcm-detail-media-hero {
+    width: min(72vw, 300px);
+    margin: 0 auto;
+  }
+  .wcm-detail-thumbs-desktop {
+    display: none !important;
+  }
+  .wcm-detail-thumbs-mobile {
+    display: grid;
   }
   /* Hide checkout step label text on small phones to avoid overflow */
   .wcm-co-step-label {

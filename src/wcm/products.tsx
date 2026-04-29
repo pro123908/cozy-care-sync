@@ -761,6 +761,7 @@ export function ProductDetail({
   const related = products
     .filter((p: Product) => p.cat === product.cat && p.id !== product.id)
     .slice(0, 4);
+  const thumbIndexes = [0, 1, 2, 3];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <button
@@ -780,16 +781,16 @@ export function ProductDetail({
       >
         {Icons.chevL} Back to products
       </button>
-      <div
-        className="wcm-detail-cols"
-        style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 24, alignItems: "start" }}
-      >
-        <Section style={{ padding: 18 }}>
-          <ProductImage product={product} />
+      <div className="wcm-detail-cols" style={{ alignItems: "start" }}>
+        <Section className="wcm-detail-media" style={{ padding: 18 }}>
+          <div className="wcm-detail-media-hero">
+            <ProductImage product={product} />
+          </div>
           <div
+            className="wcm-detail-thumbs-desktop"
             style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 12 }}
           >
-            {[0, 1, 2, 3].map((i) => (
+            {thumbIndexes.map((i) => (
               <div
                 key={i}
                 style={{
@@ -814,7 +815,10 @@ export function ProductDetail({
             ))}
           </div>
         </Section>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          className="wcm-detail-info"
+          style={{ display: "flex", flexDirection: "column", gap: 14 }}
+        >
           <div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>{cat}</span>
@@ -863,6 +867,7 @@ export function ProductDetail({
             </div>
           </div>
           <Section
+            className="wcm-detail-price-card"
             style={{
               padding: 18,
               display: "flex",
@@ -872,7 +877,10 @@ export function ProductDetail({
             }}
           >
             <div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <div
+                className="wcm-detail-price-row"
+                style={{ display: "flex", alignItems: "baseline", gap: 10 }}
+              >
                 <div
                   style={{
                     fontSize: 30,
@@ -892,11 +900,15 @@ export function ProductDetail({
                 )}
                 {product.was && <Pill tone="rose">Save {PKR(product.was - product.price)}</Pill>}
               </div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
+              <div
+                className="wcm-detail-tax-note"
+                style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}
+              >
                 Inclusive of all taxes · Free delivery over Rs 2,000
               </div>
             </div>
             <div
+              className="wcm-detail-stock-pill"
               style={{
                 padding: "4px 10px",
                 borderRadius: 99,
@@ -944,6 +956,34 @@ export function ProductDetail({
             </Btn>
             <Btn variant="outline" size="lg" icon={Icons.heart} aria-label="Favorite" />
           </div>
+          <div
+            className="wcm-detail-thumbs-mobile"
+            style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+          >
+            {thumbIndexes.map((i) => (
+              <div
+                key={`mobile-thumb-${i}`}
+                style={{
+                  aspectRatio: "1/1",
+                  borderRadius: 9,
+                  border: "1px solid var(--line)",
+                  background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
+                  opacity: i === 0 ? 1 : 0.55,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--ink-4)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  ...(i === 0
+                    ? { borderColor: "var(--blue-600)", boxShadow: "0 0 0 2px var(--pill-info-bg)" }
+                    : {}),
+                }}
+              >
+                view {i + 1}
+              </div>
+            ))}
+          </div>
           <Section style={{ padding: 16 }}>
             <div
               style={{
@@ -961,6 +1001,7 @@ export function ProductDetail({
               {product.blurb}
             </p>
             <div
+              className="wcm-detail-meta-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(2,1fr)",

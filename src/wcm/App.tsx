@@ -183,6 +183,7 @@ function Header({
           }}
         >
           <button
+            className="wcm-brand-btn"
             onClick={() => navigate({ to: "/" })}
             style={{
               background: "none",
