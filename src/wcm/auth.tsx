@@ -3,7 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Icons, WellcareLogo } from "./icons";
 import { Btn, TextField } from "./ui";
 
-export type WcmUser = { firstName: string; lastName: string; email: string; initials: string };
+export type WcmRole = "customer" | "staff" | "admin";
+
+export type WcmUser = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  initials: string;
+  role: WcmRole;
+};
 
 export function AuthModal({
   onClose,
@@ -77,6 +85,7 @@ export function AuthModal({
           lastName: form.lastName.trim(),
           email: form.email,
           initials,
+          role: "customer",
         });
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -91,14 +100,16 @@ export function AuthModal({
         const userId = data.user?.id;
         let firstName = "",
           lastName = "";
+        let role: WcmRole = "customer";
         if (userId) {
           const { data: prof } = await supabase
             .from("profiles")
-            .select("first_name,last_name")
+            .select("first_name,last_name,role")
             .eq("id", userId)
             .maybeSingle();
           firstName = prof?.first_name || "";
           lastName = prof?.last_name || "";
+          role = (prof as { role?: WcmRole } | null)?.role || "customer";
         }
         if (!firstName) {
           const local = form.email.split("@")[0].replace(/[._-]+/g, " ");
@@ -108,7 +119,7 @@ export function AuthModal({
           lastName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "";
         }
         const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
-        onSignIn({ firstName, lastName, email: form.email, initials });
+        onSignIn({ firstName, lastName, email: form.email, initials, role });
       }
     } finally {
       setLoading(false);

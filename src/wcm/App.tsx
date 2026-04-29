@@ -19,6 +19,7 @@ function AppLayout() {
     theme,
     toggleTheme,
     user,
+    isAdmin,
     setUser,
     authOpen,
     setAuthOpen,
@@ -57,6 +58,7 @@ function AppLayout() {
         cartCount={cartCount}
         onCartOpen={() => setCartOpen(true)}
         user={user}
+        isAdmin={isAdmin}
         onSignIn={() => setAuthOpen(true)}
         onSignOut={onSignOut}
       />
@@ -103,7 +105,16 @@ function AppLayout() {
   );
 }
 
-function Header({ theme, toggleTheme, cartCount, onCartOpen, user, onSignIn, onSignOut }: any) {
+function Header({
+  theme,
+  toggleTheme,
+  cartCount,
+  onCartOpen,
+  user,
+  isAdmin,
+  onSignIn,
+  onSignOut,
+}: any) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
@@ -413,6 +424,17 @@ function Header({ theme, toggleTheme, cartCount, onCartOpen, user, onSignIn, onS
                       >
                         {Icons.user} Account settings
                       </button>
+                      {isAdmin && (
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            navigate({ to: "/admin" });
+                          }}
+                          style={menuItem}
+                        >
+                          {Icons.shield} Admin panel
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setMenuOpen(false);

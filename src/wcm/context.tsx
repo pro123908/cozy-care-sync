@@ -24,6 +24,7 @@ type WcmContextType = {
   toggleTheme: () => void;
   // User & Auth
   user: WcmUser | null;
+  isAdmin: boolean;
   setUser: (u: WcmUser | null) => void;
   authOpen: boolean;
   setAuthOpen: (v: boolean) => void;
@@ -161,13 +162,14 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       setTimeout(async () => {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("first_name,last_name,email")
+          .select("first_name,last_name,email,role")
           .eq("id", sUser.id)
           .maybeSingle();
         const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
         const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
         const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
-        setUser({ firstName, lastName, email: sUser.email || "", initials });
+        const role = (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
+        setUser({ firstName, lastName, email: sUser.email || "", initials, role });
         loadOrders(sUser.id);
       }, 0);
     });
@@ -176,14 +178,16 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         const sUser = session.user;
         supabase
           .from("profiles")
-          .select("first_name,last_name,email")
+          .select("first_name,last_name,email,role")
           .eq("id", sUser.id)
           .maybeSingle()
           .then(({ data: prof }) => {
             const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
             const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
             const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
-            setUser({ firstName, lastName, email: sUser.email || "", initials });
+            const role =
+              (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
+            setUser({ firstName, lastName, email: sUser.email || "", initials, role });
             loadOrders(sUser.id);
           });
       } else {
@@ -214,6 +218,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     setOrdersLoaded(false);
     push("Signed out");
   };
+
+  const isAdmin = user?.role === "admin" || user?.role === "staff";
 
   // Load products from database once on mount
   useEffect(() => {
@@ -252,6 +258,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         theme,
         toggleTheme,
         user,
+        isAdmin,
         setUser,
         authOpen,
         setAuthOpen,
