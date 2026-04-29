@@ -21,6 +21,8 @@ const STATUS_OPTIONS: StatusOption[] = [
   { status: "Cancelled", progress: 0 },
 ];
 
+const PAGE_SIZE = 10;
+
 export const Route = createFileRoute("/admin/orders")({
   component: AdminOrdersPage,
   head: () => ({
@@ -34,6 +36,12 @@ function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [activeOrder, setActiveOrder] = useState<OrderRow | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<{
+    id: string;
+    nextStatus: string;
+  } | null>(null);
 
   const loadOrders = async () => {
     const { data, error } = await supabase
@@ -66,6 +74,18 @@ function AdminOrdersPage() {
     );
   }, [rows, query]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   const patchOrder = async (id: string, nextStatus: string) => {
     const selected = STATUS_OPTIONS.find((s) => s.status === nextStatus);
     if (!selected) return;
@@ -93,8 +113,20 @@ function AdminOrdersPage() {
           : r,
       ),
     );
+    setActiveOrder((prev) =>
+      prev && prev.id === id
+        ? {
+            ...prev,
+            status: selected.status,
+            progress: selected.progress,
+          }
+        : prev,
+    );
     push("Order updated");
   };
+
+  const statusTarget =
+    pendingStatus && STATUS_OPTIONS.find((s) => s.status === pendingStatus.nextStatus);
 
   return (
     <AdminGate>
@@ -138,6 +170,11 @@ function AdminOrdersPage() {
             />
           </div>
 
+          <div style={{ marginTop: 10, color: "var(--ink-4)", fontSize: 12 }}>
+            Showing {filtered.length === 0 ? 0 : pageStart + 1}-
+            {Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
+          </div>
+
           {loading ? (
             <div style={{ color: "var(--ink-4)", fontSize: 14, marginTop: 10 }}>
               Loading orders…
@@ -159,10 +196,11 @@ function AdminOrdersPage() {
                     <th style={thStyle}>Amount</th>
                     <th style={thStyle}>Status</th>
                     <th style={thStyle}>Placed</th>
+                    <th style={thStyle}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((o) => (
+                  {pageRows.map((o) => (
                     <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
                       <td style={tdStyle}>{o.order_code}</td>
                       <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
@@ -170,7 +208,9 @@ function AdminOrdersPage() {
                       <td style={tdStyle}>
                         <select
                           value={o.status}
-                          onChange={(e) => patchOrder(o.id, e.target.value)}
+                          onChange={(e) =>
+                            setPendingStatus({ id: o.id, nextStatus: e.target.value })
+                          }
                           disabled={savingId === o.id}
                           style={selectStyle}
                         >
@@ -185,15 +225,169 @@ function AdminOrdersPage() {
                         </div>
                       </td>
                       <td style={tdStyle}>{new Date(o.created_at).toLocaleString()}</td>
+                      <td style={tdStyle}>
+                        <button onClick={() => setActiveOrder(o)} style={miniBtnStyle}>
+                          View details
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+
+          {!loading && filtered.length > 0 && (
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={miniBtnStyle}
+              >
+                Previous
+              </button>
+              <span style={{ color: "var(--ink-4)", fontSize: 12 }}>
+                Page {page} of {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={miniBtnStyle}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </section>
       </div>
+
+      {pendingStatus && statusTarget && (
+        <ConfirmDialog
+          title="Update order status"
+          body={`Change this order to ${statusTarget.status} (${statusTarget.progress}% progress)?`}
+          onCancel={() => setPendingStatus(null)}
+          onConfirm={async () => {
+            await patchOrder(pendingStatus.id, pendingStatus.nextStatus);
+            setPendingStatus(null);
+          }}
+        />
+      )}
+
+      {activeOrder && (
+        <OrderDetailsDrawer order={activeOrder} onClose={() => setActiveOrder(null)} />
+      )}
     </AdminGate>
+  );
+}
+
+function ConfirmDialog({
+  title,
+  body,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  body: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div style={overlayStyle} onClick={onCancel}>
+      <div style={dialogStyle} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ margin: 0, fontSize: 18, color: "var(--ink)" }}>{title}</h3>
+        <p style={{ marginTop: 8, marginBottom: 16, color: "var(--ink-4)", fontSize: 14 }}>
+          {body}
+        </p>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onCancel} style={miniBtnStyle}>
+            Cancel
+          </button>
+          <button onClick={onConfirm} style={miniDangerBtnStyle}>
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderDetailsDrawer({ order, onClose }: { order: OrderRow; onClose: () => void }) {
+  const items = Array.isArray(order.items) ? order.items : [];
+
+  return (
+    <div style={drawerOverlayStyle} onClick={onClose}>
+      <aside style={drawerStyle} onClick={(e) => e.stopPropagation()}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: 20, color: "var(--ink)" }}>Order {order.order_code}</h3>
+          <button onClick={onClose} style={miniBtnStyle}>
+            Close
+          </button>
+        </div>
+
+        <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+          <DetailRow label="Status" value={`${order.status} (${order.progress}%)`} />
+          <DetailRow label="Placed" value={new Date(order.created_at).toLocaleString()} />
+          <DetailRow label="Payment" value={order.payment} />
+          <DetailRow label="Address" value={order.address} />
+          <DetailRow label="Subtotal" value={`Rs ${order.subtotal.toLocaleString()}`} />
+          <DetailRow label="Shipping" value={`Rs ${order.shipping.toLocaleString()}`} />
+          <DetailRow label="Total" value={`Rs ${order.total.toLocaleString()}`} />
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>
+            Items
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
+            {items.length === 0 ? (
+              <div style={{ padding: 12, color: "var(--ink-4)", fontSize: 13 }}>
+                No order items recorded.
+              </div>
+            ) : (
+              items.map((item: any, idx: number) => (
+                <div
+                  key={`${item.id || "item"}-${idx}`}
+                  style={{
+                    padding: "10px 12px",
+                    borderTop: idx === 0 ? "none" : "1px solid var(--line)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{ color: "var(--ink)" }}>{item.id || item.name || "Item"}</span>
+                  <span style={{ color: "var(--ink-4)" }}>Qty {item.qty || 1}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "grid", gap: 4 }}>
+      <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 700 }}>{label}</span>
+      <span style={{ fontSize: 14, color: "var(--ink)" }}>{value}</span>
+    </div>
   );
 }
 
@@ -256,4 +450,60 @@ const linkBtnStyle: CSSProperties = {
   color: "var(--ink)",
   fontSize: 13,
   fontWeight: 700,
+};
+
+const miniBtnStyle: CSSProperties = {
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "1px solid var(--line)",
+  background: "var(--card)",
+  color: "var(--ink)",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 700,
+};
+
+const miniDangerBtnStyle: CSSProperties = {
+  ...miniBtnStyle,
+  border: "1px solid var(--pill-rose-fg)",
+  color: "var(--pill-rose-fg)",
+};
+
+const overlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(10,15,28,.45)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 16,
+  zIndex: 120,
+};
+
+const dialogStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 420,
+  background: "var(--card)",
+  border: "1px solid var(--line)",
+  borderRadius: 14,
+  padding: 16,
+};
+
+const drawerOverlayStyle: CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(10,15,28,.35)",
+  display: "flex",
+  justifyContent: "flex-end",
+  zIndex: 120,
+};
+
+const drawerStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 480,
+  height: "100%",
+  overflowY: "auto",
+  background: "var(--card)",
+  borderLeft: "1px solid var(--line)",
+  padding: 18,
 };
