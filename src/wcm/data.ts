@@ -1,0 +1,64 @@
+// Catalog data for Wellcare Mart
+export type Product = {
+  id: string; name: string; brand: string; cat: string;
+  price: number; was?: number; rating: number; reviews: number;
+  stock: string; tags: string[]; blurb: string; swatch: string;
+};
+
+export const CATEGORIES = [
+  { id: "all", name: "All products", count: 0 },
+  { id: "monitoring", name: "Monitoring", count: 0 },
+  { id: "mobility", name: "Mobility & Support", count: 0 },
+  { id: "respiratory", name: "Respiratory", count: 0 },
+  { id: "patient-care", name: "Patient Care", count: 0 },
+  { id: "therapy", name: "Therapy & Recovery", count: 0 },
+  { id: "consumables", name: "Disposables", count: 0 },
+];
+
+export const PKR = (n: number) => "Rs " + n.toLocaleString("en-PK");
+
+export const PRODUCTS: Product[] = [
+  { id:"p01", name:"Digital Glucometer Kit", brand:"Accu-Sense", cat:"monitoring", price:3290, was:3990, rating:4.7, reviews:312, stock:"In stock", tags:["Top rated","Best seller"], blurb:"5-second readings, 25 free strips included.", swatch:"emerald" },
+  { id:"p02", name:"Automatic BP Monitor", brand:"Omtek BP-9", cat:"monitoring", price:5450, was:6200, rating:4.8, reviews:514, stock:"In stock", tags:["Best seller"], blurb:"Upper arm, dual-user memory, irregular heartbeat alert.", swatch:"sky" },
+  { id:"p03", name:"Pulse Oximeter (Fingertip)", brand:"OxyPro", cat:"monitoring", price:1890, was:2400, rating:4.6, reviews:1208, stock:"In stock", tags:["Top rated"], blurb:"SpO₂ + pulse rate, OLED display, auto-shutoff.", swatch:"sky" },
+  { id:"p04", name:"Digital Body Weight Scale", brand:"Health+ S2", cat:"monitoring", price:2390, rating:4.4, reviews:201, stock:"In stock", tags:[], blurb:"Tempered glass, 180kg capacity, step-on tech.", swatch:"slate" },
+  { id:"p05", name:"Infrared Forehead Thermometer", brand:"ThermoTouch", cat:"monitoring", price:2490, was:2990, rating:4.5, reviews:402, stock:"In stock", tags:["Deal"], blurb:"1-second read, fever alarm, no contact.", swatch:"rose" },
+  { id:"p06", name:"Electronic Stethoscope", brand:"CardioLite", cat:"monitoring", price:8990, rating:4.9, reviews:88, stock:"Low stock", tags:["Pro pick"], blurb:"24x amplification, dual-head, professional grade.", swatch:"slate" },
+  { id:"p07", name:"Hearing Aid (Rechargeable)", brand:"ClearTone", cat:"monitoring", price:11400, was:13500, rating:4.3, reviews:142, stock:"In stock", tags:["Deal"], blurb:"Behind-the-ear, 18hr battery, noise reduction.", swatch:"amber" },
+  { id:"p08", name:"Diabetes Test Strips (50ct)", brand:"Accu-Sense", cat:"consumables", price:1290, rating:4.6, reviews:980, stock:"In stock", tags:["Refill"], blurb:"Compatible with Accu-Sense glucometers.", swatch:"emerald" },
+  { id:"p09", name:"Compressor Nebulizer", brand:"AirMed N3", cat:"respiratory", price:4290, was:4990, rating:4.7, reviews:267, stock:"In stock", tags:["Best seller"], blurb:"Quiet operation, child + adult masks included.", swatch:"sky" },
+  { id:"p10", name:"Oxygen Concentrator 5L", brand:"BreathePro", cat:"respiratory", price:124900, rating:4.8, reviews:46, stock:"Limited", tags:["Premium"], blurb:"5L/min continuous, low noise, mobility wheels.", swatch:"sky" },
+  { id:"p11", name:"Portable Oxygen Cylinder", brand:"BreathePro", cat:"respiratory", price:18900, rating:4.5, reviews:73, stock:"In stock", tags:[], blurb:"2.8L lightweight, regulator + carry bag.", swatch:"slate" },
+  { id:"p12", name:"Suction Machine", brand:"VacuMed", cat:"respiratory", price:14800, rating:4.4, reviews:38, stock:"In stock", tags:[], blurb:"Adjustable vacuum, 1L canister, AC + DC.", swatch:"slate" },
+  { id:"p13", name:"Facial Steamer", brand:"AirMed", cat:"respiratory", price:2790, rating:4.2, reviews:115, stock:"In stock", tags:[], blurb:"Warm mist for sinus & skin care.", swatch:"rose" },
+  { id:"p14", name:"Lightweight Folding Wheelchair", brand:"MoveEase", cat:"mobility", price:21900, was:24500, rating:4.6, reviews:78, stock:"In stock", tags:["Deal"], blurb:"100kg capacity, folds flat, swing-away footrests.", swatch:"emerald" },
+  { id:"p15", name:"Aluminium Patient Walker", brand:"StepRight", cat:"mobility", price:5490, rating:4.5, reviews:142, stock:"In stock", tags:[], blurb:"Adjustable height, foldable, anti-slip grips.", swatch:"slate" },
+  { id:"p16", name:"Adjustable Walking Stick", brand:"StepRight", cat:"mobility", price:1490, rating:4.3, reviews:301, stock:"In stock", tags:[], blurb:"Aluminium, ergonomic grip, 9 height settings.", swatch:"amber" },
+  { id:"p17", name:"Bedside Commode Chair", brand:"CareSeat", cat:"mobility", price:6990, rating:4.4, reviews:54, stock:"In stock", tags:[], blurb:"Padded seat, removable bucket, adjustable legs.", swatch:"slate" },
+  { id:"p18", name:"Folding Shower Chair", brand:"CareSeat", cat:"mobility", price:4490, rating:4.5, reviews:91, stock:"In stock", tags:[], blurb:"Anti-slip rubber feet, drainage holes.", swatch:"sky" },
+  { id:"p19", name:"Anti-Bedsore Air Mattress", brand:"ComfortRest", cat:"patient-care", price:7990, was:9200, rating:4.5, reviews:122, stock:"In stock", tags:["Deal"], blurb:"Alternating pressure, silent pump, 130kg.", swatch:"sky" },
+  { id:"p20", name:"Adjustable Patient Food Trolley", brand:"BedMate", cat:"patient-care", price:6490, rating:4.4, reviews:33, stock:"In stock", tags:[], blurb:"Tilting top, height adjust, 4 lockable wheels.", swatch:"slate" },
+  { id:"p21", name:"Adult Diapers (L, 10ct)", brand:"DryDay", cat:"consumables", price:990, rating:4.6, reviews:678, stock:"In stock", tags:["Refill"], blurb:"12hr absorbency, soft non-woven cover.", swatch:"emerald" },
+  { id:"p22", name:"Urine Drainage Bag (2L)", brand:"MediFlow", cat:"consumables", price:290, rating:4.4, reviews:218, stock:"In stock", tags:[], blurb:"Anti-reflux valve, pre-attached tubing.", swatch:"amber" },
+  { id:"p23", name:"Electric Breast Pump", brand:"NurtureFlow", cat:"patient-care", price:8490, rating:4.7, reviews:165, stock:"In stock", tags:["Top rated"], blurb:"9 modes, rechargeable, BPA-free.", swatch:"rose" },
+  { id:"p24", name:"Heating Pad (Large)", brand:"WarmCare", cat:"therapy", price:1990, rating:4.5, reviews:430, stock:"In stock", tags:[], blurb:"6 heat levels, auto shut-off, machine washable.", swatch:"rose" },
+  { id:"p25", name:"Hot & Cold Gel Pack Set", brand:"WarmCare", cat:"therapy", price:790, rating:4.6, reviews:512, stock:"In stock", tags:["Refill"], blurb:"Reusable, microwavable, freezer safe.", swatch:"sky" },
+  { id:"p26", name:"TENS Machine (Dual Channel)", brand:"PulseTherapy", cat:"therapy", price:5490, was:6900, rating:4.7, reviews:198, stock:"In stock", tags:["Deal"], blurb:"15 modes, 8 electrodes, rechargeable.", swatch:"emerald" },
+  { id:"p27", name:"Cordless Body Massager", brand:"RelaxPro", cat:"therapy", price:4290, rating:4.4, reviews:287, stock:"In stock", tags:[], blurb:"6 nodes, 3 speeds, 2hr battery.", swatch:"slate" },
+  { id:"p28", name:"Anti-Burst Gym Ball (65cm)", brand:"FlexCore", cat:"therapy", price:1690, rating:4.5, reviews:156, stock:"In stock", tags:[], blurb:"Includes pump, 300kg burst rating.", swatch:"amber" },
+  { id:"p29", name:"Examination Gloves (100ct)", brand:"PureFit", cat:"consumables", price:790, rating:4.5, reviews:1102, stock:"In stock", tags:["Refill","Bulk"], blurb:"Latex-free, powder-free, medium.", swatch:"sky" },
+  { id:"p30", name:"3-Ply Surgical Masks (50ct)", brand:"PureFit", cat:"consumables", price:390, rating:4.4, reviews:1640, stock:"In stock", tags:["Refill"], blurb:"BFE 99%, soft ear loops.", swatch:"emerald" },
+  { id:"p31", name:"Disposable Syringe (10ml, 100ct)", brand:"MediFlow", cat:"consumables", price:1290, rating:4.5, reviews:204, stock:"In stock", tags:["Bulk"], blurb:"Sterile, single use, latex-free gasket.", swatch:"slate" },
+];
+
+CATEGORIES.forEach(c => {
+  c.count = c.id === "all" ? PRODUCTS.length : PRODUCTS.filter(p => p.cat === c.id).length;
+});
+
+export type OrderItem = { id: string; qty: number };
+export type Order = {
+  id: string; placed: string; eta: string; status: string; progress: number;
+  address: string; payment: string; items: OrderItem[];
+  subtotal: number; shipping: number; total: number;
+  rider?: { name: string; phone: string };
+};
