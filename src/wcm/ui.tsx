@@ -353,12 +353,15 @@ export const TextField = ({ label, hint, error, ...rest }: TextFieldProps) => (
 
 export const Section = ({
   children,
+  className,
   style,
 }: {
   children: React.ReactNode;
+  className?: string;
   style?: React.CSSProperties;
 }) => (
   <div
+    className={className}
     style={{
       background: "var(--card)",
       border: "1px solid var(--line)",

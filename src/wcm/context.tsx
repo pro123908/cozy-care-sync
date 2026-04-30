@@ -225,7 +225,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (supabase as any)
       .from("products")
-      .select("*")
+      .select("*, categories(name)")
       .eq("active", true)
       .order("sort_order", { ascending: true })
       .then(({ data, error }: { data: any[] | null; error: any }) => {
@@ -236,6 +236,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
               name: r.name,
               brand: r.brand,
               cat: r.cat,
+              category_name: r.categories?.name ?? undefined,
               price: r.price,
               was: r.was ?? undefined,
               rating: Number(r.rating),

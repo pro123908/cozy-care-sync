@@ -8,6 +8,30 @@ export type Database = {
   };
   public: {
     Tables: {
+      categories: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          slug: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           address: string;
@@ -111,6 +135,7 @@ export type Database = {
           active: boolean;
           created_at: string;
           updated_at: string;
+          category_id: string | null;
         };
         Insert: {
           id: string;
@@ -130,6 +155,7 @@ export type Database = {
           active?: boolean;
           created_at?: string;
           updated_at?: string;
+          category_id?: string | null;
         };
         Update: {
           id?: string;
@@ -149,6 +175,7 @@ export type Database = {
           active?: boolean;
           created_at?: string;
           updated_at?: string;
+          category_id?: string | null;
         };
         Relationships: [];
       };

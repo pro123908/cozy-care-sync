@@ -495,6 +495,30 @@ const SORT_OPTIONS = [
   { value: "high", label: "Price: High to Low" },
 ];
 
+const PRODUCTS_PAGE_SIZE = 24;
+
+function getVisiblePaginationItems(currentPage: number, totalPages: number) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([1, totalPages, currentPage - 1, currentPage, currentPage + 1]);
+  const sortedPages = Array.from(pages)
+    .filter((page) => page >= 1 && page <= totalPages)
+    .sort((a, b) => a - b);
+  const items: Array<number | "ellipsis"> = [];
+
+  for (const page of sortedPages) {
+    const previous = items[items.length - 1];
+    if (typeof previous === "number" && page - previous > 1) {
+      items.push("ellipsis");
+    }
+    items.push(page);
+  }
+
+  return items;
+}
+
 function SortDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -609,7 +633,10 @@ export function ProductsPage({
   const [active, setActive] = useState("all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [page, setPage] = useState(1);
   const [gridKey, setGridKey] = useState(0);
+  const listingTopRef = useRef<HTMLDivElement | null>(null);
+  const hasMountedPaginationRef = useRef(false);
 
   const filtered = useMemo(() => {
     let arr: Product[] = products;
@@ -621,11 +648,37 @@ export function ProductsPage({
     return arr;
   }, [active, sort, inStockOnly, products]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PAGE_SIZE));
+  const pageStart = (page - 1) * PRODUCTS_PAGE_SIZE;
+  const pageProducts = filtered.slice(pageStart, pageStart + PRODUCTS_PAGE_SIZE);
+  const visiblePaginationItems = useMemo(
+    () => getVisiblePaginationItems(page, totalPages),
+    [page, totalPages],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [active, sort, inStockOnly]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!productsLoaded) return;
+    if (!hasMountedPaginationRef.current) {
+      hasMountedPaginationRef.current = true;
+      return;
+    }
+    listingTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [page, productsLoaded]);
+
   const inCartIds = new Set(cart.map((c) => c.id));
 
   return (
     <div>
       <Hero goTo={goTo} />
+      <div ref={listingTopRef} />
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
         {/* Row 1: Category filter chips */}
         <CategoryRail
@@ -669,7 +722,8 @@ export function ProductsPage({
             In stock only
           </label>
           <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
-            {filtered.length} items
+            Showing {filtered.length === 0 ? 0 : pageStart + 1}-
+            {Math.min(pageStart + PRODUCTS_PAGE_SIZE, filtered.length)} of {filtered.length}
           </span>
           <SortDropdown
             value={sort}
@@ -714,7 +768,7 @@ export function ProductsPage({
             animation: "fadeInUp 0.25s ease",
           }}
         >
-          {filtered.map((p) => (
+          {pageProducts.map((p) => (
             <ProductCard
               key={p.id}
               p={p}
@@ -725,9 +779,93 @@ export function ProductsPage({
           ))}
         </div>
       )}
+
+      {productsLoaded && filtered.length > 0 && totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            marginTop: 18,
+          }}
+        >
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              ...paginationBtnStyle,
+              opacity: page === 1 ? 0.5 : 1,
+              cursor: page === 1 ? "default" : "pointer",
+            }}
+          >
+            Previous
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {visiblePaginationItems.map((item, index) => {
+              if (item === "ellipsis") {
+                return (
+                  <span key={`ellipsis-${index}`} style={paginationEllipsisStyle}>
+                    ...
+                  </span>
+                );
+              }
+
+              const activePage = item === page;
+              return (
+                <button
+                  key={item}
+                  onClick={() => setPage(item)}
+                  style={{
+                    ...paginationBtnStyle,
+                    minWidth: 40,
+                    background: activePage ? "var(--ink)" : "var(--card)",
+                    color: activePage ? "#fff" : "var(--ink-2)",
+                    borderColor: activePage ? "var(--ink)" : "var(--line)",
+                  }}
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              ...paginationBtnStyle,
+              opacity: page === totalPages ? 0.5 : 1,
+              cursor: page === totalPages ? "default" : "pointer",
+            }}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
+
+const paginationBtnStyle: React.CSSProperties = {
+  padding: "9px 12px",
+  borderRadius: 11,
+  border: "1px solid var(--line)",
+  background: "var(--card)",
+  color: "var(--ink)",
+  fontSize: 13,
+  fontWeight: 700,
+  fontFamily: "inherit",
+  cursor: "pointer",
+};
+
+const paginationEllipsisStyle: React.CSSProperties = {
+  minWidth: 24,
+  textAlign: "center",
+  color: "var(--ink-4)",
+  fontSize: 13,
+  fontWeight: 700,
+};
 
 const qtyBtn: React.CSSProperties = {
   width: 42,
@@ -1066,7 +1204,7 @@ export function ProductDetail({
           </div>
           <div
             className="wcm-detail-thumbs-mobile"
-            style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+            style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
           >
             {thumbIndexes.map((i) => (
               <button

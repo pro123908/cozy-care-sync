@@ -9,12 +9,13 @@ import { Icons } from "@/wcm/icons";
 import { useWcm } from "@/wcm/context";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
+type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 
 const EMPTY_DRAFT = {
   id: "",
   name: "",
   brand: "",
-  cat: "monitoring",
+  cat: "glucometers",
   price: 0,
   was: "",
   stock: "In stock",
@@ -26,19 +27,31 @@ const EMPTY_DRAFT = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-const CATEGORY_OPTIONS = [
-  "monitoring",
-  "mobility",
-  "respiratory",
-  "patient-care",
-  "therapy",
-  "consumables",
-];
 const STOCK_OPTIONS = ["In stock", "Low stock", "Limited", "Out of stock"];
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as
   | string
   | undefined;
+
+function getCategoryPrefix(categorySlug: string) {
+  const parts = categorySlug
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) return "prd";
+  if (parts.length === 1) return parts[0].slice(0, 3);
+  return parts
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 4);
+}
+
+function getCategoryProductSequence(id: string, prefix: string) {
+  const match = new RegExp(`^${prefix}-(\\d+)$`, "i").exec(id.trim());
+  return match ? Number(match[1]) : null;
+}
 
 export const Route = createFileRoute("/admin/products")({
   component: AdminProductsPage,
@@ -50,6 +63,7 @@ export const Route = createFileRoute("/admin/products")({
 function AdminProductsPage() {
   const { push } = useWcm();
   const [rows, setRows] = useState<ProductRow[]>([]);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -58,8 +72,10 @@ function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const formRef = useRef<HTMLDivElement | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -84,9 +100,62 @@ function AdminProductsPage() {
     setLoading(false);
   };
 
+  const loadCategories = async () => {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, name, slug, sort_order, created_at")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
+
+    if (error) {
+      push("Failed to load categories");
+      return;
+    }
+
+    setCategories(data || []);
+  };
+
   useEffect(() => {
     loadProducts();
+    loadCategories();
   }, []);
+
+  const categoryBySlug = useMemo(() => new Map(categories.map((c) => [c.slug, c])), [categories]);
+
+  const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  const categoryOptions = useMemo(() => {
+    const options = categories.map((c) => ({ id: c.slug, label: c.name }));
+    if (draft.cat && !options.some((c) => c.id === draft.cat)) {
+      options.unshift({ id: draft.cat, label: draft.cat });
+    }
+    return options;
+  }, [categories, draft.cat]);
+
+  const listCategoryFilterOptions = useMemo(() => {
+    const options = categories.map((c) => ({ value: c.slug, label: c.name }));
+    for (const row of rows) {
+      if (row.cat && !options.some((option) => option.value === row.cat)) {
+        options.push({ value: row.cat, label: row.cat });
+      }
+    }
+    return [{ value: "all", label: "All categories" }, ...options];
+  }, [categories, rows]);
+
+  const activeCategory = categoryBySlug.get(draft.cat);
+  const activeCategoryPrefix = getCategoryPrefix(draft.cat || EMPTY_DRAFT.cat);
+
+  const nextGeneratedProductId = useMemo(() => {
+    const categorySlug = draft.cat || EMPTY_DRAFT.cat;
+    const prefix = getCategoryPrefix(categorySlug);
+    const rowsInCategory = rows.filter((row) => row.cat === categorySlug);
+    const highestSequence = rowsInCategory.reduce((max, row) => {
+      const sequence = getCategoryProductSequence(row.id, prefix);
+      return sequence == null ? max : Math.max(max, sequence);
+    }, 0);
+    const nextSequence = Math.max(rowsInCategory.length, highestSequence) + 1;
+    return `${prefix}-${String(nextSequence).padStart(3, "0")}`;
+  }, [draft.cat, rows]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -96,12 +165,14 @@ function AdminProductsPage() {
         r.id.toLowerCase().includes(q) ||
         r.name.toLowerCase().includes(q) ||
         r.brand.toLowerCase().includes(q) ||
-        r.cat.toLowerCase().includes(q);
+        r.cat.toLowerCase().includes(q) ||
+        (categoryBySlug.get(r.cat)?.name.toLowerCase().includes(q) ?? false);
+      const matchesCategory = categoryFilter === "all" || r.cat === categoryFilter;
       const matchesStatus =
         statusFilter === "all" || (statusFilter === "active" ? r.active : !r.active);
-      return matchesQuery && matchesStatus;
+      return matchesQuery && matchesCategory && matchesStatus;
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, categoryFilter, statusFilter, categoryBySlug]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageStart = (page - 1) * pageSize;
@@ -109,7 +180,7 @@ function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, pageSize]);
+  }, [search, categoryFilter, statusFilter, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -119,12 +190,22 @@ function AdminProductsPage() {
     setSelectedIds((prev) => prev.filter((id) => filtered.some((r) => r.id === id)));
   }, [filtered]);
 
+  useEffect(() => {
+    if (selectedId || productIdManuallyEdited || viewMode !== "editor") return;
+    setDraft((prev) =>
+      prev.id === nextGeneratedProductId ? prev : { ...prev, id: nextGeneratedProductId },
+    );
+  }, [nextGeneratedProductId, productIdManuallyEdited, selectedId, viewMode]);
+
   const loadDraftFromProduct = (p: ProductRow) => {
+    const categoryFromId = p.category_id ? categoryById.get(p.category_id) : null;
+    const resolvedCatSlug = categoryFromId?.slug || p.cat || EMPTY_DRAFT.cat;
+
     setDraft({
       id: p.id,
       name: p.name,
       brand: p.brand,
-      cat: p.cat,
+      cat: resolvedCatSlug,
       price: p.price,
       was: p.was === null ? "" : String(p.was),
       stock: p.stock,
@@ -134,13 +215,15 @@ function AdminProductsPage() {
       active: p.active,
       tags: (p.tags || []).join(", "),
     });
+    setProductIdManuallyEdited(true);
     setSelectedId(p.id);
     setViewMode("editor");
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const resetForm = () => {
-    setDraft(EMPTY_DRAFT);
+    setDraft({ ...EMPTY_DRAFT, id: nextGeneratedProductId });
+    setProductIdManuallyEdited(false);
     setSelectedId(null);
   };
 
@@ -156,11 +239,14 @@ function AdminProductsPage() {
 
     setSaving(true);
 
+    const selectedCategory = categoryBySlug.get(draft.cat.trim());
+
     const payload = {
       id: draft.id.trim(),
       name: draft.name.trim(),
       brand: draft.brand.trim(),
       cat: draft.cat.trim(),
+      category_id: selectedCategory?.id ?? null,
       price: Number(draft.price) || 0,
       was: draft.was === "" ? null : Math.max(Number(draft.was), 0),
       stock: draft.stock.trim(),
@@ -350,7 +436,7 @@ function AdminProductsPage() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by id, name, brand"
+                    placeholder="Search by id, name, brand, category"
                     style={searchInputStyle}
                   />
                 </div>
@@ -380,19 +466,26 @@ function AdminProductsPage() {
                   onClick={() => setStatusFilter("archived")}
                   label={`Archived (${rows.filter((r) => !r.active).length})`}
                 />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Category</span>
+                  <CustomSelect
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    options={listCategoryFilterOptions}
+                    style={filterSelectTriggerStyle}
+                  />
+                </div>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Rows</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    style={{ ...inputStyle, width: 80, padding: "6px 8px", fontSize: 12 }}
-                  >
-                    {PAGE_SIZE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                  <CustomSelect
+                    value={String(pageSize)}
+                    onChange={(v) => setPageSize(Number(v))}
+                    options={PAGE_SIZE_OPTIONS.map((option) => ({
+                      value: String(option),
+                      label: String(option),
+                    }))}
+                    style={compactSelectTriggerStyle}
+                  />
                 </div>
               </div>
 
@@ -465,6 +558,7 @@ function AdminProductsPage() {
                         </th>
                         <th style={thStyle}>ID</th>
                         <th style={thStyle}>Name</th>
+                        <th style={thStyle}>Category</th>
                         <th style={thStyle}>Price</th>
                         <th style={thStyle}>Status</th>
                         <th style={thStyle}>Actions</th>
@@ -493,6 +587,7 @@ function AdminProductsPage() {
                               {p.brand || "-"}
                             </div>
                           </td>
+                          <td style={tdStyle}>{categoryBySlug.get(p.cat)?.name || p.cat}</td>
                           <td style={tdStyle}>Rs {p.price.toLocaleString()}</td>
                           <td style={tdStyle}>
                             <span
@@ -592,12 +687,24 @@ function AdminProductsPage() {
               </p>
               <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
                 <Field label="Product ID">
-                  <input
-                    value={draft.id}
-                    onChange={(e) => setDraft((d) => ({ ...d, id: e.target.value }))}
-                    placeholder="p32"
-                    style={inputStyle}
-                  />
+                  <>
+                    <input
+                      value={draft.id}
+                      onChange={(e) => {
+                        setProductIdManuallyEdited(true);
+                        setDraft((d) => ({ ...d, id: e.target.value }));
+                      }}
+                      placeholder="Auto-generated from selected category"
+                      style={inputStyle}
+                    />
+                    <span style={fieldHintStyle}>
+                      {selectedId
+                        ? `Existing product ID. Category prefix for ${activeCategory?.name || draft.cat} is ${activeCategoryPrefix}.`
+                        : productIdManuallyEdited
+                          ? `Manual override active. Suggested next ID for ${activeCategory?.name || draft.cat}: ${nextGeneratedProductId}.`
+                          : `Next ID for ${activeCategory?.name || draft.cat}: ${nextGeneratedProductId} (${activeCategoryPrefix} prefix).`}
+                    </span>
+                  </>
                 </Field>
                 <Field label="Name">
                   <input
@@ -615,30 +722,28 @@ function AdminProductsPage() {
                 </Field>
                 <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
                   <Field label="Category">
-                    <select
+                    <CustomSelect
                       value={draft.cat}
-                      onChange={(e) => setDraft((d) => ({ ...d, cat: e.target.value }))}
-                      style={inputStyle}
-                    >
-                      {CATEGORY_OPTIONS.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) =>
+                        setDraft((d) => ({
+                          ...d,
+                          cat: value,
+                          id: selectedId || productIdManuallyEdited ? d.id : nextGeneratedProductId,
+                        }))
+                      }
+                      options={categoryOptions.map((cat) => ({ value: cat.id, label: cat.label }))}
+                      placeholder="Select a category"
+                      style={selectTriggerStyle}
+                    />
                   </Field>
                   <Field label="Stock">
-                    <select
+                    <CustomSelect
                       value={draft.stock}
-                      onChange={(e) => setDraft((d) => ({ ...d, stock: e.target.value }))}
-                      style={inputStyle}
-                    >
-                      {STOCK_OPTIONS.map((stock) => (
-                        <option key={stock} value={stock}>
-                          {stock}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(value) => setDraft((d) => ({ ...d, stock: value }))}
+                      options={STOCK_OPTIONS.map((stock) => ({ value: stock, label: stock }))}
+                      placeholder="Select stock state"
+                      style={selectTriggerStyle}
+                    />
                   </Field>
                 </div>
                 <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr" }}>
@@ -867,6 +972,90 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+function CustomSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  style,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  placeholder?: string;
+  style?: CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  const active = options.find((opt) => opt.value === value);
+
+  return (
+    <div ref={rootRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          ...style,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          cursor: "pointer",
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {active?.label || placeholder || "Select"}
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            transition: "transform .16s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          {Icons.chevD}
+        </span>
+      </button>
+
+      {open && (
+        <div role="listbox" style={selectMenuStyle}>
+          {options.map((opt) => {
+            const isActive = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                style={{ ...selectOptionStyle, ...(isActive ? activeSelectOptionStyle : {}) }}
+              >
+                <span>{opt.label}</span>
+                {isActive && <span>{Icons.check}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const cardStyle: CSSProperties = {
   background: "var(--card)",
   border: "1px solid var(--line)",
@@ -900,6 +1089,81 @@ const inputStyle: CSSProperties = {
   background: "var(--bg-elev)",
   color: "var(--ink)",
   fontFamily: "inherit",
+};
+
+const baseSelectTriggerStyle: CSSProperties = {
+  ...inputStyle,
+  boxSizing: "border-box",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  textAlign: "left",
+  lineHeight: 1.2,
+};
+
+const selectTriggerStyle: CSSProperties = {
+  ...baseSelectTriggerStyle,
+  minHeight: 38,
+};
+
+const compactSelectTriggerStyle: CSSProperties = {
+  ...baseSelectTriggerStyle,
+  width: 80,
+  padding: "6px 8px",
+  fontSize: 12,
+  minHeight: 32,
+};
+
+const filterSelectTriggerStyle: CSSProperties = {
+  ...baseSelectTriggerStyle,
+  width: 190,
+  padding: "6px 10px",
+  fontSize: 12,
+  minHeight: 32,
+};
+
+const fieldHintStyle: CSSProperties = {
+  fontSize: 11.5,
+  color: "var(--ink-4)",
+  lineHeight: 1.45,
+};
+
+const selectMenuStyle: CSSProperties = {
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  left: 0,
+  right: 0,
+  maxHeight: 280,
+  overflowY: "auto",
+  background: "var(--card)",
+  border: "1px solid var(--line)",
+  borderRadius: 10,
+  boxShadow: "var(--shadow-lg)",
+  zIndex: 80,
+  padding: 6,
+};
+
+const selectOptionStyle: CSSProperties = {
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  color: "var(--ink)",
+  textAlign: "left",
+  fontSize: 13,
+  fontFamily: "inherit",
+  padding: "8px 10px",
+  borderRadius: 8,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  cursor: "pointer",
+};
+
+const activeSelectOptionStyle: CSSProperties = {
+  background: "var(--pill-info-bg)",
+  color: "var(--blue-700)",
+  fontWeight: 700,
 };
 
 const thStyle: CSSProperties = {

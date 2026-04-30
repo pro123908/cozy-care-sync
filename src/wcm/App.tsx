@@ -168,13 +168,13 @@ function Header({
         const name = p.name.toLowerCase();
         const brand = p.brand.toLowerCase();
         const blurb = p.blurb.toLowerCase();
-        const cat = p.cat.toLowerCase();
+        const category = (p.category_name || p.cat).toLowerCase();
         let score = 0;
         if (name.startsWith(q)) score += 8;
         if (name.includes(q)) score += 5;
         if (brand.startsWith(q)) score += 4;
         if (brand.includes(q)) score += 2;
-        if (cat.includes(q)) score += 2;
+        if (category.includes(q)) score += 2;
         if (blurb.includes(q)) score += 1;
         return { p, score };
       })
@@ -441,7 +441,7 @@ function Header({
                             {highlightText(p.name, search)}
                           </div>
                           <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
-                            {highlightText(p.brand, search)} &middot; {p.cat}
+                            {highlightText(p.brand, search)} &middot; {p.category_name || p.cat}
                           </div>
                         </div>
                         <div

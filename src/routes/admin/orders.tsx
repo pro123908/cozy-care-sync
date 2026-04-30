@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,10 +39,22 @@ function AdminOrdersPage() {
     "all",
   );
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingBulk, setDeletingBulk] = useState(false);
+  const [updatingBulk, setUpdatingBulk] = useState(false);
   const [page, setPage] = useState(1);
   const [activeOrder, setActiveOrder] = useState<OrderRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pendingStatus, setPendingStatus] = useState<{
     id: string;
+    nextStatus: string;
+  } | null>(null);
+  const [pendingDeleteOrder, setPendingDeleteOrder] = useState<{
+    id: string;
+    orderCode: string;
+  } | null>(null);
+  const [pendingBulkDelete, setPendingBulkDelete] = useState<number | null>(null);
+  const [pendingBulkStatus, setPendingBulkStatus] = useState<{
+    count: number;
     nextStatus: string;
   } | null>(null);
 
@@ -102,6 +114,25 @@ function AdminOrdersPage() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => filtered.some((row) => row.id === id)));
+  }, [filtered]);
+
+  const selectedCountOnPage = pageRows.filter((row) => selectedIds.includes(row.id)).length;
+  const allOnPageSelected = pageRows.length > 0 && selectedCountOnPage === pageRows.length;
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const togglePageSelection = () => {
+    if (allOnPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageRows.some((row) => row.id === id)));
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...pageRows.map((row) => row.id)])));
+  };
+
   const patchOrder = async (id: string, nextStatus: string) => {
     const selected = STATUS_OPTIONS.find((s) => s.status === nextStatus);
     if (!selected) return;
@@ -139,6 +170,79 @@ function AdminOrdersPage() {
         : prev,
     );
     push("Order updated");
+  };
+
+  const deleteOrder = async (id: string) => {
+    setSavingId(id);
+    const { error } = await supabase.from("orders").delete().eq("id", id);
+    setSavingId(null);
+
+    if (error) {
+      push("Failed to delete order");
+      return;
+    }
+
+    setRows((prev) => prev.filter((r) => r.id !== id));
+    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setActiveOrder((prev) => (prev?.id === id ? null : prev));
+    push("Order deleted");
+  };
+
+  const deleteOrders = async (ids: string[]) => {
+    if (ids.length === 0) return;
+
+    setDeletingBulk(true);
+    const { error } = await supabase.from("orders").delete().in("id", ids);
+    setDeletingBulk(false);
+
+    if (error) {
+      push("Failed to delete selected orders");
+      return;
+    }
+
+    setRows((prev) => prev.filter((row) => !ids.includes(row.id)));
+    setSelectedIds([]);
+    setActiveOrder((prev) => (prev && ids.includes(prev.id) ? null : prev));
+    push(ids.length === 1 ? "Order deleted" : `${ids.length} orders deleted`);
+  };
+
+  const patchOrders = async (ids: string[], nextStatus: string) => {
+    const selected = STATUS_OPTIONS.find((s) => s.status === nextStatus);
+    if (!selected || ids.length === 0) return;
+
+    setUpdatingBulk(true);
+    const { error } = await supabase
+      .from("orders")
+      .update({ status: selected.status, progress: selected.progress })
+      .in("id", ids);
+    setUpdatingBulk(false);
+
+    if (error) {
+      push("Failed to update selected orders");
+      return;
+    }
+
+    setRows((prev) =>
+      prev.map((row) =>
+        ids.includes(row.id)
+          ? {
+              ...row,
+              status: selected.status,
+              progress: selected.progress,
+            }
+          : row,
+      ),
+    );
+    setActiveOrder((prev) =>
+      prev && ids.includes(prev.id)
+        ? {
+            ...prev,
+            status: selected.status,
+            progress: selected.progress,
+          }
+        : prev,
+    );
+    push(ids.length === 1 ? "Order updated" : `${ids.length} orders updated`);
   };
 
   const statusTarget =
@@ -232,6 +336,40 @@ function AdminOrdersPage() {
             ))}
           </div>
 
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <BulkStatusMenu
+              disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
+              busy={updatingBulk}
+              options={STATUS_OPTIONS}
+              onChoose={(status) =>
+                setPendingBulkStatus({ count: selectedIds.length, nextStatus: status })
+              }
+            />
+            <button
+              onClick={() => setPendingBulkDelete(selectedIds.length)}
+              disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
+              style={{
+                ...miniDangerBtnStyle,
+                opacity: selectedIds.length && !deletingBulk && !updatingBulk ? 1 : 0.6,
+              }}
+            >
+              {deletingBulk ? "Deleting..." : `Delete selected (${selectedIds.length})`}
+            </button>
+            {selectedIds.length > 0 && (
+              <button onClick={() => setSelectedIds([])} style={miniBtnStyle}>
+                Clear selection
+              </button>
+            )}
+          </div>
+
           <div style={{ marginTop: 10, color: "var(--ink-4)", fontSize: 12 }}>
             Showing {filtered.length === 0 ? 0 : pageStart + 1}-
             {Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
@@ -253,6 +391,13 @@ function AdminOrdersPage() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: "var(--bg-elev)", color: "var(--ink-3)" }}>
+                    <th style={thStyle}>
+                      <input
+                        type="checkbox"
+                        checked={allOnPageSelected}
+                        onChange={togglePageSelection}
+                      />
+                    </th>
                     <th style={thStyle}>Order</th>
                     <th style={thStyle}>User</th>
                     <th style={thStyle}>Amount</th>
@@ -264,6 +409,13 @@ function AdminOrdersPage() {
                 <tbody>
                   {pageRows.map((o) => (
                     <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
+                      <td style={tdStyle}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(o.id)}
+                          onChange={() => toggleSelect(o.id)}
+                        />
+                      </td>
                       <td style={tdStyle}>{o.order_code}</td>
                       <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
                       <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
@@ -275,9 +427,19 @@ function AdminOrdersPage() {
                       </td>
                       <td style={tdStyle}>{new Date(o.created_at).toLocaleString()}</td>
                       <td style={tdStyle}>
-                        <button onClick={() => setActiveOrder(o)} style={miniBtnStyle}>
-                          View details
-                        </button>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <button onClick={() => setActiveOrder(o)} style={miniBtnStyle}>
+                            View details
+                          </button>
+                          <button
+                            onClick={() =>
+                              setPendingDeleteOrder({ id: o.id, orderCode: o.order_code })
+                            }
+                            style={miniDangerBtnStyle}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -329,12 +491,49 @@ function AdminOrdersPage() {
         />
       )}
 
+      {pendingDeleteOrder && (
+        <ConfirmDialog
+          title="Delete order"
+          body={`Permanently delete ${pendingDeleteOrder.orderCode}? This removes it from the orders table and cannot be undone.`}
+          onCancel={() => setPendingDeleteOrder(null)}
+          onConfirm={async () => {
+            await deleteOrder(pendingDeleteOrder.id);
+            setPendingDeleteOrder(null);
+          }}
+        />
+      )}
+
+      {pendingBulkDelete !== null && (
+        <ConfirmDialog
+          title="Delete selected orders"
+          body={`Permanently delete ${pendingBulkDelete} selected order(s)? This removes them from the orders table and cannot be undone.`}
+          onCancel={() => setPendingBulkDelete(null)}
+          onConfirm={async () => {
+            await deleteOrders(selectedIds);
+            setPendingBulkDelete(null);
+          }}
+        />
+      )}
+
+      {pendingBulkStatus && (
+        <ConfirmDialog
+          title="Update selected orders"
+          body={`Change ${pendingBulkStatus.count} selected order(s) to ${pendingBulkStatus.nextStatus}?`}
+          onCancel={() => setPendingBulkStatus(null)}
+          onConfirm={async () => {
+            await patchOrders(selectedIds, pendingBulkStatus.nextStatus);
+            setPendingBulkStatus(null);
+          }}
+        />
+      )}
+
       {activeOrder && (
         <OrderDetailsModal
           order={activeOrder}
           savingId={savingId}
           onClose={() => setActiveOrder(null)}
           onChangeStatus={(id, nextStatus) => setPendingStatus({ id, nextStatus })}
+          onDelete={(id, orderCode) => setPendingDeleteOrder({ id, orderCode })}
         />
       )}
     </AdminGate>
@@ -372,6 +571,72 @@ function ConfirmDialog({
   );
 }
 
+function BulkStatusMenu({
+  disabled,
+  busy,
+  options,
+  onChoose,
+}: {
+  disabled: boolean;
+  busy: boolean;
+  options: StatusOption[];
+  onChoose: (status: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        disabled={disabled}
+        style={{
+          ...miniBtnStyle,
+          opacity: disabled ? 0.6 : 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          minWidth: 148,
+          justifyContent: "space-between",
+        }}
+      >
+        <span>{busy ? "Updating..." : "Bulk status"}</span>
+        <span style={{ fontSize: 10, opacity: 0.7 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && !disabled && (
+        <div style={bulkMenuStyle}>
+          {options.map((option) => (
+            <button
+              key={option.status}
+              type="button"
+              onClick={() => {
+                onChoose(option.status);
+                setOpen(false);
+              }}
+              style={bulkMenuItemStyle}
+            >
+              {option.status}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
     "Order placed": { bg: "var(--pill-info-bg)", color: "var(--pill-info-fg)" },
@@ -404,11 +669,13 @@ function OrderDetailsModal({
   savingId,
   onClose,
   onChangeStatus,
+  onDelete,
 }: {
   order: OrderRow;
   savingId: string | null;
   onClose: () => void;
   onChangeStatus: (id: string, nextStatus: string) => void;
+  onDelete: (id: string, orderCode: string) => void;
 }) {
   const items = Array.isArray(order.items) ? order.items : [];
   const isSaving = savingId === order.id;
@@ -458,9 +725,18 @@ function OrderDetailsModal({
               {order.order_code}
             </h3>
           </div>
-          <button onClick={onClose} style={{ ...miniBtnStyle, flexShrink: 0 }}>
-            ✕ Close
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => onDelete(order.id, order.order_code)}
+              style={miniDangerBtnStyle}
+              disabled={isSaving}
+            >
+              Delete order
+            </button>
+            <button onClick={onClose} style={{ ...miniBtnStyle, flexShrink: 0 }}>
+              ✕ Close
+            </button>
+          </div>
         </div>
 
         {/* Order meta */}
@@ -666,6 +942,33 @@ const miniDangerBtnStyle: CSSProperties = {
   ...miniBtnStyle,
   border: "1px solid var(--pill-rose-fg)",
   color: "var(--pill-rose-fg)",
+};
+
+const bulkMenuStyle: CSSProperties = {
+  position: "absolute",
+  top: "calc(100% + 6px)",
+  left: 0,
+  minWidth: 180,
+  background: "var(--card)",
+  border: "1px solid var(--line)",
+  borderRadius: 12,
+  boxShadow: "var(--shadow-lg)",
+  padding: 6,
+  zIndex: 50,
+};
+
+const bulkMenuItemStyle: CSSProperties = {
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  color: "var(--ink)",
+  textAlign: "left",
+  fontFamily: "inherit",
+  fontSize: 12,
+  fontWeight: 700,
+  padding: "8px 10px",
+  borderRadius: 8,
+  cursor: "pointer",
 };
 
 const overlayStyle: CSSProperties = {
