@@ -385,12 +385,15 @@
 /* Toast container */
 .wcm-toast-wrap {
   position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 24px;
+  right: 24px;
+  bottom: auto;
+  left: auto;
+  transform: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 10px;
   z-index: 120;
   pointer-events: none;
 }
@@ -442,9 +445,13 @@
   .wcm-hero-title {
     font-size: 26px;
   }
-  /* Toast above bottom nav */
+  /* Toast below header on mobile */
   .wcm-toast-wrap {
-    bottom: 72px;
+    top: 72px;
+    right: 12px;
+    left: 12px;
+    bottom: auto;
+    align-items: stretch;
   }
 }
 

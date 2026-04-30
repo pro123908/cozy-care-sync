@@ -36,6 +36,7 @@ function AppLayout() {
     setSuccessOrder,
     push,
     Toaster,
+    products,
   } = useWcm();
 
   const navigate = useNavigate();
@@ -76,6 +77,7 @@ function AppLayout() {
         <CartDrawer
           open={cartOpen}
           cart={cart}
+          products={products}
           setCart={setCart}
           onClose={() => setCartOpen(false)}
           onCheckout={goCheckout}

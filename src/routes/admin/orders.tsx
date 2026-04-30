@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
@@ -59,6 +59,7 @@ function AdminOrdersPage() {
   } | null>(null);
 
   const loadOrders = async () => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -138,6 +139,7 @@ function AdminOrdersPage() {
     if (!selected) return;
 
     setSavingId(id);
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from("orders")
       .update({ status: selected.status, progress: selected.progress })
@@ -174,6 +176,7 @@ function AdminOrdersPage() {
 
   const deleteOrder = async (id: string) => {
     setSavingId(id);
+    const supabase = await getSupabase();
     const { error } = await supabase.from("orders").delete().eq("id", id);
     setSavingId(null);
 
@@ -192,6 +195,7 @@ function AdminOrdersPage() {
     if (ids.length === 0) return;
 
     setDeletingBulk(true);
+    const supabase = await getSupabase();
     const { error } = await supabase.from("orders").delete().in("id", ids);
     setDeletingBulk(false);
 
@@ -211,6 +215,7 @@ function AdminOrdersPage() {
     if (!selected || ids.length === 0) return;
 
     setUpdatingBulk(true);
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from("orders")
       .update({ status: selected.status, progress: selected.progress })
@@ -679,6 +684,8 @@ function OrderDetailsModal({
 }) {
   const items = Array.isArray(order.items) ? order.items : [];
   const isSaving = savingId === order.id;
+  const { products } = useWcm();
+  const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   return (
     <div style={overlayStyle} onClick={onClose}>
@@ -760,32 +767,69 @@ function OrderDetailsModal({
                 No items recorded.
               </div>
             ) : (
-              items.map((item: any, idx: number) => (
-                <div
-                  key={`${item.id || "item"}-${idx}`}
-                  style={{
-                    padding: "10px 14px",
-                    borderTop: idx === 0 ? "none" : "1px solid var(--line)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 10,
-                    fontSize: 13,
-                  }}
-                >
-                  <span style={{ color: "var(--ink)", fontWeight: 600 }}>
-                    {item.name || item.id || "Item"}
-                  </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                    {item.price != null && (
-                      <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>
-                        Rs {Number(item.price).toLocaleString()}
+              items.map((item: any, idx: number) => {
+                const prod = productMap.get(item.id);
+                const imgUrl = prod?.image_url || item.image_url;
+                return (
+                  <div
+                    key={`${item.id || "item"}-${idx}`}
+                    style={{
+                      padding: "10px 14px",
+                      borderTop: idx === 0 ? "none" : "1px solid var(--line)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                      fontSize: 13,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 8,
+                          overflow: "hidden",
+                          flexShrink: 0,
+                          background: "var(--bg-elev)",
+                          border: "1px solid var(--line)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {imgUrl ? (
+                          <img
+                            src={imgUrl}
+                            alt={item.name || item.id}
+                            loading="lazy"
+                            decoding="async"
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                            }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: 16, color: "var(--ink-4)" }}>📦</span>
+                        )}
+                      </div>
+                      <span style={{ color: "var(--ink)", fontWeight: 600, minWidth: 0 }}>
+                        {item.name || item.id || "Item"}
                       </span>
-                    )}
-                    <span style={{ color: "var(--ink-4)" }}>× {item.qty || 1}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                      {item.price != null && (
+                        <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>
+                          Rs {Number(item.price).toLocaleString()}
+                        </span>
+                      )}
+                      <span style={{ color: "var(--ink-4)" }}>× {item.qty || 1}</span>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

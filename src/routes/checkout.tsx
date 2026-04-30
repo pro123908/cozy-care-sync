@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
 import { useWcm } from "@/wcm/context";
 import { type Order } from "@/wcm/data";
@@ -22,6 +22,7 @@ function CheckoutPage() {
   const navigate = useNavigate();
 
   const placeOrder = async (data: PlacedOrderData) => {
+    const supabase = await getSupabase();
     const {
       data: { session },
     } = await supabase.auth.getSession();

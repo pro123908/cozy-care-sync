@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
 
 const ProductsPage = lazy(() =>
@@ -7,6 +7,9 @@ const ProductsPage = lazy(() =>
 );
 
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    category: typeof search.category === "string" ? search.category : "all",
+  }),
   component: IndexPage,
   head: () => ({
     meta: [
@@ -23,6 +26,7 @@ export const Route = createFileRoute("/")({
 function IndexPage() {
   const { addToCart, cart } = useWcm();
   const navigate = useNavigate();
+  const { category } = useSearch({ from: "/" });
   return (
     <Suspense
       fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading products…</div>}
@@ -30,6 +34,10 @@ function IndexPage() {
       <ProductsPage
         addToCart={addToCart}
         cart={cart}
+        category={category}
+        onCategoryChange={(cat) =>
+          navigate({ to: "/", search: { category: cat === "all" ? undefined : cat } })
+        }
         openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
         goTo={(pg: string) => navigate({ to: pg === "orders" ? "/orders" : "/" })}
       />

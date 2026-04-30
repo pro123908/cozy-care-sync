@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties, ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { AdminGate } from "@/wcm/admin-access";
 import { Btn } from "@/wcm/ui";
@@ -91,6 +91,7 @@ function AdminProductsPage() {
   } | null>(null);
 
   const loadProducts = async () => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("products")
       .select("*")
@@ -107,6 +108,7 @@ function AdminProductsPage() {
   };
 
   const loadCategories = async () => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("categories")
       .select("id, name, slug, sort_order, created_at")
@@ -276,6 +278,7 @@ function AdminProductsPage() {
       updated_at: new Date().toISOString(),
     };
 
+    const supabase = await getSupabase();
     const { error } = await supabase.from("products").upsert(payload);
 
     setSaving(false);
@@ -293,6 +296,7 @@ function AdminProductsPage() {
   };
 
   const archiveProduct = async (id: string) => {
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from("products")
       .update({ active: false, updated_at: new Date().toISOString() })
@@ -309,6 +313,7 @@ function AdminProductsPage() {
   };
 
   const setProductActive = async (ids: string[], active: boolean) => {
+    const supabase = await getSupabase();
     const { error } = await supabase
       .from("products")
       .update({ active, updated_at: new Date().toISOString() })
@@ -614,9 +619,44 @@ function AdminProductsPage() {
                           </td>
                           <td style={tdStyle}>{p.id}</td>
                           <td style={tdStyle}>
-                            <div style={{ fontWeight: 700 }}>{p.name}</div>
-                            <div style={{ color: "var(--ink-4)", fontSize: 12 }}>
-                              {p.brand || "-"}
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <div
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 8,
+                                  overflow: "hidden",
+                                  flexShrink: 0,
+                                  background: "var(--bg-elev)",
+                                  border: "1px solid var(--line)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                {p.image_url ? (
+                                  <img
+                                    src={p.image_url}
+                                    alt={p.name}
+                                    loading="lazy"
+                                    decoding="async"
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                      display: "block",
+                                    }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: 18, color: "var(--ink-4)" }}>📦</span>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 700 }}>{p.name}</div>
+                                <div style={{ color: "var(--ink-4)", fontSize: 12 }}>
+                                  {p.brand || "-"}
+                                </div>
+                              </div>
                             </div>
                           </td>
                           <td style={tdStyle}>{categoryBySlug.get(p.cat)?.name || p.cat}</td>
@@ -877,6 +917,8 @@ function AdminProductsPage() {
                       <img
                         src={draft.image_url}
                         alt="Product preview"
+                        loading="lazy"
+                        decoding="async"
                         style={{
                           width: "100%",
                           height: 140,

@@ -28,19 +28,22 @@ export type PlacedOrderData = CheckoutData & {
 export function CartDrawer({
   open,
   cart,
+  products: liveProducts,
   setCart,
   onClose,
   onCheckout,
 }: {
   open: boolean;
   cart: CartLine[];
+  products?: Product[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
   onClose: () => void;
   onCheckout: (items: CartItem[], subtotal: number, shipping: number, total: number) => void;
 }) {
   if (!open) return null;
+  const catalog = liveProducts && liveProducts.length > 0 ? liveProducts : PRODUCTS;
   const items: CartItem[] = cart
-    .map((c) => ({ ...c, p: PRODUCTS.find((p) => p.id === c.id) as Product }))
+    .map((c) => ({ ...c, p: catalog.find((p) => p.id === c.id) as Product }))
     .filter((x) => x.p);
   const subtotal = items.reduce((s, x) => s + x.p.price * x.qty, 0);
   const shipping = subtotal === 0 ? 0 : subtotal >= 2000 ? 0 : 250;

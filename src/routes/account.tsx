@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
@@ -27,6 +27,7 @@ function AccountPage() {
     if (!firstName.trim()) return;
     setSaving(true);
     try {
+      const supabase = await getSupabase();
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -53,6 +54,7 @@ function AccountPage() {
   };
 
   const sendPasswordReset = async () => {
+    const supabase = await getSupabase();
     const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
       redirectTo: `${window.location.origin}/`,
     });

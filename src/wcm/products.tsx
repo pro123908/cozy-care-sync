@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { CATEGORIES, PKR, type Product } from "./data";
 import { Icons } from "./icons";
-import { ProductImage, Stars, Pill, Btn, Section } from "./ui";
+import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm } from "./context";
 import type { CartLine } from "./context";
 
@@ -623,20 +623,29 @@ export function ProductsPage({
   openProduct,
   cart,
   goTo,
+  category,
+  onCategoryChange,
 }: {
   addToCart: (p: Product) => void;
   openProduct: (p: Product) => void;
   cart: CartLine[];
   goTo: (p: "products" | "orders") => void;
+  category?: string;
+  onCategoryChange?: (cat: string) => void;
 }) {
   const { products, productsLoaded } = useWcm();
-  const [active, setActive] = useState("all");
+  const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [gridKey, setGridKey] = useState(0);
   const listingTopRef = useRef<HTMLDivElement | null>(null);
   const hasMountedPaginationRef = useRef(false);
+
+  // Sync active category when URL param changes (e.g. browser back/forward)
+  useEffect(() => {
+    setActive(category ?? "all");
+  }, [category]);
 
   const filtered = useMemo(() => {
     let arr: Product[] = products;
@@ -686,6 +695,7 @@ export function ProductsPage({
           setActive={(v) => {
             setActive(v);
             setGridKey((k) => k + 1);
+            onCategoryChange?.(v);
           }}
         />
         {/* Row 2: In stock only, item count, sort */}
@@ -959,32 +969,19 @@ export function ProductDetail({
             }}
           >
             {activeImageSrc ? (
-              <div
-                style={{
-                  position: "relative",
+              <ProductPhoto
+                src={activeImageSrc}
+                alt={product.name}
+                loading="eager"
+                containerStyle={{
                   width: "100%",
                   aspectRatio: "1/1",
-                  overflow: "hidden",
                   borderRadius: 12,
                   border: "1px solid var(--line)",
                   background: "var(--bg-elev)",
                 }}
-              >
-                <img
-                  src={activeImageSrc}
-                  alt={product.name}
-                  loading="lazy"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    objectPosition: "center center",
-                    display: "block",
-                    transition: "transform .25s ease",
-                    transform: "scale(1)",
-                  }}
-                />
-              </div>
+                imgStyle={{ objectPosition: "center center" }}
+              />
             ) : (
               <ProductImage product={product} />
             )}
@@ -1023,11 +1020,10 @@ export function ProductDetail({
                       : {}),
                   }}
                 >
-                  <img
+                  <ProductPhoto
                     src={detailImages[i]}
                     alt={`${product.name} thumbnail ${i + 1}`}
-                    loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    containerStyle={{ width: "100%", height: "100%" }}
                   />
                 </button>
               ))}
@@ -1259,11 +1255,10 @@ export function ProductDetail({
                       : {}),
                   }}
                 >
-                  <img
+                  <ProductPhoto
                     src={detailImages[i]}
                     alt={`${product.name} thumbnail ${i + 1}`}
-                    loading="lazy"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    containerStyle={{ width: "100%", height: "100%" }}
                   />
                 </button>
               ))}

@@ -7,10 +7,30 @@ import React, {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { useToasts } from "./ui";
 import type { WcmUser } from "./auth";
 import { PRODUCTS, type Product, type Order } from "./data";
+
+type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
+  categories?: { name?: string | null } | null;
+};
+
+function scheduleIdleTask(task: () => void) {
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+
+  if (typeof idleWindow.requestIdleCallback === "function") {
+    const handle = idleWindow.requestIdleCallback(task, { timeout: 1500 });
+    return () => idleWindow.cancelIdleCallback?.(handle);
+  }
+
+  const handle = window.setTimeout(task, 200);
+  return () => window.clearTimeout(handle);
+}
 
 export type CartLine = { id: string; qty: number };
 export type CheckoutState = { items: any[]; subtotal: number; shipping: number; total: number };
@@ -125,6 +145,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const { push, Toaster } = useToasts();
 
   const loadOrders = useCallback(async (userId: string) => {
+    const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -133,7 +154,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     setOrdersLoaded(true);
     if (error || !data) return;
     setOrders(
-      data.map((r) => ({
+      data.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
         id: r.order_code,
         placed: r.placed,
         eta: r.eta,
@@ -151,15 +172,55 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      const sUser = session?.user;
-      if (!sUser) {
-        setUser(null);
-        setOrders([]);
-        setOrdersLoaded(false);
-        return;
-      }
-      setTimeout(async () => {
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    const initAuth = async () => {
+      const supabase = await getSupabase();
+      if (cancelled) return;
+
+      const { data: sub } = supabase.auth.onAuthStateChange(
+        (
+          _e: string,
+          session: {
+            user?: { id: string; email?: string | null; user_metadata?: Record<string, any> };
+          } | null,
+        ) => {
+          const sUser = session?.user;
+          if (!sUser) {
+            setUser(null);
+            setOrders([]);
+            setOrdersLoaded(false);
+            return;
+          }
+          setTimeout(async () => {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("first_name,last_name,email,role")
+              .eq("id", sUser.id)
+              .maybeSingle();
+            const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
+            const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
+            const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
+            const role =
+              (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
+            setUser({ firstName, lastName, email: sUser.email || "", initials, role });
+            loadOrders(sUser.id);
+          }, 0);
+        },
+      );
+      unsubscribe = () => {
+        sub.subscription.unsubscribe();
+      };
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (cancelled) return;
+
+      if (session?.user) {
+        const sUser = session.user;
         const { data: prof } = await supabase
           .from("profiles")
           .select("first_name,last_name,email,role")
@@ -171,31 +232,19 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         const role = (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
         setUser({ firstName, lastName, email: sUser.email || "", initials, role });
         loadOrders(sUser.id);
-      }, 0);
-    });
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const sUser = session.user;
-        supabase
-          .from("profiles")
-          .select("first_name,last_name,email,role")
-          .eq("id", sUser.id)
-          .maybeSingle()
-          .then(({ data: prof }) => {
-            const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
-            const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
-            const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
-            const role =
-              (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
-            setUser({ firstName, lastName, email: sUser.email || "", initials, role });
-            loadOrders(sUser.id);
-          });
       } else {
         setOrdersLoaded(true);
       }
+    };
+
+    const cancelSchedule = scheduleIdleTask(() => {
+      void initAuth();
     });
+
     return () => {
-      sub.subscription.unsubscribe();
+      cancelled = true;
+      cancelSchedule();
+      unsubscribe?.();
     };
   }, [loadOrders]);
 
@@ -212,6 +261,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   };
 
   const onSignOut = async () => {
+    const supabase = await getSupabase();
     await supabase.auth.signOut();
     setUser(null);
     setOrders([]);
@@ -223,34 +273,49 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
 
   // Load products from database once on mount
   useEffect(() => {
-    (supabase as any)
-      .from("products")
-      .select("*, categories(name)")
-      .eq("active", true)
-      .order("sort_order", { ascending: true })
-      .then(({ data, error }: { data: any[] | null; error: any }) => {
-        if (!error && data && data.length > 0) {
-          setProducts(
-            data.map((r) => ({
-              id: r.id,
-              name: r.name,
-              brand: r.brand,
-              cat: r.cat,
-              category_name: r.categories?.name ?? undefined,
-              price: r.price,
-              was: r.was ?? undefined,
-              rating: Number(r.rating),
-              reviews: r.reviews,
-              stock: r.stock,
-              tags: r.tags ?? [],
-              blurb: r.blurb,
-              swatch: r.swatch,
-              image_url: r.image_url ?? undefined,
-            })),
-          );
-        }
-        setProductsLoaded(true);
-      });
+    let cancelled = false;
+
+    const loadProducts = async () => {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from("products")
+        .select("*, categories(name)")
+        .eq("active", true)
+        .order("sort_order", { ascending: true });
+
+      if (cancelled) return;
+
+      if (!error && data && data.length > 0) {
+        setProducts(
+          data.map((r: ProductRecord) => ({
+            id: r.id,
+            name: r.name,
+            brand: r.brand,
+            cat: r.cat,
+            category_name: r.categories?.name ?? undefined,
+            price: r.price,
+            was: r.was ?? undefined,
+            rating: Number(r.rating),
+            reviews: r.reviews,
+            stock: r.stock,
+            tags: r.tags ?? [],
+            blurb: r.blurb,
+            swatch: r.swatch,
+            image_url: r.image_url ?? undefined,
+          })),
+        );
+      }
+      setProductsLoaded(true);
+    };
+
+    const cancelSchedule = scheduleIdleTask(() => {
+      void loadProducts();
+    });
+
+    return () => {
+      cancelled = true;
+      cancelSchedule();
+    };
   }, []);
 
   return (

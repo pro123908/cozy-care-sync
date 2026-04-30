@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
 
@@ -19,6 +19,7 @@ function OrderDetailPage() {
   const navigate = useNavigate();
 
   const onCancel = async () => {
+    const supabase = await getSupabase();
     const {
       data: { session },
     } = await supabase.auth.getSession();

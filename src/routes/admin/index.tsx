@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import { AdminGate } from "@/wcm/admin-access";
 import { useEffect, useState } from "react";
 
@@ -36,18 +36,31 @@ function AdminHomePage() {
   const [metrics, setMetrics] = useState({ products: 0, activeProducts: 0, orders: 0 });
 
   useEffect(() => {
-    Promise.all([
-      supabase.from("products").select("id", { count: "exact", head: true }),
-      supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
-      supabase.from("orders").select("id", { count: "exact", head: true }),
-    ]).then(([productsRes, activeProductsRes, ordersRes]) => {
+    let cancelled = false;
+
+    const loadMetrics = async () => {
+      const supabase = await getSupabase();
+      const [productsRes, activeProductsRes, ordersRes] = await Promise.all([
+        supabase.from("products").select("id", { count: "exact", head: true }),
+        supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
+        supabase.from("orders").select("id", { count: "exact", head: true }),
+      ]);
+
+      if (cancelled) return;
+
       setMetrics({
         products: productsRes.count || 0,
         activeProducts: activeProductsRes.count || 0,
         orders: ordersRes.count || 0,
       });
       setLoading(false);
-    });
+    };
+
+    void loadMetrics();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

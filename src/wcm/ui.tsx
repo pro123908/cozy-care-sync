@@ -1,6 +1,111 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Icons } from "./icons";
 import type { Product } from "./data";
+
+function getCloudinaryPlaceholderSrc(src: string) {
+  if (!src.includes("/image/upload/")) return null;
+
+  return src.replace("/image/upload/", "/image/upload/f_auto,q_1,w_48,e_blur:1200/");
+}
+
+type ProductPhotoProps = {
+  src: string;
+  alt: string;
+  loading?: "eager" | "lazy";
+  className?: string;
+  containerStyle?: React.CSSProperties;
+  imgStyle?: React.CSSProperties;
+  onError?: () => void;
+};
+
+export function ProductPhoto({
+  src,
+  alt,
+  loading = "lazy",
+  className,
+  containerStyle,
+  imgStyle,
+  onError,
+}: ProductPhotoProps) {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const placeholderSrc = getCloudinaryPlaceholderSrc(src);
+
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+  }, [src]);
+
+  return (
+    <div
+      className={className}
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        ...containerStyle,
+      }}
+    >
+      {placeholderSrc && !hasError && (
+        <img
+          src={placeholderSrc}
+          alt=""
+          aria-hidden="true"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            position: "absolute",
+            inset: 0,
+            filter: "blur(12px)",
+            transform: "scale(1.08)",
+            opacity: isLoaded ? 0 : 1,
+            transition: "opacity .25s ease",
+          }}
+        />
+      )}
+      {!isLoaded && !hasError && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,.08), rgba(255,255,255,.35))",
+            animation: "wcmPulse 1.4s ease-in-out infinite",
+            opacity: placeholderSrc ? 0.35 : 1,
+          }}
+        />
+      )}
+      {!hasError && (
+        <img
+          src={src}
+          alt={alt}
+          loading={loading}
+          decoding="async"
+          onLoad={() => setIsLoaded(true)}
+          onError={() => {
+            setHasError(true);
+            onError?.();
+          }}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            position: "relative",
+            zIndex: 1,
+            opacity: isLoaded ? 1 : placeholderSrc ? 0 : 0.72,
+            filter: isLoaded ? "blur(0px)" : placeholderSrc ? "blur(0px)" : "blur(18px)",
+            transform: isLoaded ? "scale(1)" : "scale(1.04)",
+            transition: "opacity .25s ease, filter .35s ease, transform .35s ease",
+            ...imgStyle,
+          }}
+        />
+      )}
+    </div>
+  );
+}
 
 export function ProductImage({ product }: { product: Product }) {
   const palettes: Record<string, [string, string, string]> = {
@@ -11,6 +116,7 @@ export function ProductImage({ product }: { product: Product }) {
     slate: ["var(--chip-2)", "var(--pill-slate-bg)", "var(--pill-slate-fg)"],
   };
   const [bg, mid, ink] = palettes[product.swatch] || palettes.emerald;
+  const [showFallback, setShowFallback] = useState(false);
   const initials = product.name
     .split(" ")
     .filter(Boolean)
@@ -19,34 +125,23 @@ export function ProductImage({ product }: { product: Product }) {
     .join("")
     .toUpperCase();
 
-  if (product.image_url) {
+  useEffect(() => {
+    setShowFallback(false);
+  }, [product.image_url]);
+
+  if (product.image_url && !showFallback) {
     return (
-      <div
-        style={{
-          position: "relative",
+      <ProductPhoto
+        src={product.image_url}
+        alt={product.name}
+        containerStyle={{
           width: "100%",
           aspectRatio: "1/1",
-          overflow: "hidden",
           borderRadius: 12,
           background: `radial-gradient(120% 100% at 20% 0%, ${bg} 0%, ${mid} 70%, ${bg} 100%)`,
         }}
-      >
-        <img
-          src={product.image_url}
-          alt={product.name}
-          loading="lazy"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-          }}
-          onError={(e) => {
-            // fall back to SVG silhouette if image fails to load
-            (e.currentTarget as HTMLImageElement).style.display = "none";
-          }}
-        />
-      </div>
+        onError={() => setShowFallback(true)}
+      />
     );
   }
 
@@ -374,6 +469,16 @@ export const Section = ({
   </div>
 );
 
+const TOAST_TONES: Record<
+  string,
+  { accent: string; bg: string; iconBg: string; icon: React.ReactNode; border: string }
+> = {
+  green: { accent: "#16a34a", bg: "#fff", iconBg: "#f0fdf4", border: "#bbf7d0", icon: Icons.check },
+  red: { accent: "#dc2626", bg: "#fff", iconBg: "#fef2f2", border: "#fecaca", icon: Icons.close },
+  blue: { accent: "#2563eb", bg: "#fff", iconBg: "#eff6ff", border: "#bfdbfe", icon: Icons.bell },
+  amber: { accent: "#d97706", bg: "#fff", iconBg: "#fffbeb", border: "#fde68a", icon: Icons.bolt },
+};
+
 type Toast = { id: string; msg: string; tone: string; icon?: React.ReactNode };
 export function useToasts() {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -381,38 +486,62 @@ export function useToasts() {
     (msg: string, opts: { tone?: string; icon?: React.ReactNode; ms?: number } = {}) => {
       const id = Math.random().toString(36).slice(2);
       setToasts((t) => [...t, { id, msg, tone: opts.tone || "green", icon: opts.icon }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), opts.ms || 2400);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), opts.ms || 3000);
     },
     [],
   );
   const Toaster = () => (
     <div className="wcm-toast-wrap">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 16px",
-            borderRadius: 99,
-            background: "var(--ink)",
-            color: "#fff",
-            boxShadow: "var(--shadow-lg)",
-            fontSize: 13,
-            fontWeight: 600,
-            animation: "toastIn .25s ease both",
-          }}
-        >
-          <span
-            style={{ color: t.tone === "green" ? "#34d399" : "#93c5fd", display: "inline-flex" }}
+      {toasts.map((t) => {
+        const cfg = TOAST_TONES[t.tone] ?? TOAST_TONES.green;
+        return (
+          <div
+            key={t.id}
+            role="alert"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "13px 18px 13px 14px",
+              borderRadius: 14,
+              background: cfg.bg,
+              color: "var(--ink)",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.10), 0 1px 6px rgba(0,0,0,0.07)",
+              border: `1px solid ${cfg.border}`,
+              borderLeft: `4px solid ${cfg.accent}`,
+              fontSize: 14,
+              fontWeight: 600,
+              animation: "toastIn .32s cubic-bezier(.22,.68,0,1.15) both",
+              minWidth: 220,
+              maxWidth: 380,
+              lineHeight: 1.45,
+            }}
           >
-            {t.icon || Icons.check}
-          </span>
-          {t.msg}
-        </div>
-      ))}
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: cfg.iconBg,
+                color: cfg.accent,
+                flexShrink: 0,
+              }}
+            >
+              {t.icon || cfg.icon}
+            </span>
+            <span style={{ flex: 1 }}>{t.msg}</span>
+          </div>
+        );
+      })}
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+          to   { opacity: 1; transform: translateY(0)     scale(1); }
+        }
+      `}</style>
     </div>
   );
   return { push, Toaster };

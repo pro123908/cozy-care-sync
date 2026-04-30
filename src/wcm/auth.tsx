@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { getSupabase } from "@/integrations/supabase/client";
 import { Icons, WellcareLogo } from "./icons";
 import { Btn, TextField } from "./ui";
 
@@ -34,6 +34,7 @@ export function AuthModal({
     }
     setLoading(true);
     try {
+      const supabase = await getSupabase();
       const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
         redirectTo: `${window.location.origin}/`,
       });
@@ -61,6 +62,7 @@ export function AuthModal({
 
     setLoading(true);
     try {
+      const supabase = await getSupabase();
       if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: form.email,

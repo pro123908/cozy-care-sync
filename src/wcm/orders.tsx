@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { PKR, type Order, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Pill, Btn, Section, Row } from "./ui";
