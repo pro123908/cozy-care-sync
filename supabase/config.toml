@@ -1,1 +1,4 @@
 project_id = "dkspvlpswpipltceptoa"
+
+[functions.whatsapp-product-import]
+verify_jwt = false

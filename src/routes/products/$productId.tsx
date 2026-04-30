@@ -23,9 +23,14 @@ export const Route = createFileRoute("/products/$productId")({
 
 function ProductPage() {
   const { productId } = Route.useParams();
-  const { addToCart, cart } = useWcm();
+  const { addToCart, cart, products, productsLoaded } = useWcm();
   const navigate = useNavigate();
-  const product = PRODUCTS.find((p) => p.id === productId);
+  const product =
+    products.find((p) => p.id === productId) || PRODUCTS.find((p) => p.id === productId);
+
+  if (!product && !productsLoaded) {
+    return <div style={{ padding: 20, color: "var(--ink-4)" }}>Loading product…</div>;
+  }
 
   if (!product) {
     return (

@@ -901,11 +901,26 @@ export function ProductDetail({
   const related = products
     .filter((p: Product) => p.cat === product.cat && p.id !== product.id)
     .slice(0, 4);
-  const thumbIndexes = [0, 1, 2, 3];
-  const imagePositions = ["center center", "25% center", "75% center", "center 25%"];
+  const detailImages = useMemo(() => {
+    const primary = product.image_url ? [product.image_url] : [];
+    const extra = Array.isArray(
+      (product as Product & { image_urls?: Array<string | null | undefined> }).image_urls,
+    )
+      ? ((product as Product & { image_urls?: Array<string | null | undefined> }).image_urls ?? [])
+      : [];
+    return Array.from(new Set([...primary, ...extra].filter((src): src is string => Boolean(src))));
+  }, [product]);
+  const hasMultipleImages = detailImages.length > 1;
+  const activeImageSrc = detailImages[activeView] ?? detailImages[0] ?? null;
+  const thumbIndexes = detailImages.map((_, i) => i);
+
+  useEffect(() => {
+    setActiveView(0);
+  }, [product.id, detailImages.length]);
 
   const cycleView = (dir: 1 | -1) => {
-    setActiveView((v) => (v + dir + thumbIndexes.length) % thumbIndexes.length);
+    if (detailImages.length <= 1) return;
+    setActiveView((v) => (v + dir + detailImages.length) % detailImages.length);
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -934,6 +949,7 @@ export function ProductDetail({
               touchStartX.current = e.changedTouches[0]?.clientX ?? null;
             }}
             onTouchEnd={(e) => {
+              if (!hasMultipleImages) return;
               const start = touchStartX.current;
               const end = e.changedTouches[0]?.clientX ?? null;
               if (start == null || end == null) return;
@@ -942,7 +958,7 @@ export function ProductDetail({
               cycleView(delta < 0 ? 1 : -1);
             }}
           >
-            {product.image_url ? (
+            {activeImageSrc ? (
               <div
                 style={{
                   position: "relative",
@@ -955,17 +971,17 @@ export function ProductDetail({
                 }}
               >
                 <img
-                  src={product.image_url}
+                  src={activeImageSrc}
                   alt={product.name}
                   loading="lazy"
                   style={{
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
-                    objectPosition: imagePositions[activeView],
+                    objectPosition: "center center",
                     display: "block",
-                    transition: "object-position .25s ease, transform .25s ease",
-                    transform: activeView % 2 === 0 ? "scale(1)" : "scale(1.03)",
+                    transition: "transform .25s ease",
+                    transform: "scale(1)",
                   }}
                 />
               </div>
@@ -973,38 +989,50 @@ export function ProductDetail({
               <ProductImage product={product} />
             )}
           </div>
-          <div
-            className="wcm-detail-thumbs-desktop"
-            style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginTop: 12 }}
-          >
-            {thumbIndexes.map((i) => (
-              <button
-                key={i}
-                onClick={() => setActiveView(i)}
-                aria-label={`Show image view ${i + 1}`}
-                style={{
-                  aspectRatio: "1/1",
-                  borderRadius: 9,
-                  border: "1px solid var(--line)",
-                  background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
-                  opacity: i === activeView ? 1 : 0.55,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--ink-4)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  ...(i === activeView
-                    ? { borderColor: "var(--blue-600)", boxShadow: "0 0 0 2px var(--pill-info-bg)" }
-                    : {}),
-                }}
-              >
-                view {i + 1}
-              </button>
-            ))}
-          </div>
+          {hasMultipleImages && (
+            <div
+              className="wcm-detail-thumbs-desktop"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(4,1fr)",
+                gap: 8,
+                marginTop: 12,
+              }}
+            >
+              {thumbIndexes.map((i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveView(i)}
+                  aria-label={`Show image ${i + 1}`}
+                  style={{
+                    aspectRatio: "1/1",
+                    borderRadius: 9,
+                    border: "1px solid var(--line)",
+                    background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
+                    opacity: i === activeView ? 1 : 0.7,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    ...(i === activeView
+                      ? {
+                          borderColor: "var(--blue-600)",
+                          boxShadow: "0 0 0 2px var(--pill-info-bg)",
+                        }
+                      : {}),
+                  }}
+                >
+                  <img
+                    src={detailImages[i]}
+                    alt={`${product.name} thumbnail ${i + 1}`}
+                    loading="lazy"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </Section>
         <div
           className="wcm-detail-info"
@@ -1202,38 +1230,45 @@ export function ProductDetail({
               {(inCart ? "Update cart" : "Add to cart") + " · " + PKR(product.price * qty)}
             </button>
           </div>
-          <div
-            className="wcm-detail-thumbs-mobile"
-            style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
-          >
-            {thumbIndexes.map((i) => (
-              <button
-                key={`mobile-thumb-${i}`}
-                onClick={() => setActiveView(i)}
-                aria-label={`Show image view ${i + 1}`}
-                style={{
-                  aspectRatio: "1/1",
-                  borderRadius: 9,
-                  border: "1px solid var(--line)",
-                  background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
-                  opacity: i === activeView ? 1 : 0.55,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--ink-4)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  ...(i === activeView
-                    ? { borderColor: "var(--blue-600)", boxShadow: "0 0 0 2px var(--pill-info-bg)" }
-                    : {}),
-                }}
-              >
-                view {i + 1}
-              </button>
-            ))}
-          </div>
+          {hasMultipleImages && (
+            <div
+              className="wcm-detail-thumbs-mobile"
+              style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
+            >
+              {thumbIndexes.map((i) => (
+                <button
+                  key={`mobile-thumb-${i}`}
+                  onClick={() => setActiveView(i)}
+                  aria-label={`Show image ${i + 1}`}
+                  style={{
+                    aspectRatio: "1/1",
+                    borderRadius: 9,
+                    border: "1px solid var(--line)",
+                    background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
+                    opacity: i === activeView ? 1 : 0.7,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    ...(i === activeView
+                      ? {
+                          borderColor: "var(--blue-600)",
+                          boxShadow: "0 0 0 2px var(--pill-info-bg)",
+                        }
+                      : {}),
+                  }}
+                >
+                  <img
+                    src={detailImages[i]}
+                    alt={`${product.name} thumbnail ${i + 1}`}
+                    loading="lazy"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
           <Section style={{ padding: 16 }}>
             <div
               style={{

@@ -32,6 +32,11 @@ const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as stri
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as
   | string
   | undefined;
+const WHATSAPP_IMPORT_TAG = "import:whatsapp";
+
+function isWhatsAppImportedProduct(product: ProductRow) {
+  return Array.isArray(product.tags) && product.tags.includes(WHATSAPP_IMPORT_TAG);
+}
 
 function getCategoryPrefix(categorySlug: string) {
   const parts = categorySlug
@@ -73,6 +78,7 @@ function AdminProductsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "whatsapp" | "manual">("all");
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
@@ -144,6 +150,10 @@ function AdminProductsPage() {
 
   const activeCategory = categoryBySlug.get(draft.cat);
   const activeCategoryPrefix = getCategoryPrefix(draft.cat || EMPTY_DRAFT.cat);
+  const whatsappImportedCount = useMemo(
+    () => rows.filter((row) => isWhatsAppImportedProduct(row)).length,
+    [rows],
+  );
 
   const nextGeneratedProductId = useMemo(() => {
     const categorySlug = draft.cat || EMPTY_DRAFT.cat;
@@ -168,11 +178,16 @@ function AdminProductsPage() {
         r.cat.toLowerCase().includes(q) ||
         (categoryBySlug.get(r.cat)?.name.toLowerCase().includes(q) ?? false);
       const matchesCategory = categoryFilter === "all" || r.cat === categoryFilter;
+      const matchesSource =
+        sourceFilter === "all" ||
+        (sourceFilter === "whatsapp"
+          ? isWhatsAppImportedProduct(r)
+          : !isWhatsAppImportedProduct(r));
       const matchesStatus =
         statusFilter === "all" || (statusFilter === "active" ? r.active : !r.active);
-      return matchesQuery && matchesCategory && matchesStatus;
+      return matchesQuery && matchesCategory && matchesSource && matchesStatus;
     });
-  }, [rows, search, categoryFilter, statusFilter, categoryBySlug]);
+  }, [rows, search, categoryFilter, sourceFilter, statusFilter, categoryBySlug]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageStart = (page - 1) * pageSize;
@@ -180,7 +195,7 @@ function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, statusFilter, pageSize]);
+  }, [search, categoryFilter, sourceFilter, statusFilter, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -475,6 +490,22 @@ function AdminProductsPage() {
                     style={filterSelectTriggerStyle}
                   />
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Source</span>
+                  <CustomSelect
+                    value={sourceFilter}
+                    onChange={(value) => setSourceFilter(value as "all" | "whatsapp" | "manual")}
+                    options={[
+                      { value: "all", label: "All sources" },
+                      { value: "whatsapp", label: `WhatsApp (${whatsappImportedCount})` },
+                      {
+                        value: "manual",
+                        label: `Manual (${rows.length - whatsappImportedCount})`,
+                      },
+                    ]}
+                    style={filterSelectTriggerStyle}
+                  />
+                </div>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Rows</span>
                   <CustomSelect
@@ -559,6 +590,7 @@ function AdminProductsPage() {
                         <th style={thStyle}>ID</th>
                         <th style={thStyle}>Name</th>
                         <th style={thStyle}>Category</th>
+                        <th style={thStyle}>Source</th>
                         <th style={thStyle}>Price</th>
                         <th style={thStyle}>Status</th>
                         <th style={thStyle}>Actions</th>
@@ -588,6 +620,25 @@ function AdminProductsPage() {
                             </div>
                           </td>
                           <td style={tdStyle}>{categoryBySlug.get(p.cat)?.name || p.cat}</td>
+                          <td style={tdStyle}>
+                            <span
+                              style={{
+                                padding: "3px 8px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: isWhatsAppImportedProduct(p)
+                                  ? "var(--pill-info-bg)"
+                                  : "var(--bg-elev)",
+                                color: isWhatsAppImportedProduct(p)
+                                  ? "var(--blue-700)"
+                                  : "var(--ink-3)",
+                                border: "1px solid var(--line)",
+                              }}
+                            >
+                              {isWhatsAppImportedProduct(p) ? "WhatsApp" : "Manual"}
+                            </span>
+                          </td>
                           <td style={tdStyle}>Rs {p.price.toLocaleString()}</td>
                           <td style={tdStyle}>
                             <span
