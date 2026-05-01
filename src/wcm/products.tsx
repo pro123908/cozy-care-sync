@@ -1,10 +1,38 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { CATEGORIES, PKR, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm } from "./context";
 import type { CartLine } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
+
+const RECENTLY_VIEWED_KEY = "wcm_recently_viewed";
+const RECENTLY_VIEWED_MAX = 12;
+
+function useRecentlyViewed() {
+  const [ids, setIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(RECENTLY_VIEWED_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const trackView = useCallback((id: string) => {
+    setIds((prev) => {
+      const next = [id, ...prev.filter((x) => x !== id)].slice(0, RECENTLY_VIEWED_MAX);
+      try {
+        localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  return { ids, trackView };
+}
 
 export function CategoryRail({
   active,
@@ -572,14 +600,11 @@ function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         className="wcm-hero-cols"
         style={{
           position: "relative",
-          display: "grid",
-          gridTemplateColumns: "1.4fr 1fr",
-          gap: 24,
-          alignItems: "center",
         }}
       >
         <div>
           <div
+            className="wcm-hero-sale"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -599,11 +624,14 @@ function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             <br />
             delivered to your door.
           </h1>
-          <p style={{ margin: 0, opacity: 0.9, fontSize: 15, maxWidth: 480, lineHeight: 1.5 }}>
+          <p
+            className="wcm-hero-lead"
+            style={{ margin: 0, opacity: 0.9, fontSize: 15, maxWidth: 480, lineHeight: 1.5 }}
+          >
             From glucometers to wheelchairs — over 30 essential home-care products from renowned
             brands. Free same-day delivery in Karachi over Rs 2,000.
           </p>
-          <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+          <div className="wcm-hero-cta" style={{ marginTop: 18 }}>
             <Btn
               variant="solid"
               onClick={() => goTo("products")}
@@ -833,6 +861,64 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
+function RecentlyViewedRail({
+  ids,
+  products,
+  cart,
+  onAdd,
+  onOpen,
+  isMobile,
+}: {
+  ids: string[];
+  products: Product[];
+  cart: CartLine[];
+  onAdd: (p: Product) => void;
+  onOpen: (p: Product) => void;
+  isMobile: boolean;
+}) {
+  const viewed = ids.map((id) => products.find((p) => p.id === id)).filter(Boolean) as Product[];
+  if (viewed.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "var(--ink-3)",
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          marginBottom: 8,
+        }}
+      >
+        Recently viewed
+      </div>
+      <div
+        className="wcm-rv-rail"
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+        }}
+      >
+        <style>{`.wcm-rv-rail::-webkit-scrollbar{display:none}`}</style>
+        {viewed.map((p) => (
+          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 140 : 170 }}>
+            <ProductCard
+              p={p}
+              onAdd={onAdd}
+              onOpen={onOpen}
+              cartQty={cart.find((c) => c.id === p.id)?.qty ?? 0}
+              compact
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ProductsPage({
   addToCart,
   openProduct,
@@ -850,6 +936,7 @@ export function ProductsPage({
 }) {
   const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
   const isMobile = useIsMobile();
+  const { ids: recentlyViewedIds } = useRecentlyViewed();
   const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -929,12 +1016,39 @@ export function ProductsPage({
     return normalized;
   }, [categories, categoriesLoaded, products]);
 
+  const hasRecentlyViewed = useMemo(() => {
+    if (!recentlyViewedIds.length) return false;
+    const productIds = new Set(products.map((product) => product.id));
+    return recentlyViewedIds.some((id) => productIds.has(id));
+  }, [recentlyViewedIds, products]);
+
   return (
     <div>
       <Hero goTo={goTo} />
       <div ref={listingTopRef} />
+      <RecentlyViewedRail
+        ids={recentlyViewedIds}
+        products={products}
+        cart={cart}
+        onAdd={addToCart}
+        onOpen={openProduct}
+        isMobile={isMobile}
+      />
+      {hasRecentlyViewed ? <div className="wcm-section-divider" /> : null}
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 6 }}>
         {/* Row 1: Category filter chips */}
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            color: "var(--ink-4)",
+            paddingInline: 2,
+          }}
+        >
+          Categories
+        </div>
         <CategoryRail
           categories={storefrontCategories}
           active={active}
@@ -1156,12 +1270,19 @@ export function ProductDetail({
   cart: CartLine[];
   openProduct: (p: Product) => void;
 }) {
-  const { products, categories, categoriesLoaded } = useWcm();
+  const { products, categories, categoriesLoaded, wishlist, toggleWishlist } = useWcm();
   const isMobile = useIsMobile();
+  const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
+
+  // Track this product as recently viewed
+  useEffect(() => {
+    trackView(product.id);
+  }, [product.id, trackView]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const inCart = cart.find((c) => c.id === product.id);
+  const isSaved = wishlist.includes(product.id);
   const cat =
     (categoriesLoaded ? categories : CATEGORIES).find((c) => c.id === product.cat)?.name ||
     product.category_name ||
@@ -1294,28 +1415,70 @@ export function ProductDetail({
           style={{ display: "flex", flexDirection: "column", gap: 14 }}
         >
           <div className="wcm-detail-head-block">
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>{cat}</span>
-              <span style={{ color: "var(--ink-4)" }}>·</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--blue-700)" }}>
-                {product.brand}
-              </span>
-              {product.tags.map((t) => (
-                <Pill
-                  key={t}
-                  tone={
-                    t === "Best seller"
-                      ? "green"
-                      : t === "Top rated"
-                        ? "blue"
-                        : t === "Deal"
-                          ? "rose"
-                          : "slate"
-                  }
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>{cat}</span>
+                <span style={{ color: "var(--ink-4)" }}>·</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--blue-700)" }}>
+                  {product.brand}
+                </span>
+                {product.tags.map((t) => (
+                  <Pill
+                    key={t}
+                    tone={
+                      t === "Best seller"
+                        ? "green"
+                        : t === "Top rated"
+                          ? "blue"
+                          : t === "Deal"
+                            ? "rose"
+                            : "slate"
+                    }
+                  >
+                    {t}
+                  </Pill>
+                ))}
+              </div>
+              <button
+                className="wcm-pdp-mobile-fav"
+                onClick={() => toggleWishlist(product.id)}
+                aria-label={isSaved ? "Remove from saved" : "Save item"}
+                title={isSaved ? "Remove from saved" : "Save item"}
+                style={{
+                  width: 34,
+                  minWidth: 34,
+                  height: 34,
+                  borderRadius: 99,
+                  border: isSaved ? "1px solid var(--pill-rose-bg)" : "1px solid var(--line)",
+                  background: isSaved ? "var(--pill-rose-bg)" : "var(--card)",
+                  color: isSaved ? "var(--pill-rose-fg)" : "var(--ink-4)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill={isSaved ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
-                  {t}
-                </Pill>
-              ))}
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
             </div>
             <h1
               style={{
@@ -1407,6 +1570,7 @@ export function ProductDetail({
           </Section>
           <div className="wcm-add-row">
             <div
+              className="wcm-add-qty"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1419,27 +1583,75 @@ export function ProductDetail({
             >
               <button
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="wcm-add-qty-btn"
                 style={qtyBtn}
                 aria-label="Decrease quantity"
               >
                 {Icons.minus}
               </button>
-              <div style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}>{qty}</div>
+              <div
+                className="wcm-add-qty-value"
+                style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}
+              >
+                {qty}
+              </div>
               <button
                 onClick={() => setQty((q) => q + 1)}
+                className="wcm-add-qty-btn"
                 style={qtyBtn}
                 aria-label="Increase quantity"
               >
                 {Icons.plus}
               </button>
             </div>
-            <Btn full size="lg" icon={Icons.cart} onClick={() => addToCart(product, qty)}>
+            <Btn
+              full
+              size="lg"
+              icon={Icons.cart}
+              onClick={() => addToCart(product, qty)}
+              style={{ minHeight: 50 }}
+            >
               {inCart ? "Update cart" : "Add to cart"} · {PKR(product.price * qty)}
             </Btn>
-            <Btn variant="outline" size="lg" icon={Icons.heart} aria-label="Favorite" />
+            <Btn
+              variant="outline"
+              size="md"
+              icon={
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill={isSaved ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              }
+              onClick={() => toggleWishlist(product.id)}
+              aria-label={isSaved ? "Remove from saved" : "Save item"}
+              title={isSaved ? "Remove from saved" : "Save item"}
+              style={{
+                width: 50,
+                minWidth: 50,
+                minHeight: 50,
+                paddingLeft: 0,
+                paddingRight: 0,
+                ...(isSaved
+                  ? {
+                      background: "var(--pill-rose-bg)",
+                      color: "var(--pill-rose-fg)",
+                      border: "1px solid var(--pill-rose-bg)",
+                    }
+                  : {}),
+              }}
+            />
           </div>
           <div className="wcm-pdp-sticky-cta">
             <div
+              className="wcm-add-qty"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1452,14 +1664,21 @@ export function ProductDetail({
             >
               <button
                 onClick={() => setQty((q) => Math.max(1, q - 1))}
+                className="wcm-add-qty-btn"
                 style={qtyBtn}
                 aria-label="Decrease quantity"
               >
                 {Icons.minus}
               </button>
-              <div style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}>{qty}</div>
+              <div
+                className="wcm-add-qty-value"
+                style={{ minWidth: 42, textAlign: "center", fontWeight: 700 }}
+              >
+                {qty}
+              </div>
               <button
                 onClick={() => setQty((q) => q + 1)}
+                className="wcm-add-qty-btn"
                 style={qtyBtn}
                 aria-label="Increase quantity"
               >
@@ -1468,6 +1687,7 @@ export function ProductDetail({
             </div>
             <button
               onClick={() => addToCart(product, qty)}
+              className="wcm-pdp-sticky-add"
               style={{
                 border: "none",
                 borderRadius: 12,

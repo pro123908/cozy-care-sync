@@ -30,7 +30,7 @@ function CheckoutPage() {
       setAuthOpen(true);
       return;
     }
-    const id = "WCM-" + (2900 + Math.floor(Math.random() * 100));
+    const id = "WCM-" + Math.random().toString(36).slice(2, 7).toUpperCase();
     const today = new Date();
     const fmt = (d: Date) =>
       d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });

@@ -7,6 +7,143 @@ const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDra
 const OrderSuccess = lazy(() => import("./orders").then((m) => ({ default: m.OrderSuccess })));
 const AuthModal = lazy(() => import("./auth").then((m) => ({ default: m.AuthModal })));
 
+function PwaInstallBanner() {
+  const [prompt, setPrompt] = useState<any>(null);
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return !!sessionStorage.getItem("wcm_pwa_dismissed");
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  if (!prompt || dismissed) return null;
+
+  const install = async () => {
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === "accepted" || outcome === "dismissed") {
+      setPrompt(null);
+    }
+  };
+
+  const dismiss = () => {
+    try {
+      sessionStorage.setItem("wcm_pwa_dismissed", "1");
+    } catch {}
+    setDismissed(true);
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "min(560px, calc(100vw - 24px))",
+        top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+        zIndex: 80,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 14,
+        border: "1px solid var(--line)",
+        background: "var(--card)",
+        boxShadow: "0 10px 26px rgba(0,0,0,0.12)",
+        animation: "fadeIn .25s ease",
+      }}
+    >
+      <style>{`@keyframes fadeIn{from{opacity:0}to{opacity:1}}`}</style>
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          background: "var(--grad)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#fff"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2v13M8 10l4 5 4-5M5 20h14" />
+        </svg>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>Add to Home Screen</div>
+        <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 1 }}>
+          Get the full app experience
+        </div>
+      </div>
+      <button
+        onClick={install}
+        style={{
+          padding: "7px 12px",
+          borderRadius: 9,
+          border: "none",
+          background: "var(--grad)",
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 700,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          flexShrink: 0,
+        }}
+      >
+        Install
+      </button>
+      <button
+        onClick={dismiss}
+        aria-label="Dismiss"
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          border: "1px solid var(--line)",
+          background: "var(--card)",
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--ink-4)",
+          flexShrink: 0,
+        }}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 export function App() {
   return (
     <WcmProvider>
@@ -71,7 +208,13 @@ function AppLayout() {
         <Outlet />
       </main>
       <Footer />
-      <BottomNav cartCount={cartCount} onCartOpen={() => setCartOpen(true)} />
+      <BottomNav
+        cartCount={cartCount}
+        cartOpen={cartOpen}
+        onCartOpen={() => setCartOpen(true)}
+        onCartClose={() => setCartOpen(false)}
+      />
+      <PwaInstallBanner />
 
       <Suspense fallback={null}>
         <CartDrawer
@@ -738,18 +881,22 @@ function NavBtn({ active, onClick, children, icon }: any) {
   );
 }
 
-function BottomNav({ cartCount, onCartOpen }: any) {
+function BottomNav({ cartCount, cartOpen, onCartOpen, onCartClose }: any) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isProducts = pathname === "/" || pathname.startsWith("/products");
-  const isOrders = pathname.startsWith("/orders");
+  const isCartActive = !!cartOpen;
+  const isProducts = !isCartActive && (pathname === "/" || pathname.startsWith("/products"));
+  const isOrders = !isCartActive && pathname.startsWith("/orders");
 
   const items = [
     {
       id: "products",
       label: "Shop",
       icon: Icons.home,
-      action: () => navigate({ to: "/" }),
+      action: () => {
+        onCartClose?.();
+        navigate({ to: "/" });
+      },
       active: isProducts,
     },
     {
@@ -758,13 +905,16 @@ function BottomNav({ cartCount, onCartOpen }: any) {
       icon: Icons.cart,
       action: onCartOpen,
       badge: cartCount,
-      active: false,
+      active: isCartActive,
     },
     {
       id: "orders",
       label: "Orders",
       icon: Icons.pkg,
-      action: () => navigate({ to: "/orders" }),
+      action: () => {
+        onCartClose?.();
+        navigate({ to: "/orders" });
+      },
       active: isOrders,
     },
   ];

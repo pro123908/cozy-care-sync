@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { PRODUCTS, PKR } from "@/wcm/data";
+import { PKR } from "@/wcm/data";
 import { ProductImage, Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 
@@ -9,9 +9,9 @@ export const Route = createFileRoute("/wishlist")({
 });
 
 function WishlistPage() {
-  const { wishlist, toggleWishlist, addToCart } = useWcm();
+  const { wishlist, toggleWishlist, addToCart, products } = useWcm();
   const navigate = useNavigate();
-  const saved = PRODUCTS.filter((p) => wishlist.includes(p.id));
+  const saved = products.filter((p) => wishlist.includes(p.id));
 
   return (
     <div

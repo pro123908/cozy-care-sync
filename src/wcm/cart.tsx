@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { PRODUCTS, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row } from "./ui";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type CartLine = { id: string; qty: number };
 type CartItem = CartLine & { p: Product };
@@ -40,6 +41,9 @@ export function CartDrawer({
   onClose: () => void;
   onCheckout: (items: CartItem[], subtotal: number, shipping: number, total: number) => void;
 }) {
+  const isMobile = useIsMobile();
+  const mobileBottomNavInset = "calc(env(safe-area-inset-bottom, 0px) + 58px)";
+
   if (!open) return null;
   const catalog = liveProducts && liveProducts.length > 0 ? liveProducts : PRODUCTS;
   const items: CartItem[] = cart
@@ -59,7 +63,10 @@ export function CartDrawer({
         onClick={onClose}
         style={{
           position: "fixed",
-          inset: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: isMobile ? mobileBottomNavInset : 0,
           background: "var(--overlay)",
           zIndex: 90,
           animation: "fadeIn .2s ease",
@@ -71,7 +78,8 @@ export function CartDrawer({
           position: "fixed",
           top: 0,
           right: 0,
-          height: "100vh",
+          bottom: isMobile ? mobileBottomNavInset : 0,
+          height: isMobile ? `calc(100vh - ${mobileBottomNavInset})` : "100vh",
           width: "30vw",
           maxWidth: "96vw",
           background: "var(--card)",
@@ -80,6 +88,7 @@ export function CartDrawer({
           flexDirection: "column",
           boxShadow: "-20px 0 60px -20px rgba(0,0,0,.3)",
           animation: "slideIn .25s ease",
+          overflow: "hidden",
         }}
       >
         <style>{`
