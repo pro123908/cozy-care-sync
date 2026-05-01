@@ -1000,6 +1000,7 @@ export function ProductsPage({
   const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [gridKey, setGridKey] = useState(0);
   const listingTopRef = useRef<HTMLDivElement | null>(null);
@@ -1082,6 +1083,19 @@ export function ProductsPage({
     return recentlyViewedIds.some((id) => productIds.has(id));
   }, [recentlyViewedIds, products]);
 
+  const hasActiveFilters = active !== "all" || inStockOnly || sort !== "popular";
+  const activeFilterCount =
+    (active !== "all" ? 1 : 0) + (inStockOnly ? 1 : 0) + (sort !== "popular" ? 1 : 0);
+
+  const clearAllFilters = () => {
+    shouldScrollToProductsRef.current = true;
+    setActive("all");
+    setInStockOnly(false);
+    setSort("popular");
+    setGridKey((k) => k + 1);
+    onCategoryChange?.("all");
+  };
+
   return (
     <div>
       <Hero goTo={goTo} />
@@ -1097,6 +1111,51 @@ export function ProductsPage({
       {hasRecentlyViewed ? <div className="wcm-section-divider" /> : null}
       <div ref={listingTopRef} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 6 }}>
+        {hasActiveFilters && (
+          <div className="wcm-active-filters">
+            <span className="wcm-active-filters-label">Active filters</span>
+            {active !== "all" && (
+              <button
+                className="wcm-filter-chip"
+                onClick={() => {
+                  shouldScrollToProductsRef.current = true;
+                  setActive("all");
+                  setGridKey((k) => k + 1);
+                  onCategoryChange?.("all");
+                }}
+              >
+                Category: {storefrontCategories.find((cat) => cat.id === active)?.name || active}
+                <span aria-hidden="true">{Icons.close}</span>
+              </button>
+            )}
+            {inStockOnly && (
+              <button
+                className="wcm-filter-chip"
+                onClick={() => {
+                  setInStockOnly(false);
+                  setGridKey((k) => k + 1);
+                }}
+              >
+                In stock only <span aria-hidden="true">{Icons.close}</span>
+              </button>
+            )}
+            {sort !== "popular" && (
+              <button
+                className="wcm-filter-chip"
+                onClick={() => {
+                  setSort("popular");
+                  setGridKey((k) => k + 1);
+                }}
+              >
+                {SORT_OPTIONS.find((opt) => opt.value === sort)?.label || "Sorted"}
+                <span aria-hidden="true">{Icons.close}</span>
+              </button>
+            )}
+            <button className="wcm-clear-filters" onClick={clearAllFilters}>
+              Clear all
+            </button>
+          </div>
+        )}
         {/* Row 1: Category filter chips */}
         <div
           style={{
@@ -1130,6 +1189,15 @@ export function ProductsPage({
             justifyContent: "flex-end",
           }}
         >
+          {isMobile && (
+            <button
+              className="wcm-mobile-filter-btn"
+              onClick={() => setMobileFiltersOpen(true)}
+              style={{ marginRight: "auto" }}
+            >
+              {Icons.filter} Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
+            </button>
+          )}
           <label
             style={{
               display: "flex",
@@ -1166,6 +1234,100 @@ export function ProductsPage({
           />
         </div>
       </div>
+
+      {isMobile && mobileFiltersOpen && (
+        <div className="wcm-filter-sheet-overlay" onClick={() => setMobileFiltersOpen(false)}>
+          <div className="wcm-filter-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="wcm-filter-sheet-head">
+              <div style={{ fontWeight: 800, fontSize: 16 }}>Filters</div>
+              <button
+                className="wcm-filter-sheet-close"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                {Icons.close}
+              </button>
+            </div>
+
+            <div className="wcm-filter-sheet-group">
+              <div className="wcm-filter-sheet-label">Category</div>
+              <div className="wcm-filter-sheet-chip-wrap">
+                {storefrontCategories.map((cat) => {
+                  const on = cat.id === active;
+                  return (
+                    <button
+                      key={`sheet-${cat.id}`}
+                      className="wcm-filter-sheet-chip"
+                      data-active={on ? "true" : "false"}
+                      onClick={() => {
+                        shouldScrollToProductsRef.current = true;
+                        setActive(cat.id);
+                        setGridKey((k) => k + 1);
+                        onCategoryChange?.(cat.id);
+                      }}
+                    >
+                      {cat.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="wcm-filter-sheet-group">
+              <div className="wcm-filter-sheet-label">Stock</div>
+              <label className="wcm-filter-sheet-check">
+                <input
+                  type="checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => {
+                    setInStockOnly(e.target.checked);
+                    setGridKey((k) => k + 1);
+                  }}
+                />
+                In stock only
+              </label>
+            </div>
+
+            <div className="wcm-filter-sheet-group">
+              <div className="wcm-filter-sheet-label">Sort by</div>
+              <div className="wcm-filter-sheet-chip-wrap">
+                {SORT_OPTIONS.map((opt) => {
+                  const on = opt.value === sort;
+                  return (
+                    <button
+                      key={`sort-${opt.value}`}
+                      className="wcm-filter-sheet-chip"
+                      data-active={on ? "true" : "false"}
+                      onClick={() => {
+                        setSort(opt.value);
+                        setGridKey((k) => k + 1);
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="wcm-filter-sheet-actions">
+              <button
+                className="wcm-filter-sheet-secondary"
+                onClick={() => {
+                  clearAllFilters();
+                }}
+              >
+                Clear all
+              </button>
+              <button
+                className="wcm-filter-sheet-primary"
+                onClick={() => setMobileFiltersOpen(false)}
+              >
+                Apply filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div ref={productsTopRef} />
 
