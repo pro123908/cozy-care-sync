@@ -482,6 +482,29 @@
     max-width: none;
     width: 100%;
   }
+  .wcm-order-detail-head {
+    align-items: flex-start !important;
+  }
+  .wcm-order-detail-head h1 {
+    font-size: 22px !important;
+    line-height: 1.2;
+  }
+  .wcm-order-detail-status-pill {
+    width: 100%;
+  }
+  .wcm-order-detail-status-pill > * {
+    width: fit-content;
+  }
+  .wcm-order-detail-actions {
+    justify-content: stretch !important;
+  }
+  .wcm-order-detail-actions > * {
+    flex: 1 1 calc(50% - 5px);
+  }
+  .wcm-order-detail-cancel-confirm {
+    width: 100%;
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 520px) {
@@ -532,6 +555,54 @@
     grid-template-columns: 1fr 1fr;
   }
   .wcm-order-card-actions > * {
+    width: 100%;
+  }
+  .wcm-order-detail-head {
+    flex-direction: column;
+    gap: 10px !important;
+  }
+  .wcm-order-detail-head h1 {
+    font-size: 20px !important;
+    letter-spacing: -0.2px !important;
+  }
+  .wcm-order-detail-item-row {
+    grid-template-columns: 56px 1fr auto !important;
+    grid-template-areas:
+      "image info price"
+      "image qty price";
+    gap: 6px 10px !important;
+    align-items: center !important;
+  }
+  .wcm-order-detail-item-image {
+    grid-area: image;
+  }
+  .wcm-order-detail-item-info {
+    grid-area: info;
+    min-width: 0;
+  }
+  .wcm-order-detail-item-qty {
+    grid-area: qty;
+    font-size: 12px !important;
+  }
+  .wcm-order-detail-item-price {
+    grid-area: price;
+    justify-self: end;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .wcm-order-detail-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .wcm-order-detail-actions > * {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .wcm-order-detail-cancel-confirm {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  .wcm-order-detail-cancel-confirm > * {
     width: 100%;
   }
   .wcm-form-2 {

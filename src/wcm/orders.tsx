@@ -458,6 +458,7 @@ export function OrderDetail({
       </button>
 
       <div
+        className="wcm-order-detail-head"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -496,15 +497,14 @@ export function OrderDetail({
                 : "Arriving by " + order.eta}
           </h1>
         </div>
-        <Pill tone={statusTone(order.status)}>
-          {Icons.dot} {order.status}
-        </Pill>
+        <div className="wcm-order-detail-status-pill">
+          <Pill tone={statusTone(order.status)}>
+            {Icons.dot} {order.status}
+          </Pill>
+        </div>
       </div>
 
-      <div
-        className="wcm-order-cols"
-        style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 14 }}
-      >
+      <div className="wcm-order-cols" style={{ display: "grid", gap: 14 }}>
         <Section style={{ padding: 22 }}>
           <div
             style={{
@@ -750,6 +750,7 @@ export function OrderDetail({
           {items.map(({ p, qty }, i) => (
             <div
               key={p.id}
+              className="wcm-order-detail-item-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: "56px 1fr auto auto",
@@ -759,21 +760,35 @@ export function OrderDetail({
                 borderTop: i === 0 ? "none" : "1px solid var(--line-2)",
               }}
             >
-              <div style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}>
+              <div
+                className="wcm-order-detail-item-image"
+                style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}
+              >
                 <ProductImage product={p} />
               </div>
-              <div>
+              <div className="wcm-order-detail-item-info">
                 <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 700 }}>
                   {p.brand}
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{p.name}</div>
               </div>
-              <div style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>Qty {qty}</div>
-              <div style={{ fontSize: 14, fontWeight: 800 }}>{PKR(p.price * qty)}</div>
+              <div
+                className="wcm-order-detail-item-qty"
+                style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
+              >
+                Qty {qty}
+              </div>
+              <div
+                className="wcm-order-detail-item-price"
+                style={{ fontSize: 14, fontWeight: 800 }}
+              >
+                {PKR(p.price * qty)}
+              </div>
             </div>
           ))}
         </div>
         <div
+          className="wcm-order-detail-actions"
           style={{
             display: "flex",
             gap: 10,
@@ -792,7 +807,10 @@ export function OrderDetail({
           ) : (
             order.status !== "Cancelled" &&
             (showCancelConfirm ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div
+                className="wcm-order-detail-cancel-confirm"
+                style={{ display: "flex", gap: 8, alignItems: "center" }}
+              >
                 <span style={{ fontSize: 13, color: "var(--ink-3)" }}>Cancel this order?</span>
                 <Btn variant="danger" onClick={handleCancel} disabled={cancelling}>
                   {cancelling ? "Cancelling…" : "Yes, cancel"}
