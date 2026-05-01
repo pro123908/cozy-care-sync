@@ -87,10 +87,44 @@ export function OrdersList({
         </div>
         <div style={{ fontSize: 18, fontWeight: 800 }}>No orders yet</div>
         <div style={{ color: "var(--ink-4)", fontSize: 14, marginTop: 4, marginBottom: 18 }}>
-          When you place an order, you'll see it here.
+          When you place an order, tracking updates and delivery ETA will appear here.
+        </div>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          <span
+            style={{
+              borderRadius: 99,
+              border: "1px solid var(--line)",
+              padding: "6px 10px",
+              fontSize: 12,
+              color: "var(--ink-3)",
+              fontWeight: 700,
+            }}
+          >
+            {Icons.truck} Same-day dispatch
+          </span>
+          <span
+            style={{
+              borderRadius: 99,
+              border: "1px solid var(--line)",
+              padding: "6px 10px",
+              fontSize: 12,
+              color: "var(--ink-3)",
+              fontWeight: 700,
+            }}
+          >
+            {Icons.shield} Secure checkout
+          </span>
         </div>
         <Btn onClick={goShop} icon={Icons.cart}>
-          Start shopping
+          Shop essentials
         </Btn>
       </Section>
     );

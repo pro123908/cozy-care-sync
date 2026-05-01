@@ -603,8 +603,34 @@ function Header({
                       </button>
                     ))
                   ) : (
-                    <div style={{ padding: "12px 16px", color: "var(--ink-4)", fontSize: 13 }}>
-                      No matching products found.
+                    <div style={{ padding: "12px 14px" }}>
+                      <div style={{ color: "var(--ink-3)", fontSize: 13, fontWeight: 700 }}>
+                        No matching products found
+                      </div>
+                      <div style={{ color: "var(--ink-4)", fontSize: 12, marginTop: 4 }}>
+                        Try one of these popular searches:
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 9 }}>
+                        {POPULAR_SEARCHES.slice(0, 3).map((term) => (
+                          <button
+                            key={`empty-${term}`}
+                            onMouseDown={() => applySearchSuggestion(term)}
+                            style={{
+                              border: "1px solid var(--line)",
+                              background: "var(--bg-elev)",
+                              borderRadius: 99,
+                              padding: "6px 9px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "var(--ink-3)",
+                              cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            {term}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

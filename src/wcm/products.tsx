@@ -736,6 +736,61 @@ function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   );
 }
 
+function TrustRibbon({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`wcm-trust-ribbon${compact ? " wcm-trust-ribbon-compact" : ""}`}>
+      <span>{Icons.shield} 100% authentic</span>
+      <span>{Icons.bolt} Same-day dispatch</span>
+      <span>{Icons.refresh} 7-day returns</span>
+    </div>
+  );
+}
+
+function FeaturedCollectionsStrip({
+  categories,
+  onSelect,
+}: {
+  categories: Category[];
+  onSelect: (cat: string) => void;
+}) {
+  const featured = categories
+    .filter((cat) => cat.id !== "all" && (cat.count || 0) > 0)
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .slice(0, 3);
+
+  if (featured.length === 0) return null;
+
+  return (
+    <div className="wcm-featured-wrap">
+      <div className="wcm-featured-head">
+        <div className="wcm-featured-kicker">Picked for quick care</div>
+        <div className="wcm-featured-title">Featured collections</div>
+      </div>
+      <div className="wcm-featured-grid">
+        {featured.map((cat, idx) => (
+          <button
+            key={cat.id}
+            className="wcm-featured-card"
+            onClick={() => onSelect(cat.id)}
+            style={{ animationDelay: `${idx * 60}ms` }}
+          >
+            <div className="wcm-featured-card-kicker">
+              {(cat.count || 0).toLocaleString()} products
+            </div>
+            <div className="wcm-featured-card-name">{cat.name}</div>
+            <div className="wcm-featured-card-cta">
+              Shop now{" "}
+              <span style={{ display: "inline-block", transform: "rotate(180deg)" }}>
+                {Icons.chevL}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const SORT_OPTIONS = [
   { value: "popular", label: "Most popular" },
   { value: "rating", label: "Top rated" },
@@ -1030,6 +1085,7 @@ export function ProductsPage({
   return (
     <div>
       <Hero goTo={goTo} />
+      <TrustRibbon />
       <div ref={listingTopRef} />
       <RecentlyViewedRail
         ids={recentlyViewedIds}
@@ -1113,6 +1169,16 @@ export function ProductsPage({
 
       <div ref={productsTopRef} />
 
+      <FeaturedCollectionsStrip
+        categories={storefrontCategories}
+        onSelect={(cat) => {
+          shouldScrollToProductsRef.current = true;
+          setActive(cat);
+          setGridKey((k) => k + 1);
+          onCategoryChange?.(cat);
+        }}
+      />
+
       {!productsLoaded ? (
         <div
           style={{
@@ -1130,12 +1196,51 @@ export function ProductsPage({
       ) : filtered.length === 0 ? (
         <Section
           key={gridKey}
-          style={{ padding: 48, textAlign: "center", animation: "fadeInUp 0.25s ease" }}
+          style={{ padding: 32, textAlign: "center", animation: "fadeInUp 0.25s ease" }}
         >
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🔎</div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>No products in this category</div>
-          <div style={{ color: "var(--ink-4)", fontSize: 13, marginTop: 4 }}>
-            Try a different category or filter.
+          <div className="wcm-empty-icon">🔎</div>
+          <div style={{ fontWeight: 800, fontSize: 18 }}>Nothing matches right now</div>
+          <div style={{ color: "var(--ink-4)", fontSize: 13, marginTop: 6 }}>
+            Clear filters or try one of our fast-moving collections.
+          </div>
+          <div className="wcm-empty-actions">
+            <Btn
+              variant="outline"
+              icon={Icons.refresh}
+              onClick={() => {
+                shouldScrollToProductsRef.current = true;
+                setActive("all");
+                setSort("popular");
+                setInStockOnly(false);
+                setGridKey((k) => k + 1);
+                onCategoryChange?.("all");
+              }}
+            >
+              Reset filters
+            </Btn>
+            <Btn variant="solid" icon={Icons.sparkle} onClick={() => setSort("rating")}>
+              Show top rated
+            </Btn>
+          </div>
+          <div className="wcm-empty-suggestions">
+            {storefrontCategories
+              .filter((cat) => cat.id !== "all" && (cat.count || 0) > 0)
+              .sort((a, b) => (b.count || 0) - (a.count || 0))
+              .slice(0, 4)
+              .map((cat) => (
+                <button
+                  key={`empty-${cat.id}`}
+                  className="wcm-empty-suggestion-chip"
+                  onClick={() => {
+                    shouldScrollToProductsRef.current = true;
+                    setActive(cat.id);
+                    setGridKey((k) => k + 1);
+                    onCategoryChange?.(cat.id);
+                  }}
+                >
+                  {cat.name}
+                </button>
+              ))}
           </div>
         </Section>
       ) : (
@@ -1336,6 +1441,7 @@ export function ProductDetail({
       >
         {Icons.chevL} Back to products
       </button>
+      <TrustRibbon compact />
       <div className="wcm-detail-cols" style={{ alignItems: "start" }}>
         <Section className="wcm-detail-media" style={{ padding: 18 }}>
           <div

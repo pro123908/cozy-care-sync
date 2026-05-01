@@ -12,6 +12,7 @@ function WishlistPage() {
   const { wishlist, toggleWishlist, addToCart, products } = useWcm();
   const navigate = useNavigate();
   const saved = products.filter((p) => wishlist.includes(p.id));
+  const suggestions = [...products].sort((a, b) => b.rating - a.rating).slice(0, 3);
 
   return (
     <div
@@ -56,15 +57,27 @@ function WishlistPage() {
         <div
           style={{
             textAlign: "center",
-            padding: "60px 0",
+            padding: "48px 0",
             color: "var(--ink-4)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 16,
+            gap: 12,
           }}
         >
-          <span style={{ fontSize: 48, opacity: 0.3 }}>
+          <span
+            style={{
+              fontSize: 48,
+              opacity: 0.9,
+              width: 68,
+              height: 68,
+              borderRadius: 18,
+              background: "var(--grad-soft)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <svg
               width="48"
               height="48"
@@ -74,12 +87,43 @@ function WishlistPage() {
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
+              style={{ width: 34, height: 34 }}
             >
               <path d="M12 21s-7-4.5-9-10a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 5.5-9 10-9 10Z" />
             </svg>
           </span>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>Nothing saved yet</div>
-          <Btn onClick={() => navigate({ to: "/" })}>Browse products</Btn>
+          <div style={{ fontSize: 17, fontWeight: 800, color: "var(--ink)" }}>
+            Nothing saved yet
+          </div>
+          <div style={{ fontSize: 13, maxWidth: 340 }}>
+            Tap the heart on any product to keep your essentials in one place.
+          </div>
+          <Btn onClick={() => navigate({ to: "/" })} icon={Icons.cart}>
+            Browse products
+          </Btn>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {suggestions.map((product) => (
+              <button
+                key={`ws-suggest-${product.id}`}
+                onClick={() =>
+                  navigate({ to: "/products/$productId", params: { productId: product.id } })
+                }
+                style={{
+                  border: "1px solid var(--line)",
+                  borderRadius: 99,
+                  padding: "7px 11px",
+                  background: "var(--card)",
+                  color: "var(--ink-3)",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {product.name.length > 24 ? `${product.name.slice(0, 24)}...` : product.name}
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div
