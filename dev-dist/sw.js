@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-d08e9aaa'], (function (workbox) { 'use strict';
+define(['./workbox-86dfaae7'], (function (workbox) { 'use strict';
 
   self.addEventListener('message', event => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -81,13 +81,21 @@ define(['./workbox-d08e9aaa'], (function (workbox) { 'use strict';
    * See https://goo.gl/S9QRab
    */
   workbox.precacheAndRoute([{
-    "url": "/offline.html",
-    "revision": "0.5atuf1ljk3g"
+    "url": "/index.html",
+    "revision": "0.e9qj7gtbvk8"
   }], {});
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/offline.html"), {
-    allowlist: [/^\/$/]
+  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
+    allowlist: [/^\/$/],
+    denylist: [/^\/__/, /^\/api\//]
   }));
+  workbox.registerRoute(({
+    request
+  }) => request.mode === "navigate", new workbox.NetworkFirst({
+    "cacheName": "navigate-cache",
+    "networkTimeoutSeconds": 5,
+    plugins: []
+  }), 'GET');
   workbox.registerRoute(({
     request
   }) => request.destination === "image", new workbox.StaleWhileRevalidate({

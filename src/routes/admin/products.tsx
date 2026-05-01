@@ -81,6 +81,9 @@ function AdminProductsPage() {
   const [sourceFilter, setSourceFilter] = useState<"all" | "whatsapp" | "manual">("all");
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
+  const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
+  const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -111,7 +114,7 @@ function AdminProductsPage() {
     const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, sort_order, created_at")
+      .select("id, name, slug, sort_order, image_url, created_at")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -127,6 +130,12 @@ function AdminProductsPage() {
     loadProducts();
     loadCategories();
   }, []);
+
+  useEffect(() => {
+    setCategoryImageDrafts(
+      Object.fromEntries(categories.map((category) => [category.id, category.image_url || ""])),
+    );
+  }, [categories]);
 
   const categoryBySlug = useMemo(() => new Map(categories.map((c) => [c.slug, c])), [categories]);
 
@@ -391,6 +400,102 @@ function AdminProductsPage() {
     }
   };
 
+  const uploadCategoryImageToCloudinary = async (categoryId: string, file: File) => {
+    if (!cloudinaryReady) {
+      push(
+        "Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.",
+      );
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      push("Please select a valid image file.");
+      return;
+    }
+
+    setUploadingCategoryId(categoryId);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET!);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.secure_url) {
+        const reason = payload?.error?.message || "Upload failed";
+        push(reason);
+        return;
+      }
+
+      setCategoryImageDrafts((prev) => ({ ...prev, [categoryId]: payload.secure_url as string }));
+      push("Category image uploaded");
+    } catch {
+      push("Could not upload category image right now. Please try again.");
+    } finally {
+      setUploadingCategoryId(null);
+    }
+  };
+
+  const saveCategoryImage = async (categoryId: string) => {
+    setSavingCategoryId(categoryId);
+    const supabase = await getSupabase();
+    const nextUrl = categoryImageDrafts[categoryId]?.trim() || null;
+    const category = categories.find((c) => c.id === categoryId);
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ image_url: nextUrl })
+      .eq("id", categoryId)
+      .select("id");
+
+    const matchedById = Array.isArray(data) && data.length > 0;
+
+    // Some category datasets may use slug-based references in admin forms.
+    // Try one fallback update by slug when id update affects no rows.
+    if (!error && !matchedById && category?.slug) {
+      const { data: slugData, error: slugError } = await supabase
+        .from("categories")
+        .update({ image_url: nextUrl })
+        .eq("slug", category.slug)
+        .select("id");
+
+      setSavingCategoryId(null);
+      if (slugError) {
+        push(slugError.message || "Failed to save category image", { tone: "red" });
+        return;
+      }
+      if (!Array.isArray(slugData) || slugData.length === 0) {
+        push("Category image was not saved (no row matched update).", { tone: "red" });
+        return;
+      }
+
+      push("Category image saved");
+      await loadCategories();
+      return;
+    }
+
+    setSavingCategoryId(null);
+    if (error) {
+      push(error.message || "Failed to save category image", { tone: "red" });
+      return;
+    }
+
+    if (!matchedById) {
+      push("Category image was not saved (no row matched update).", { tone: "red" });
+      return;
+    }
+
+    push("Category image saved");
+    await loadCategories();
+  };
+
   return (
     <AdminGate>
       <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 90px" }}>
@@ -569,6 +674,158 @@ function AdminProductsPage() {
                   Showing {filtered.length === 0 ? 0 : pageStart + 1}-
                   {Math.min(pageStart + pageSize, filtered.length)} of {filtered.length}
                 </span>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  border: "1px solid var(--line)",
+                  borderRadius: 12,
+                  padding: 12,
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
+                    Category images
+                  </div>
+                  {!cloudinaryReady && (
+                    <span style={{ fontSize: 12, color: "var(--pill-rose-fg)" }}>
+                      Cloudinary env vars missing
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                  {categories.map((category) => {
+                    const draftImage = categoryImageDrafts[category.id] || "";
+                    const isSavingCategory = savingCategoryId === category.id;
+                    const isUploadingCategory = uploadingCategoryId === category.id;
+
+                    return (
+                      <div
+                        key={category.id}
+                        style={{
+                          border: "1px solid var(--line)",
+                          borderRadius: 10,
+                          padding: 10,
+                          display: "grid",
+                          gridTemplateColumns: "64px 1fr auto",
+                          gap: 10,
+                          alignItems: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 64,
+                            height: 64,
+                            borderRadius: 10,
+                            overflow: "hidden",
+                            border: "1px solid var(--line)",
+                            background: "var(--bg-elev)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {draftImage ? (
+                            <img
+                              src={draftImage}
+                              alt={category.name}
+                              loading="lazy"
+                              decoding="async"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 18, color: "var(--ink-4)" }}>🏷️</span>
+                          )}
+                        </div>
+
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700 }}>{category.name}</div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "var(--ink-4)",
+                              marginBottom: 6,
+                              fontFamily: "JetBrains Mono, monospace",
+                            }}
+                          >
+                            {category.slug}
+                          </div>
+                          <input
+                            value={draftImage}
+                            placeholder="https://..."
+                            onChange={(e) =>
+                              setCategoryImageDrafts((prev) => ({
+                                ...prev,
+                                [category.id]: e.target.value,
+                              }))
+                            }
+                            style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                          />
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label
+                            style={{
+                              ...miniBtnStyle,
+                              textAlign: "center",
+                              opacity:
+                                cloudinaryReady && !isUploadingCategory && !isSavingCategory
+                                  ? 1
+                                  : 0.6,
+                              cursor:
+                                cloudinaryReady && !isUploadingCategory && !isSavingCategory
+                                  ? "pointer"
+                                  : "not-allowed",
+                            }}
+                          >
+                            {isUploadingCategory ? "Uploading..." : "Upload"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              disabled={!cloudinaryReady || isUploadingCategory || isSavingCategory}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) uploadCategoryImageToCloudinary(category.id, file);
+                                e.currentTarget.value = "";
+                              }}
+                              style={{ display: "none" }}
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => saveCategoryImage(category.id)}
+                            disabled={isSavingCategory || isUploadingCategory}
+                            style={{
+                              ...miniBtnStyle,
+                              opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
+                            }}
+                          >
+                            {isSavingCategory ? "Saving..." : "Save"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setCategoryImageDrafts((prev) => ({ ...prev, [category.id]: "" }))
+                            }
+                            disabled={isSavingCategory || isUploadingCategory}
+                            style={{
+                              ...miniDangerBtnStyle,
+                              opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               {loading ? (

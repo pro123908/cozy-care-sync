@@ -11,11 +11,13 @@ import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToasts } from "./ui";
 import type { WcmUser } from "./auth";
-import { PRODUCTS, type Product, type Order } from "./data";
+import { CATEGORIES, PRODUCTS, type Category, type Product, type Order } from "./data";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
 };
+
+type CategoryRecord = Database["public"]["Tables"]["categories"]["Row"];
 
 function scheduleIdleTask(task: () => void) {
   const idleWindow = window as Window & {
@@ -62,6 +64,8 @@ type WcmContextType = {
   // Products
   products: Product[];
   productsLoaded: boolean;
+  categories: Category[];
+  categoriesLoaded: boolean;
   // Orders
   orders: Order[];
   setOrders: Dispatch<SetStateAction<Order[]>>;
@@ -142,6 +146,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
   const [products, setProducts] = useState<Product[]>(PRODUCTS);
   const [productsLoaded, setProductsLoaded] = useState(false);
+  const [categories, setCategories] = useState<Category[]>(CATEGORIES);
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const { push, Toaster } = useToasts();
 
   const loadOrders = useCallback(async (userId: string) => {
@@ -318,6 +324,50 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Load categories from database once on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCategories = async () => {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, slug, sort_order, image_url")
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+
+      if (cancelled) return;
+
+      if (error) {
+        push(error.message || "Failed to load categories", { tone: "red" });
+      }
+
+      if (!error && data && data.length > 0) {
+        const storefrontCategories: Category[] = [
+          { id: "all", name: "All products", count: 0 },
+          ...data.map((category: CategoryRecord) => ({
+            id: category.slug,
+            name: category.name,
+            count: 0,
+            image_url: category.image_url,
+          })),
+        ];
+        setCategories(storefrontCategories);
+      }
+
+      setCategoriesLoaded(true);
+    };
+
+    const cancelSchedule = scheduleIdleTask(() => {
+      void loadCategories();
+    });
+
+    return () => {
+      cancelled = true;
+      cancelSchedule();
+    };
+  }, []);
+
   return (
     <WcmContext.Provider
       value={{
@@ -339,6 +389,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         toggleWishlist,
         products,
         productsLoaded,
+        categories,
+        categoriesLoaded,
         orders,
         setOrders,
         ordersLoaded,

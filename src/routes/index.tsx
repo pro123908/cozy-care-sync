@@ -36,7 +36,11 @@ function IndexPage() {
         cart={cart}
         category={category}
         onCategoryChange={(cat) =>
-          navigate({ to: "/", search: { category: cat === "all" ? undefined : cat } })
+          navigate({
+            to: "/",
+            search: { category: cat === "all" ? undefined : cat },
+            resetScroll: false,
+          })
         }
         openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
         goTo={(pg: string) => navigate({ to: pg === "orders" ? "/orders" : "/" })}

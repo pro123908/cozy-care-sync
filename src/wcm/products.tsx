@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { CATEGORIES, PKR, type Product } from "./data";
+import { CATEGORIES, PKR, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm } from "./context";
@@ -8,54 +8,155 @@ import type { CartLine } from "./context";
 export function CategoryRail({
   active,
   setActive,
+  categories,
 }: {
   active: string;
   setActive: (v: string) => void;
+  categories: Category[];
 }) {
+  const allCategoryImages = categories
+    .filter((category) => category.id !== "all")
+    .map((category) => (typeof category.image_url === "string" ? category.image_url.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 4);
+
   return (
     <div
       className="cat-rail"
       style={{
         display: "flex",
-        gap: 8,
+        gap: 10,
         overflowX: "auto",
-        padding: "4px 2px",
+        padding: "6px 2px",
         scrollbarWidth: "none",
       }}
     >
       <style>{`.cat-rail::-webkit-scrollbar{display:none}`}</style>
-      {CATEGORIES.map((c) => {
+      {categories.map((c) => {
         const on = c.id === active;
+        const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
+        const showAllCollage = c.id === "all" && allCategoryImages.length > 0;
         return (
           <button
             key={c.id}
             onClick={() => setActive(c.id)}
             style={{
-              padding: "9px 14px",
-              borderRadius: 99,
-              whiteSpace: "nowrap",
-              background: on ? "var(--ink)" : "#fff",
-              color: on ? "#fff" : "var(--ink-2)",
-              border: on ? "1px solid var(--ink)" : "1px solid var(--line)",
+              padding: "10px",
+              borderRadius: 16,
+              minWidth: 176,
+              minHeight: 226,
+              background: on ? "linear-gradient(180deg, #ecfdf3 0%, #e4f7ee 100%)" : "#fff",
+              color: "var(--ink-2)",
+              border: on ? "1px solid #b7ebcc" : "1px solid var(--line)",
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: 12,
               cursor: "pointer",
-              display: "inline-flex",
+              display: "flex",
+              flexDirection: "column",
               alignItems: "center",
-              gap: 6,
+              justifyContent: "flex-start",
+              gap: 8,
+              textAlign: "center",
+              flexShrink: 0,
+              boxShadow: on ? "0 8px 22px rgba(22, 163, 74, .16)" : "var(--shadow-sm)",
             }}
           >
-            {c.name}
+            {showAllCollage ? (
+              <span
+                style={{
+                  width: 150,
+                  height: 150,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateRows: "1fr 1fr",
+                  gap: 2,
+                  flexShrink: 0,
+                  background: "var(--bg-elev)",
+                  boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                }}
+              >
+                {allCategoryImages.map((src, idx) => (
+                  <img
+                    key={`all-cat-${idx}`}
+                    src={src}
+                    alt=""
+                    aria-hidden="true"
+                    loading="eager"
+                    decoding="async"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                ))}
+              </span>
+            ) : categoryImage ? (
+              <span
+                style={{
+                  width: 150,
+                  height: 150,
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                  display: "inline-flex",
+                  flexShrink: 0,
+                  background: "var(--bg-elev)",
+                  boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                }}
+              >
+                <img
+                  src={categoryImage}
+                  alt=""
+                  aria-hidden="true"
+                  loading="eager"
+                  decoding="async"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </span>
+            ) : (
+              <span
+                style={{
+                  width: 150,
+                  height: 150,
+                  borderRadius: 14,
+                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                  background: "var(--bg-elev)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 24,
+                  color: on ? "#15803d" : "var(--ink-4)",
+                }}
+              >
+                {Icons.pkg}
+              </span>
+            )}
+            <span
+              style={{
+                lineHeight: 1.15,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                minHeight: 24,
+                fontSize: 11.5,
+                maxWidth: 150,
+              }}
+            >
+              {c.name}
+            </span>
             <span
               style={{
                 fontSize: 11,
-                padding: "1px 6px",
+                padding: "2px 8px",
                 borderRadius: 99,
-                background: on ? "rgba(255,255,255,.15)" : "var(--chip-2)",
-                color: on ? "rgba(255,255,255,.85)" : "var(--ink-4)",
+                background: on ? "#dcfce7" : "var(--chip-2)",
+                color: on ? "#166534" : "var(--ink-4)",
+                fontWeight: 700,
+                marginTop: "auto",
               }}
             >
-              {c.count}
+              {c.count} items
             </span>
           </button>
         );
@@ -639,13 +740,15 @@ export function ProductsPage({
   category?: string;
   onCategoryChange?: (cat: string) => void;
 }) {
-  const { products, productsLoaded } = useWcm();
+  const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
   const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [gridKey, setGridKey] = useState(0);
   const listingTopRef = useRef<HTMLDivElement | null>(null);
+  const productsTopRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollToProductsRef = useRef(false);
   const hasMountedPaginationRef = useRef(false);
 
   // Sync active category when URL param changes (e.g. browser back/forward)
@@ -688,7 +791,34 @@ export function ProductsPage({
     listingTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [page, productsLoaded]);
 
+  useEffect(() => {
+    if (!productsLoaded) return;
+    if (!shouldScrollToProductsRef.current) return;
+    shouldScrollToProductsRef.current = false;
+    productsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [active, productsLoaded]);
+
   const inCartIds = new Set(cart.map((c) => c.id));
+  const storefrontCategories = useMemo(() => {
+    const source = categoriesLoaded && categories.length > 0 ? categories : CATEGORIES;
+    const counts = products.reduce<Record<string, number>>((acc, product) => {
+      acc[product.cat] = (acc[product.cat] || 0) + 1;
+      return acc;
+    }, {});
+
+    const normalized = source.map((cat) => {
+      if (cat.id === "all") {
+        return { ...cat, count: products.length };
+      }
+      return { ...cat, count: counts[cat.id] || 0 };
+    });
+
+    if (!normalized.some((cat) => cat.id === "all")) {
+      normalized.unshift({ id: "all", name: "All products", count: products.length });
+    }
+
+    return normalized;
+  }, [categories, categoriesLoaded, products]);
 
   return (
     <div>
@@ -697,8 +827,10 @@ export function ProductsPage({
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
         {/* Row 1: Category filter chips */}
         <CategoryRail
+          categories={storefrontCategories}
           active={active}
           setActive={(v) => {
+            shouldScrollToProductsRef.current = true;
             setActive(v);
             setGridKey((k) => k + 1);
             onCategoryChange?.(v);
@@ -750,6 +882,8 @@ export function ProductsPage({
           />
         </div>
       </div>
+
+      <div ref={productsTopRef} />
 
       {!productsLoaded ? (
         <div
@@ -908,12 +1042,15 @@ export function ProductDetail({
   cart: CartLine[];
   openProduct: (p: Product) => void;
 }) {
-  const { products } = useWcm();
+  const { products, categories, categoriesLoaded } = useWcm();
   const [qty, setQty] = useState(1);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const inCart = cart.find((c) => c.id === product.id);
-  const cat = CATEGORIES.find((c) => c.id === product.cat)?.name;
+  const cat =
+    (categoriesLoaded ? categories : CATEGORIES).find((c) => c.id === product.cat)?.name ||
+    product.category_name ||
+    product.cat;
   const related = products
     .filter((p: Product) => p.cat === product.cat && p.id !== product.id)
     .slice(0, 4);

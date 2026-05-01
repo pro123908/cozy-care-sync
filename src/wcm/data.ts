@@ -16,7 +16,14 @@ export type Product = {
   image_url?: string | null;
 };
 
-export const CATEGORIES = [
+export type Category = {
+  id: string;
+  name: string;
+  count: number;
+  image_url?: string | null;
+};
+
+export const CATEGORIES: Category[] = [
   { id: "all", name: "All products", count: 0 },
   { id: "glucometers", name: "Glucometers", count: 0 },
   { id: "bp-digital", name: "BP Digital", count: 0 },
