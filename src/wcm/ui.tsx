@@ -479,16 +479,24 @@ const TOAST_TONES: Record<
   amber: { accent: "#d97706", bg: "#fff", iconBg: "#fffbeb", border: "#fde68a", icon: Icons.bolt },
 };
 
-type Toast = { id: string; msg: string; tone: string; icon?: React.ReactNode };
+type Toast = { id: string; msg: string; tone: string; icon?: React.ReactNode; leaving?: boolean };
 export function useToasts() {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const EXIT_MS = 300;
+
+  const dismiss = useCallback((id: string) => {
+    setToasts((t) => t.map((x) => (x.id === id ? { ...x, leaving: true } : x)));
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), EXIT_MS);
+  }, []);
+
   const push = useCallback(
     (msg: string, opts: { tone?: string; icon?: React.ReactNode; ms?: number } = {}) => {
       const id = Math.random().toString(36).slice(2);
+      const duration = Math.max(opts.ms || 3000, EXIT_MS + 200);
       setToasts((t) => [...t, { id, msg, tone: opts.tone || "green", icon: opts.icon }]);
-      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), opts.ms || 3000);
+      setTimeout(() => dismiss(id), duration - EXIT_MS);
     },
-    [],
+    [dismiss],
   );
   const Toaster = () => (
     <div className="wcm-toast-wrap">
@@ -499,6 +507,7 @@ export function useToasts() {
             key={t.id}
             role="alert"
             style={{
+              willChange: "transform, opacity",
               display: "flex",
               alignItems: "center",
               gap: 12,
@@ -511,7 +520,9 @@ export function useToasts() {
               borderLeft: `4px solid ${cfg.accent}`,
               fontSize: 14,
               fontWeight: 600,
-              animation: "toastIn .32s cubic-bezier(.22,.68,0,1.15) both",
+              animation: t.leaving
+                ? "toastOut .3s cubic-bezier(.4,0,.2,1) forwards"
+                : "toastIn .3s cubic-bezier(.22,.68,0,1.15) both",
               minWidth: 220,
               maxWidth: 380,
               lineHeight: 1.45,
@@ -540,6 +551,10 @@ export function useToasts() {
         @keyframes toastIn {
           from { opacity: 0; transform: translateY(-12px) scale(0.96); }
           to   { opacity: 1; transform: translateY(0)     scale(1); }
+        }
+        @keyframes toastOut {
+          from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+          to   { opacity: 0; transform: translateY(-5px) scale(0.98); filter: blur(1px); }
         }
       `}</style>
     </div>

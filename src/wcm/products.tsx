@@ -183,6 +183,9 @@ function ProductCard({
         boxShadow: "var(--shadow-sm)",
         transition: "transform .15s, box-shadow .15s",
         cursor: "pointer",
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTapHighlightColor: "transparent",
       }}
       onClick={() => onOpen(p)}
       onMouseEnter={(e) => {
@@ -234,6 +237,7 @@ function ProductCard({
             justifyContent: "center",
             color: saved ? "#e11d48" : "var(--ink-4)",
             boxShadow: "var(--shadow-sm)",
+            WebkitTapHighlightColor: "transparent",
           }}
         >
           <svg
@@ -322,6 +326,8 @@ function ProductCard({
             background: inCart ? "var(--pill-success-bg)" : "var(--grad)",
             color: inCart ? "var(--pill-success-fg)" : "#fff",
             boxShadow: inCart ? "none" : "0 6px 14px -6px rgba(37,99,235,.4)",
+            WebkitTapHighlightColor: "transparent",
+            touchAction: "manipulation",
           }}
         >
           {inCart ? <>{Icons.check} In cart</> : <>{Icons.plus} Add</>}
