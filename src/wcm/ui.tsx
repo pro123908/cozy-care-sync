@@ -510,22 +510,22 @@ export function useToasts() {
               willChange: "transform, opacity",
               display: "flex",
               alignItems: "center",
-              gap: 12,
-              padding: "13px 18px 13px 14px",
-              borderRadius: 14,
+              gap: 9,
+              padding: "9px 12px",
+              borderRadius: 12,
               background: cfg.bg,
               color: "var(--ink)",
-              boxShadow: "0 4px 24px rgba(0,0,0,0.10), 0 1px 6px rgba(0,0,0,0.07)",
+              boxShadow: "0 8px 20px -12px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.08)",
               border: `1px solid ${cfg.border}`,
-              borderLeft: `4px solid ${cfg.accent}`,
-              fontSize: 14,
+              borderLeft: `3px solid ${cfg.accent}`,
+              fontSize: 13,
               fontWeight: 600,
               animation: t.leaving
-                ? "toastOut .3s cubic-bezier(.4,0,.2,1) forwards"
-                : "toastIn .3s cubic-bezier(.22,.68,0,1.15) both",
-              minWidth: 220,
-              maxWidth: 380,
-              lineHeight: 1.45,
+                ? "toastOut .22s cubic-bezier(.4,0,.2,1) forwards"
+                : "toastIn .24s cubic-bezier(.22,.68,0,1.05) both",
+              minWidth: 176,
+              maxWidth: 320,
+              lineHeight: 1.35,
             }}
           >
             <span
@@ -533,8 +533,8 @@ export function useToasts() {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 34,
-                height: 34,
+                width: 26,
+                height: 26,
                 borderRadius: "50%",
                 background: cfg.iconBg,
                 color: cfg.accent,
@@ -549,12 +549,12 @@ export function useToasts() {
       })}
       <style>{`
         @keyframes toastIn {
-          from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+          from { opacity: 0; transform: translateY(-8px) scale(0.98); }
           to   { opacity: 1; transform: translateY(0)     scale(1); }
         }
         @keyframes toastOut {
-          from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
-          to   { opacity: 0; transform: translateY(-5px) scale(0.98); filter: blur(1px); }
+          from { opacity: 1; transform: translateY(0) scale(1); }
+          to   { opacity: 0; transform: translateY(-4px) scale(0.985); }
         }
       `}</style>
     </div>

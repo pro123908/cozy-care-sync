@@ -271,17 +271,33 @@ function ProductCard({
   p,
   onAdd,
   onOpen,
-  inCart,
+  cartQty,
   compact = false,
 }: {
   p: Product;
   onAdd: (p: Product) => void;
   onOpen: (p: Product) => void;
-  inCart: boolean;
+  cartQty: number;
   compact?: boolean;
 }) {
-  const { wishlist, toggleWishlist } = useWcm();
+  const { wishlist, toggleWishlist, setCart } = useWcm();
   const saved = wishlist.includes(p.id);
+  const isInCart = cartQty > 0;
+
+  const removeOneFromCart = () => {
+    setCart((current) => {
+      const index = current.findIndex((line) => line.id === p.id);
+      if (index < 0) return current;
+
+      const line = current[index];
+      if (line.qty <= 1) {
+        return current.filter((item) => item.id !== p.id);
+      }
+
+      return current.map((item, i) => (i === index ? { ...item, qty: item.qty - 1 } : item));
+    });
+  };
+
   return (
     <div
       style={{
@@ -366,6 +382,34 @@ function ProductCard({
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
           </svg>
         </button>
+        {isInCart && (
+          <span
+            key={`qty-badge-${p.id}-${cartQty}`}
+            className="wcm-card-qty-badge"
+            style={{
+              position: "absolute",
+              right: 10,
+              bottom: 10,
+              zIndex: 4,
+              minWidth: compact ? 22 : 24,
+              height: compact ? 22 : 24,
+              padding: "0 7px",
+              borderRadius: 99,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "var(--ink)",
+              border: "1px solid rgba(255,255,255,.9)",
+              color: "#fff",
+              fontSize: compact ? 11 : 12,
+              fontWeight: 800,
+              lineHeight: 1,
+              boxShadow: "0 6px 14px -8px rgba(15,23,42,.75)",
+            }}
+          >
+            {cartQty}
+          </span>
+        )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 3, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -442,30 +486,61 @@ function ProductCard({
             </div>
           )}
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onAdd(p);
-          }}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: compact ? 5 : 6,
-            padding: compact ? "6px 8px" : "7px 10px",
-            borderRadius: 10,
-            border: "none",
-            cursor: "pointer",
-            fontWeight: 700,
-            fontSize: compact ? 11 : 12,
-            background: inCart ? "var(--pill-success-bg)" : "var(--grad)",
-            color: inCart ? "var(--pill-success-fg)" : "#fff",
-            boxShadow: inCart ? "none" : "0 6px 14px -6px rgba(37,99,235,.4)",
-            WebkitTapHighlightColor: "transparent",
-            touchAction: "manipulation",
-          }}
-        >
-          {inCart ? <>{Icons.check} In cart</> : <>{Icons.plus} Add</>}
-        </button>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {isInCart && (
+            <button
+              className="wcm-card-step-btn wcm-card-step-btn-minus"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeOneFromCart();
+              }}
+              aria-label={`Remove one from cart (currently ${cartQty})`}
+              title="Remove one"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: compact ? 30 : 34,
+                height: compact ? 30 : 34,
+                borderRadius: 10,
+                border: "1px solid var(--line)",
+                cursor: "pointer",
+                background: "var(--card)",
+                color: "var(--ink-3)",
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+              }}
+            >
+              {Icons.minus}
+            </button>
+          )}
+          <button
+            className="wcm-card-step-btn wcm-card-step-btn-plus"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAdd(p);
+            }}
+            aria-label={isInCart ? `Add one more to cart (currently ${cartQty})` : "Add to cart"}
+            title={isInCart ? "Add one more" : "Add to cart"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: compact ? 30 : 34,
+              height: compact ? 30 : 34,
+              borderRadius: 10,
+              border: "none",
+              cursor: "pointer",
+              background: "var(--grad)",
+              color: "#fff",
+              boxShadow: "0 6px 14px -6px rgba(37,99,235,.4)",
+              WebkitTapHighlightColor: "transparent",
+              touchAction: "manipulation",
+            }}
+          >
+            {Icons.plus}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -832,7 +907,7 @@ export function ProductsPage({
     productsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [active, productsLoaded]);
 
-  const inCartIds = new Set(cart.map((c) => c.id));
+  const cartQtyById = useMemo(() => new Map(cart.map((c) => [c.id, c.qty])), [cart]);
   const storefrontCategories = useMemo(() => {
     const source = categoriesLoaded && categories.length > 0 ? categories : CATEGORIES;
     const counts = products.reduce<Record<string, number>>((acc, product) => {
@@ -962,7 +1037,7 @@ export function ProductsPage({
               p={p}
               onAdd={addToCart}
               onOpen={openProduct}
-              inCart={inCartIds.has(p.id)}
+              cartQty={cartQtyById.get(p.id) ?? 0}
               compact={isMobile}
             />
           ))}
@@ -1082,6 +1157,7 @@ export function ProductDetail({
   openProduct: (p: Product) => void;
 }) {
   const { products, categories, categoriesLoaded } = useWcm();
+  const isMobile = useIsMobile();
   const [qty, setQty] = useState(1);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
@@ -1534,8 +1610,10 @@ export function ProductDetail({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: 14,
+              gridTemplateColumns: isMobile
+                ? "repeat(2, minmax(0, 1fr))"
+                : "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: isMobile ? 8 : 14,
             }}
           >
             {related.map((r) => (
@@ -1544,7 +1622,8 @@ export function ProductDetail({
                 p={r}
                 onAdd={addToCart}
                 onOpen={openProduct}
-                inCart={cart.some((c) => c.id === r.id)}
+                cartQty={cart.find((c) => c.id === r.id)?.qty ?? 0}
+                compact={isMobile}
               />
             ))}
           </div>

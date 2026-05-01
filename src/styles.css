@@ -391,6 +391,49 @@
   flex-direction: column;
   gap: 2px;
 }
+
+@keyframes wcmQtyBadgePop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.wcm-card-qty-badge {
+  animation: wcmQtyBadgePop 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wcm-card-step-btn {
+  transition:
+    transform 140ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.wcm-card-step-btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.wcm-card-step-btn:active {
+  transform: translateY(0) scale(0.92);
+}
+
+.wcm-card-step-btn-plus:hover {
+  box-shadow: 0 8px 16px -10px rgba(37, 99, 235, 0.55);
+}
+
+.wcm-card-step-btn-minus:hover {
+  box-shadow: 0 6px 14px -10px rgba(15, 23, 42, 0.35);
+}
 .wcm-order-card-mobile-timeline {
   display: none;
 }
@@ -405,7 +448,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
   z-index: 120;
   pointer-events: none;
 }
@@ -459,9 +502,9 @@
   }
   /* Toast below header on mobile */
   .wcm-toast-wrap {
-    top: 72px;
-    right: 12px;
-    left: 12px;
+    top: 64px;
+    right: 10px;
+    left: 10px;
     bottom: auto;
     align-items: stretch;
   }
