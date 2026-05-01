@@ -4,6 +4,7 @@ import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm } from "./context";
 import type { CartLine } from "./context";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function CategoryRail({
   active,
@@ -165,27 +166,35 @@ export function CategoryRail({
   );
 }
 
-function ProductCardSkeleton() {
+function ProductCardSkeleton({ isMobile = false }: { isMobile?: boolean }) {
   return (
     <div
       style={{
         background: "var(--card)",
-        borderRadius: 18,
+        borderRadius: 14,
         border: "1px solid var(--line)",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
+        height: "100%",
       }}
     >
       {/* image placeholder */}
       <div
         style={{
-          height: 200,
+          height: isMobile ? 132 : 170,
           background: "var(--chip-2)",
           animation: "wcmPulse 1.5s ease-in-out infinite",
         }}
       />
-      <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div
+        style={{
+          padding: isMobile ? "8px 8px" : "10px 12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: isMobile ? 6 : 7,
+        }}
+      >
         {/* brand */}
         <div
           style={{
@@ -245,8 +254,8 @@ function ProductCardSkeleton() {
           />
           <div
             style={{
-              height: 34,
-              width: 80,
+              height: isMobile ? 27 : 30,
+              width: isMobile ? 64 : 72,
               borderRadius: 10,
               background: "var(--chip-2)",
               animation: "wcmPulse 1.5s ease-in-out infinite",
@@ -263,11 +272,13 @@ function ProductCard({
   onAdd,
   onOpen,
   inCart,
+  compact = false,
 }: {
   p: Product;
   onAdd: (p: Product) => void;
   onOpen: (p: Product) => void;
   inCart: boolean;
+  compact?: boolean;
 }) {
   const { wishlist, toggleWishlist } = useWcm();
   const saved = wishlist.includes(p.id);
@@ -277,10 +288,11 @@ function ProductCard({
         background: "var(--card)",
         border: "1px solid var(--line)",
         borderRadius: "var(--radius-lg)",
-        padding: 14,
+        padding: compact ? 8 : 10,
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: compact ? 6 : 8,
+        height: "100%",
         boxShadow: "var(--shadow-sm)",
         transition: "transform .15s, box-shadow .15s",
         cursor: "pointer",
@@ -304,13 +316,13 @@ function ProductCard({
           <div
             style={{
               position: "absolute",
-              top: 10,
-              right: 10,
-              padding: "3px 8px",
+              top: 8,
+              right: 8,
+              padding: compact ? "2px 7px" : "3px 8px",
               borderRadius: 99,
               background: "var(--ink)",
               color: "#fff",
-              fontSize: 11,
+              fontSize: compact ? 10 : 11,
               fontWeight: 800,
             }}
           >
@@ -325,10 +337,10 @@ function ProductCard({
           aria-label={saved ? "Remove from saved" : "Save item"}
           style={{
             position: "absolute",
-            top: 10,
-            left: 10,
-            width: 30,
-            height: 30,
+            top: 8,
+            left: 8,
+            width: compact ? 26 : 28,
+            height: compact ? 26 : 28,
             borderRadius: 99,
             background: "rgba(255,255,255,0.9)",
             border: "none",
@@ -355,7 +367,7 @@ function ProductCard({
           </svg>
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 3, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
           {p.tags.slice(0, 1).map((t) => (
             <Pill
@@ -373,17 +385,30 @@ function ProductCard({
               {t}
             </Pill>
           ))}
-          <span style={{ fontSize: 11.5, color: "var(--ink-4)", fontWeight: 600 }}>{p.brand}</span>
+          <span style={{ fontSize: compact ? 10 : 11, color: "var(--ink-4)", fontWeight: 600 }}>
+            {p.brand}
+          </span>
         </div>
-        <div style={{ fontWeight: 700, fontSize: 14.5, color: "var(--ink)", lineHeight: 1.3 }}>
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: compact ? 13 : 14,
+            color: "var(--ink)",
+            lineHeight: 1.25,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
           {p.name}
         </div>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 8,
-            fontSize: 12,
+            gap: compact ? 5 : 6,
+            fontSize: compact ? 11 : 11.5,
             color: "var(--ink-4)",
           }}
         >
@@ -398,13 +423,21 @@ function ProductCard({
           alignItems: "flex-end",
           justifyContent: "space-between",
           gap: 8,
-          marginTop: 4,
+          marginTop: compact ? 0 : 2,
         }}
       >
         <div>
-          <div style={{ fontWeight: 800, fontSize: 17, color: "var(--ink)" }}>{PKR(p.price)}</div>
+          <div style={{ fontWeight: 800, fontSize: compact ? 14 : 16, color: "var(--ink)" }}>
+            {PKR(p.price)}
+          </div>
           {p.was && (
-            <div style={{ fontSize: 12, color: "var(--ink-4)", textDecoration: "line-through" }}>
+            <div
+              style={{
+                fontSize: compact ? 10 : 11,
+                color: "var(--ink-4)",
+                textDecoration: "line-through",
+              }}
+            >
               {PKR(p.was)}
             </div>
           )}
@@ -417,13 +450,13 @@ function ProductCard({
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 6,
-            padding: "9px 12px",
-            borderRadius: 11,
+            gap: compact ? 5 : 6,
+            padding: compact ? "6px 8px" : "7px 10px",
+            borderRadius: 10,
             border: "none",
             cursor: "pointer",
             fontWeight: 700,
-            fontSize: 13,
+            fontSize: compact ? 11 : 12,
             background: inCart ? "var(--pill-success-bg)" : "var(--grad)",
             color: inCart ? "var(--pill-success-fg)" : "#fff",
             boxShadow: inCart ? "none" : "0 6px 14px -6px rgba(37,99,235,.4)",
@@ -741,6 +774,7 @@ export function ProductsPage({
   onCategoryChange?: (cat: string) => void;
 }) {
   const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
+  const isMobile = useIsMobile();
   const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -824,7 +858,7 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <div ref={listingTopRef} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 6 }}>
         {/* Row 1: Category filter chips */}
         <CategoryRail
           categories={storefrontCategories}
@@ -889,12 +923,14 @@ export function ProductsPage({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
-            gap: 14,
+            gridTemplateColumns: isMobile
+              ? "repeat(2, minmax(0, 1fr))"
+              : "repeat(auto-fill, minmax(190px, 1fr))",
+            gap: isMobile ? 8 : 12,
           }}
         >
           {Array.from({ length: 8 }).map((_, i) => (
-            <ProductCardSkeleton key={i} />
+            <ProductCardSkeleton key={i} isMobile={isMobile} />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -913,8 +949,10 @@ export function ProductsPage({
           key={gridKey}
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
-            gap: 14,
+            gridTemplateColumns: isMobile
+              ? "repeat(2, minmax(0, 1fr))"
+              : "repeat(auto-fill, minmax(190px, 1fr))",
+            gap: isMobile ? 8 : 12,
             animation: "fadeInUp 0.25s ease",
           }}
         >
@@ -925,6 +963,7 @@ export function ProductsPage({
               onAdd={addToCart}
               onOpen={openProduct}
               inCart={inCartIds.has(p.id)}
+              compact={isMobile}
             />
           ))}
         </div>

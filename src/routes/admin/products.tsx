@@ -84,6 +84,7 @@ function AdminProductsPage() {
   const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
   const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
+  const [showCategoryImages, setShowCategoryImages] = useState(false);
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -690,142 +691,155 @@ function AdminProductsPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
                     Category images
                   </div>
-                  {!cloudinaryReady && (
-                    <span style={{ fontSize: 12, color: "var(--pill-rose-fg)" }}>
-                      Cloudinary env vars missing
-                    </span>
-                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {!cloudinaryReady && (
+                      <span style={{ fontSize: 12, color: "var(--pill-rose-fg)" }}>
+                        Cloudinary env vars missing
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryImages((prev) => !prev)}
+                      style={miniBtnStyle}
+                    >
+                      {showCategoryImages ? "Hide" : "Show"}
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: "grid", gap: 10 }}>
-                  {categories.map((category) => {
-                    const draftImage = categoryImageDrafts[category.id] || "";
-                    const isSavingCategory = savingCategoryId === category.id;
-                    const isUploadingCategory = uploadingCategoryId === category.id;
+                {showCategoryImages && (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {categories.map((category) => {
+                      const draftImage = categoryImageDrafts[category.id] || "";
+                      const isSavingCategory = savingCategoryId === category.id;
+                      const isUploadingCategory = uploadingCategoryId === category.id;
 
-                    return (
-                      <div
-                        key={category.id}
-                        style={{
-                          border: "1px solid var(--line)",
-                          borderRadius: 10,
-                          padding: 10,
-                          display: "grid",
-                          gridTemplateColumns: "64px 1fr auto",
-                          gap: 10,
-                          alignItems: "center",
-                        }}
-                      >
+                      return (
                         <div
+                          key={category.id}
                           style={{
-                            width: 64,
-                            height: 64,
-                            borderRadius: 10,
-                            overflow: "hidden",
                             border: "1px solid var(--line)",
-                            background: "var(--bg-elev)",
-                            display: "flex",
+                            borderRadius: 10,
+                            padding: 10,
+                            display: "grid",
+                            gridTemplateColumns: "64px 1fr auto",
+                            gap: 10,
                             alignItems: "center",
-                            justifyContent: "center",
                           }}
                         >
-                          {draftImage ? (
-                            <img
-                              src={draftImage}
-                              alt={category.name}
-                              loading="lazy"
-                              decoding="async"
-                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                          ) : (
-                            <span style={{ fontSize: 18, color: "var(--ink-4)" }}>🏷️</span>
-                          )}
-                        </div>
-
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>{category.name}</div>
                           <div
                             style={{
-                              fontSize: 11,
-                              color: "var(--ink-4)",
-                              marginBottom: 6,
-                              fontFamily: "JetBrains Mono, monospace",
+                              width: 64,
+                              height: 64,
+                              borderRadius: 10,
+                              overflow: "hidden",
+                              border: "1px solid var(--line)",
+                              background: "var(--bg-elev)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
                             }}
                           >
-                            {category.slug}
+                            {draftImage ? (
+                              <img
+                                src={draftImage}
+                                alt={category.name}
+                                loading="lazy"
+                                decoding="async"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              <span style={{ fontSize: 18, color: "var(--ink-4)" }}>🏷️</span>
+                            )}
                           </div>
-                          <input
-                            value={draftImage}
-                            placeholder="https://..."
-                            onChange={(e) =>
-                              setCategoryImageDrafts((prev) => ({
-                                ...prev,
-                                [category.id]: e.target.value,
-                              }))
-                            }
-                            style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                          />
-                        </div>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                          <label
-                            style={{
-                              ...miniBtnStyle,
-                              textAlign: "center",
-                              opacity:
-                                cloudinaryReady && !isUploadingCategory && !isSavingCategory
-                                  ? 1
-                                  : 0.6,
-                              cursor:
-                                cloudinaryReady && !isUploadingCategory && !isSavingCategory
-                                  ? "pointer"
-                                  : "not-allowed",
-                            }}
-                          >
-                            {isUploadingCategory ? "Uploading..." : "Upload"}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              disabled={!cloudinaryReady || isUploadingCategory || isSavingCategory}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) uploadCategoryImageToCloudinary(category.id, file);
-                                e.currentTarget.value = "";
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>{category.name}</div>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "var(--ink-4)",
+                                marginBottom: 6,
+                                fontFamily: "JetBrains Mono, monospace",
                               }}
-                              style={{ display: "none" }}
+                            >
+                              {category.slug}
+                            </div>
+                            <input
+                              value={draftImage}
+                              placeholder="https://..."
+                              onChange={(e) =>
+                                setCategoryImageDrafts((prev) => ({
+                                  ...prev,
+                                  [category.id]: e.target.value,
+                                }))
+                              }
+                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
                             />
-                          </label>
+                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => saveCategoryImage(category.id)}
-                            disabled={isSavingCategory || isUploadingCategory}
-                            style={{
-                              ...miniBtnStyle,
-                              opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
-                            }}
-                          >
-                            {isSavingCategory ? "Saving..." : "Save"}
-                          </button>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <label
+                              style={{
+                                ...miniBtnStyle,
+                                textAlign: "center",
+                                opacity:
+                                  cloudinaryReady && !isUploadingCategory && !isSavingCategory
+                                    ? 1
+                                    : 0.6,
+                                cursor:
+                                  cloudinaryReady && !isUploadingCategory && !isSavingCategory
+                                    ? "pointer"
+                                    : "not-allowed",
+                              }}
+                            >
+                              {isUploadingCategory ? "Uploading..." : "Upload"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={
+                                  !cloudinaryReady || isUploadingCategory || isSavingCategory
+                                }
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) uploadCategoryImageToCloudinary(category.id, file);
+                                  e.currentTarget.value = "";
+                                }}
+                                style={{ display: "none" }}
+                              />
+                            </label>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setCategoryImageDrafts((prev) => ({ ...prev, [category.id]: "" }))
-                            }
-                            disabled={isSavingCategory || isUploadingCategory}
-                            style={{
-                              ...miniDangerBtnStyle,
-                              opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
-                            }}
-                          >
-                            Remove
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => saveCategoryImage(category.id)}
+                              disabled={isSavingCategory || isUploadingCategory}
+                              style={{
+                                ...miniBtnStyle,
+                                opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
+                              }}
+                            >
+                              {isSavingCategory ? "Saving..." : "Save"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setCategoryImageDrafts((prev) => ({ ...prev, [category.id]: "" }))
+                              }
+                              disabled={isSavingCategory || isUploadingCategory}
+                              style={{
+                                ...miniDangerBtnStyle,
+                                opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {loading ? (
