@@ -46,9 +46,22 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: "/offline.html",
+        // For SPA routing: all unmatched navigations should get index.html (the app shell),
+        // NOT offline.html — otherwise any deep-link shows the offline page even when online.
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/__/, /^\/api\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
         runtimeCaching: [
+          {
+            // Navigate requests: try network first so the server can also serve fresh HTML,
+            // fall back to precached index.html if offline.
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "navigate-cache",
+              networkTimeoutSeconds: 5,
+            },
+          },
           {
             urlPattern: ({ request }) => request.destination === "image",
             handler: "StaleWhileRevalidate",

@@ -48,9 +48,27 @@
     <main class="card" role="main" aria-live="polite">
       <h1>You are offline</h1>
       <p>
-        Wellcare Mart is currently unavailable without internet. Reconnect and refresh to continue
-        browsing products or placing orders.
+        Wellcare Mart requires an internet connection. Please check your connection and try again.
       </p>
+      <button
+        onclick="window.location.reload()"
+        style="
+          margin-top: 16px;
+          padding: 10px 22px;
+          border-radius: 8px;
+          border: none;
+          background: #2563eb;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+        "
+      >
+        Try again
+      </button>
     </main>
+    <script>
+      window.addEventListener("online", () => window.location.reload());
+    </script>
   </body>
 </html>
