@@ -107,23 +107,102 @@ export function ProductPhoto({
   );
 }
 
-export function ProductImage({ product }: { product: Product }) {
-  const palettes: Record<string, [string, string, string]> = {
-    emerald: ["var(--soft-green)", "#d1fae5", "#16a34a"],
-    sky: ["#eff6ff", "var(--pill-info-bg)", "#2563eb"],
-    rose: ["#fff1f2", "var(--pill-rose-bg)", "#e11d48"],
-    amber: ["#fffbeb", "var(--pill-warn-bg)", "#b45309"],
-    slate: ["var(--chip-2)", "var(--pill-slate-bg)", "var(--pill-slate-fg)"],
-  };
-  const [bg, mid, ink] = palettes[product.swatch] || palettes.emerald;
-  const [showFallback, setShowFallback] = useState(false);
-  const initials = product.name
+const PRODUCT_PLACEHOLDER_PALETTES: Record<string, [string, string, string]> = {
+  emerald: ["var(--soft-green)", "#d1fae5", "#16a34a"],
+  sky: ["#eff6ff", "var(--pill-info-bg)", "#2563eb"],
+  rose: ["#fff1f2", "var(--pill-rose-bg)", "#e11d48"],
+  amber: ["#fffbeb", "var(--pill-warn-bg)", "#b45309"],
+  slate: ["var(--chip-2)", "var(--pill-slate-bg)", "var(--pill-slate-fg)"],
+};
+
+export function ProductImageFallback({
+  cat,
+  name,
+  brand,
+  swatch,
+  compact = false,
+  style,
+}: {
+  cat: string;
+  name?: string;
+  brand?: string;
+  swatch?: string;
+  compact?: boolean;
+  style?: React.CSSProperties;
+}) {
+  const [bg, mid, ink] =
+    PRODUCT_PLACEHOLDER_PALETTES[swatch || ""] || PRODUCT_PLACEHOLDER_PALETTES.emerald;
+  const initials = (name || "WC")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0])
     .join("")
     .toUpperCase();
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        borderRadius: 12,
+        background: `radial-gradient(120% 100% at 20% 0%, ${bg} 0%, ${mid} 70%, ${bg} 100%)`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        ...style,
+      }}
+    >
+      <svg
+        viewBox="0 0 120 120"
+        width={compact ? "88%" : "78%"}
+        height={compact ? "88%" : "78%"}
+        aria-hidden="true"
+      >
+        <ProductSilhouette cat={cat} ink={ink} />
+        {!compact && brand && (
+          <text
+            x="60"
+            y="115"
+            textAnchor="middle"
+            fontFamily="JetBrains Mono, monospace"
+            fontSize="6"
+            fill={ink}
+            opacity="0.55"
+          >
+            {brand.toUpperCase()}
+          </text>
+        )}
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          top: compact ? 6 : 10,
+          left: compact ? 6 : 10,
+          padding: compact ? "2px 6px" : "3px 8px",
+          borderRadius: 99,
+          background: "rgba(255,255,255,0.85)",
+          fontSize: compact ? 9 : 10,
+          fontWeight: 700,
+          color: ink,
+          letterSpacing: 0.5,
+          textTransform: "uppercase",
+          backdropFilter: "blur(4px)",
+          boxShadow: "0 4px 12px rgba(2,6,23,.12)",
+        }}
+      >
+        {initials || "WC"}
+      </div>
+    </div>
+  );
+}
+
+export function ProductImage({ product }: { product: Product }) {
+  const [bg, mid] =
+    PRODUCT_PLACEHOLDER_PALETTES[product.swatch || ""] || PRODUCT_PLACEHOLDER_PALETTES.emerald;
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
     setShowFallback(false);
@@ -146,52 +225,16 @@ export function ProductImage({ product }: { product: Product }) {
   }
 
   return (
-    <div
+    <ProductImageFallback
+      cat={product.cat}
+      name={product.name}
+      brand={product.brand}
+      swatch={product.swatch}
       style={{
-        position: "relative",
-        width: "100%",
         aspectRatio: "1/1",
-        overflow: "hidden",
-        borderRadius: 12,
-        background: `radial-gradient(120% 100% at 20% 0%, ${bg} 0%, ${mid} 70%, ${bg} 100%)`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        width: "100%",
       }}
-    >
-      <svg viewBox="0 0 120 120" width="78%" height="78%" aria-hidden="true">
-        <ProductSilhouette cat={product.cat} ink={ink} />
-        <text
-          x="60"
-          y="115"
-          textAnchor="middle"
-          fontFamily="JetBrains Mono, monospace"
-          fontSize="6"
-          fill={ink}
-          opacity="0.55"
-        >
-          {product.brand.toUpperCase()}
-        </text>
-      </svg>
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          padding: "3px 8px",
-          borderRadius: 99,
-          background: "rgba(255,255,255,0.85)",
-          fontSize: 10,
-          fontWeight: 700,
-          color: ink,
-          letterSpacing: 0.5,
-          textTransform: "uppercase",
-          backdropFilter: "blur(4px)",
-        }}
-      >
-        {initials}
-      </div>
-    </div>
+    />
   );
 }
 

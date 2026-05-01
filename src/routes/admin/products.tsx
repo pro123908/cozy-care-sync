@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { AdminGate } from "@/wcm/admin-access";
-import { Btn } from "@/wcm/ui";
+import { Btn, ProductImageFallback } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 import { useWcm } from "@/wcm/context";
 
@@ -949,7 +949,45 @@ function AdminProductsPage() {
               </div>
 
               {loading ? (
-                <div style={{ color: "var(--ink-4)", fontSize: 14 }}>Loading products…</div>
+                <div
+                  style={{
+                    color: "var(--ink-4)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 9,
+                    padding: "6px 0",
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeOpacity="0.25"
+                      strokeWidth="2"
+                    />
+                    <path
+                      d="M12 3a9 9 0 0 1 9 9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.4"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="0.8s"
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </svg>
+                  Loading products...
+                </div>
               ) : (
                 <div
                   style={{
@@ -1026,7 +1064,12 @@ function AdminProductsPage() {
                                     }}
                                   />
                                 ) : (
-                                  <span style={{ fontSize: 18, color: "var(--ink-4)" }}>📦</span>
+                                  <ProductImageFallback
+                                    cat={p.cat}
+                                    name={p.name}
+                                    brand={p.brand}
+                                    compact
+                                  />
                                 )}
                               </div>
                               <div>

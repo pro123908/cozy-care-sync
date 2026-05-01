@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
+import { ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
@@ -471,13 +472,17 @@ function Header({
                     top: "100%",
                     left: 0,
                     right: 0,
+                    maxHeight: "min(68vh, 460px)",
                     background: "var(--card)",
                     border: "1px solid var(--blue-500)",
                     borderTop: "none",
                     borderRadius: "0 0 18px 18px",
                     boxShadow: "0 8px 24px rgba(0,0,0,.12)",
                     zIndex: 200,
-                    overflow: "hidden",
+                    overflowX: "hidden",
+                    overflowY: "auto",
+                    WebkitOverflowScrolling: "touch",
+                    overscrollBehavior: "contain",
                   }}
                 >
                   {!search.trim() ? (
@@ -571,7 +576,43 @@ function Header({
                         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
                         onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                       >
-                        <span style={{ color: "var(--ink-4)", flexShrink: 0 }}>{Icons.search}</span>
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 9,
+                            overflow: "hidden",
+                            border: "1px solid var(--line)",
+                            background: "var(--bg-elev)",
+                            flexShrink: 0,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              loading="lazy"
+                              decoding="async"
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          ) : (
+                            <ProductImageFallback
+                              cat={p.cat}
+                              name={p.name}
+                              brand={p.brand}
+                              swatch={p.swatch}
+                              compact
+                            />
+                          )}
+                        </div>
                         <div style={{ minWidth: 0 }}>
                           <div
                             style={{
