@@ -19,6 +19,7 @@ const EMPTY_DRAFT = {
   price: 0,
   was: "",
   stock: "In stock",
+  stock_count: 25,
   blurb: "",
   image_url: "",
   sort_order: 0,
@@ -27,7 +28,6 @@ const EMPTY_DRAFT = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-const STOCK_OPTIONS = ["In stock", "Low stock", "Limited", "Out of stock"];
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined;
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as
   | string
@@ -58,6 +58,20 @@ function getCategoryProductSequence(id: string, prefix: string) {
   return match ? Number(match[1]) : null;
 }
 
+function deriveStockStatusFromCount(stockCount: number) {
+  if (stockCount <= 0) return "Out of stock";
+  if (stockCount <= 5) return "Low stock";
+  if (stockCount <= 20) return "Limited";
+  return "In stock";
+}
+
+function getFallbackCountFromStock(stock: string) {
+  if (stock === "Out of stock") return 0;
+  if (stock === "Low stock") return 3;
+  if (stock === "Limited") return 12;
+  return 25;
+}
+
 export const Route = createFileRoute("/admin/products")({
   component: AdminProductsPage,
   head: () => ({
@@ -77,8 +91,12 @@ function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
+  const [stockFilter, setStockFilter] = useState<"all" | "in-stock" | "limited" | "low" | "out">(
+    "all",
+  );
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "whatsapp" | "manual">("all");
+  const [bulkStockCount, setBulkStockCount] = useState(25);
   const [viewMode, setViewMode] = useState<"list" | "editor">("list");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
@@ -197,9 +215,15 @@ function AdminProductsPage() {
           : !isWhatsAppImportedProduct(r));
       const matchesStatus =
         statusFilter === "all" || (statusFilter === "active" ? r.active : !r.active);
-      return matchesQuery && matchesCategory && matchesSource && matchesStatus;
+      const matchesStock =
+        stockFilter === "all" ||
+        (stockFilter === "in-stock" && r.stock_count > 20) ||
+        (stockFilter === "limited" && r.stock_count >= 6 && r.stock_count <= 20) ||
+        (stockFilter === "low" && r.stock_count >= 1 && r.stock_count <= 5) ||
+        (stockFilter === "out" && r.stock_count <= 0);
+      return matchesQuery && matchesCategory && matchesSource && matchesStatus && matchesStock;
     });
-  }, [rows, search, categoryFilter, sourceFilter, statusFilter, categoryBySlug]);
+  }, [rows, search, categoryFilter, sourceFilter, statusFilter, stockFilter, categoryBySlug]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageStart = (page - 1) * pageSize;
@@ -207,7 +231,17 @@ function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, sourceFilter, statusFilter, pageSize]);
+  }, [search, categoryFilter, sourceFilter, statusFilter, stockFilter, pageSize]);
+
+  const stockBuckets = useMemo(
+    () => ({
+      inStock: rows.filter((r) => r.stock_count > 20).length,
+      limited: rows.filter((r) => r.stock_count >= 6 && r.stock_count <= 20).length,
+      low: rows.filter((r) => r.stock_count >= 1 && r.stock_count <= 5).length,
+      out: rows.filter((r) => r.stock_count <= 0).length,
+    }),
+    [rows],
+  );
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -236,6 +270,7 @@ function AdminProductsPage() {
       price: p.price,
       was: p.was === null ? "" : String(p.was),
       stock: p.stock,
+      stock_count: p.stock_count ?? getFallbackCountFromStock(p.stock),
       blurb: p.blurb,
       image_url: p.image_url || "",
       sort_order: p.sort_order,
@@ -276,7 +311,8 @@ function AdminProductsPage() {
       category_id: selectedCategory?.id ?? null,
       price: Number(draft.price) || 0,
       was: draft.was === "" ? null : Math.max(Number(draft.was), 0),
-      stock: draft.stock.trim(),
+      stock: deriveStockStatusFromCount(Math.max(0, Number(draft.stock_count) || 0)),
+      stock_count: Math.max(0, Number(draft.stock_count) || 0),
       blurb: draft.blurb.trim(),
       image_url: draft.image_url.trim() || null,
       sort_order: Number(draft.sort_order) || 0,
@@ -335,6 +371,26 @@ function AdminProductsPage() {
     }
 
     push(active ? "Products activated" : "Products archived");
+    setSelectedIds([]);
+    await loadProducts();
+    if (selectedId && ids.includes(selectedId)) resetForm();
+  };
+
+  const setSelectedStockCount = async (ids: string[], stockCount: number) => {
+    const normalized = Math.max(0, Math.round(stockCount));
+    const stock = deriveStockStatusFromCount(normalized);
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from("products")
+      .update({ stock_count: normalized, stock, updated_at: new Date().toISOString() })
+      .in("id", ids);
+
+    if (error) {
+      push("Failed to update stock count for selected products");
+      return;
+    }
+
+    push(`Stock count updated to ${normalized} for ${ids.length} product(s)`);
     setSelectedIds([]);
     await loadProducts();
     if (selectedId && ids.includes(selectedId)) resetForm();
@@ -617,6 +673,23 @@ function AdminProductsPage() {
                     style={filterSelectTriggerStyle}
                   />
                 </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Stock</span>
+                  <CustomSelect
+                    value={stockFilter}
+                    onChange={(value) =>
+                      setStockFilter(value as "all" | "in-stock" | "limited" | "low" | "out")
+                    }
+                    options={[
+                      { value: "all", label: "All stock" },
+                      { value: "in-stock", label: `In stock (${stockBuckets.inStock})` },
+                      { value: "limited", label: `Limited (${stockBuckets.limited})` },
+                      { value: "low", label: `Low stock (${stockBuckets.low})` },
+                      { value: "out", label: `Out of stock (${stockBuckets.out})` },
+                    ]}
+                    style={filterSelectTriggerStyle}
+                  />
+                </div>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Rows</span>
                   <CustomSelect
@@ -666,6 +739,39 @@ function AdminProductsPage() {
                 >
                   Activate selected
                 </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input
+                    type="number"
+                    min={0}
+                    value={bulkStockCount}
+                    onChange={(e) => setBulkStockCount(Math.max(0, Number(e.target.value) || 0))}
+                    style={{
+                      ...inputStyle,
+                      width: 94,
+                      height: 33,
+                      fontSize: 12,
+                      padding: "0 10px",
+                    }}
+                    aria-label="Bulk stock count"
+                  />
+                  <button
+                    onClick={() =>
+                      setConfirmAction({
+                        title: "Update stock count",
+                        body: `Set stock count to ${Math.max(0, Math.round(bulkStockCount))} for ${selectedIds.length} selected product(s)?`,
+                        onConfirm: async () =>
+                          setSelectedStockCount(
+                            selectedIds,
+                            Math.max(0, Math.round(bulkStockCount)),
+                          ),
+                      })
+                    }
+                    disabled={selectedIds.length === 0}
+                    style={{ ...miniBtnStyle, opacity: selectedIds.length ? 1 : 0.6 }}
+                  >
+                    Set stock for selected
+                  </button>
+                </div>
                 {selectedIds.length > 0 && (
                   <button onClick={() => setSelectedIds([])} style={miniBtnStyle}>
                     Clear selection
@@ -868,6 +974,7 @@ function AdminProductsPage() {
                         <th style={thStyle}>Category</th>
                         <th style={thStyle}>Source</th>
                         <th style={thStyle}>Price</th>
+                        <th style={thStyle}>Stock</th>
                         <th style={thStyle}>Status</th>
                         <th style={thStyle}>Actions</th>
                       </tr>
@@ -951,6 +1058,40 @@ function AdminProductsPage() {
                             </span>
                           </td>
                           <td style={tdStyle}>Rs {p.price.toLocaleString()}</td>
+                          <td style={tdStyle}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <span
+                                style={{
+                                  padding: "3px 8px",
+                                  borderRadius: 999,
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  width: "fit-content",
+                                  background:
+                                    p.stock === "In stock"
+                                      ? "var(--pill-success-bg)"
+                                      : p.stock === "Out of stock"
+                                        ? "var(--pill-rose-bg)"
+                                        : p.stock === "Low stock"
+                                          ? "var(--pill-warn-bg)"
+                                          : "var(--pill-info-bg)",
+                                  color:
+                                    p.stock === "In stock"
+                                      ? "var(--pill-success-fg)"
+                                      : p.stock === "Out of stock"
+                                        ? "var(--pill-rose-fg)"
+                                        : p.stock === "Low stock"
+                                          ? "var(--pill-warn-fg)"
+                                          : "var(--pill-info-fg)",
+                                }}
+                              >
+                                {p.stock}
+                              </span>
+                              <span style={{ color: "var(--ink-4)", fontSize: 12 }}>
+                                {p.stock_count} units
+                              </span>
+                            </div>
+                          </td>
                           <td style={tdStyle}>
                             <span
                               style={{
@@ -1098,17 +1239,17 @@ function AdminProductsPage() {
                       style={selectTriggerStyle}
                     />
                   </Field>
-                  <Field label="Stock">
-                    <CustomSelect
-                      value={draft.stock}
-                      onChange={(value) => setDraft((d) => ({ ...d, stock: value }))}
-                      options={STOCK_OPTIONS.map((stock) => ({ value: stock, label: stock }))}
-                      placeholder="Select stock state"
-                      style={selectTriggerStyle}
+                  <Field label="Stock status (auto)">
+                    <input
+                      value={deriveStockStatusFromCount(
+                        Math.max(0, Number(draft.stock_count) || 0),
+                      )}
+                      readOnly
+                      style={{ ...inputStyle, background: "var(--bg-elev)", color: "var(--ink-3)" }}
                     />
                   </Field>
                 </div>
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr" }}>
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
                   <Field label="Price">
                     <input
                       type="number"
@@ -1131,6 +1272,20 @@ function AdminProductsPage() {
                       value={draft.sort_order}
                       onChange={(e) =>
                         setDraft((d) => ({ ...d, sort_order: Number(e.target.value) }))
+                      }
+                      style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="Stock count">
+                    <input
+                      type="number"
+                      min={0}
+                      value={draft.stock_count}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          stock_count: Math.max(0, Number(e.target.value)),
+                        }))
                       }
                       style={inputStyle}
                     />

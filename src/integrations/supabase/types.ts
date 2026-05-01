@@ -130,6 +130,7 @@ export type Database = {
           rating: number;
           reviews: number;
           stock: string;
+          stock_count: number;
           tags: string[];
           blurb: string;
           swatch: string;
@@ -150,6 +151,7 @@ export type Database = {
           rating?: number;
           reviews?: number;
           stock?: string;
+          stock_count?: number;
           tags?: string[];
           blurb?: string;
           swatch?: string;
@@ -170,6 +172,7 @@ export type Database = {
           rating?: number;
           reviews?: number;
           stock?: string;
+          stock_count?: number;
           tags?: string[];
           blurb?: string;
           swatch?: string;

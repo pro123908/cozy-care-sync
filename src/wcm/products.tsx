@@ -1086,7 +1086,6 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <TrustRibbon />
-      <div ref={listingTopRef} />
       <RecentlyViewedRail
         ids={recentlyViewedIds}
         products={products}
@@ -1096,6 +1095,7 @@ export function ProductsPage({
         isMobile={isMobile}
       />
       {hasRecentlyViewed ? <div className="wcm-section-divider" /> : null}
+      <div ref={listingTopRef} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 6 }}>
         {/* Row 1: Category filter chips */}
         <div
