@@ -1115,8 +1115,9 @@ export function ProductDetail({
     setActiveView((v) => (v + dir + detailImages.length) % detailImages.length);
   };
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+    <div className="wcm-pdp-wrap" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       <button
+        className="wcm-pdp-back"
         onClick={onClose}
         style={{
           background: "none",
@@ -1216,7 +1217,7 @@ export function ProductDetail({
           className="wcm-detail-info"
           style={{ display: "flex", flexDirection: "column", gap: 14 }}
         >
-          <div>
+          <div className="wcm-detail-head-block">
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>{cat}</span>
               <span style={{ color: "var(--ink-4)" }}>·</span>
@@ -1409,10 +1410,7 @@ export function ProductDetail({
             </button>
           </div>
           {hasMultipleImages && (
-            <div
-              className="wcm-detail-thumbs-mobile"
-              style={{ gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}
-            >
+            <div className="wcm-detail-thumbs-mobile">
               {thumbIndexes.map((i) => (
                 <button
                   key={`mobile-thumb-${i}`}

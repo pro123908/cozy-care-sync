@@ -380,6 +380,17 @@
 .wcm-pdp-sticky-cta {
   display: none;
 }
+.wcm-pdp-wrap {
+  gap: 18px;
+}
+.wcm-pdp-back {
+  align-self: flex-start;
+}
+.wcm-detail-head-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .wcm-order-card-mobile-timeline {
   display: none;
 }
@@ -504,6 +515,25 @@
   .wcm-order-detail-cancel-confirm {
     width: 100%;
     flex-wrap: wrap;
+  }
+  .wcm-pdp-wrap {
+    gap: 14px;
+  }
+  .wcm-detail-cols {
+    gap: 14px;
+  }
+  .wcm-detail-media {
+    padding: 12px !important;
+  }
+  .wcm-detail-media-hero {
+    width: min(88vw, 420px);
+    margin: 0 auto;
+  }
+  .wcm-detail-info {
+    gap: 12px !important;
+  }
+  .wcm-detail-price-card {
+    padding: 14px !important;
   }
 }
 
@@ -637,19 +667,41 @@
   .wcm-detail-meta-grid {
     grid-template-columns: 1fr !important;
   }
-  .wcm-add-row > * {
-    width: 100%;
+  .wcm-pdp-wrap {
+    gap: 12px;
   }
-  .wcm-add-row > div {
-    width: auto;
+  .wcm-pdp-back {
+    font-size: 12px !important;
+  }
+  .wcm-detail-cols {
+    gap: 10px;
+  }
+  .wcm-detail-media {
+    padding: 10px !important;
+  }
+  .wcm-detail-media-hero {
+    width: 100%;
+    max-width: none;
+  }
+  .wcm-detail-head-block h1 {
+    font-size: 22px !important;
+    margin: 4px 0 2px !important;
+    line-height: 1.15 !important;
+    letter-spacing: -0.3px !important;
+  }
+  .wcm-detail-info {
+    gap: 10px !important;
   }
   .wcm-detail-price-card {
+    width: 100%;
+    padding: 12px !important;
     flex-direction: column;
     justify-content: flex-start !important;
     align-items: flex-start !important;
-    gap: 10px;
+    gap: 8px;
   }
   .wcm-detail-price-row {
+    column-gap: 8px;
     row-gap: 6px;
   }
   .wcm-detail-price-row > * {
@@ -661,24 +713,34 @@
   .wcm-detail-tax-note {
     line-height: 1.4;
   }
+  .wcm-add-row {
+    display: none !important;
+  }
   .wcm-detail-media {
     order: 1;
   }
   .wcm-detail-info {
     order: 2;
   }
-  .wcm-detail-media-hero {
-    width: min(72vw, 300px);
-    margin: 0 auto;
-  }
   .wcm-detail-thumbs-desktop {
     display: none !important;
   }
   .wcm-detail-thumbs-mobile {
-    display: grid;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 1px 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .wcm-detail-thumbs-mobile::-webkit-scrollbar {
+    display: none;
+  }
+  .wcm-detail-thumbs-mobile > button {
+    flex: 0 0 74px;
   }
   .wcm-detail-info {
-    padding-bottom: 84px;
+    padding-bottom: 92px;
   }
   .wcm-pdp-sticky-cta {
     position: fixed;
