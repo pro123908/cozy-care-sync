@@ -328,6 +328,7 @@ function ProductCard({
 
   return (
     <div
+      className="wcm-product-card"
       style={{
         background: "var(--card)",
         border: "1px solid var(--line)",
@@ -362,6 +363,7 @@ function ProductCard({
               position: "absolute",
               top: 8,
               right: 8,
+              zIndex: 3,
               padding: compact ? "2px 7px" : "3px 8px",
               borderRadius: 99,
               background: "var(--ink)",
@@ -374,6 +376,7 @@ function ProductCard({
           </div>
         )}
         <button
+          className="wcm-card-hover-action wcm-card-wishlist-btn"
           onClick={(e) => {
             e.stopPropagation();
             toggleWishlist(p.id);
@@ -383,17 +386,19 @@ function ProductCard({
             position: "absolute",
             top: 8,
             left: 8,
+            zIndex: 3,
             width: compact ? 26 : 28,
             height: compact ? 26 : 28,
             borderRadius: 99,
-            background: "rgba(255,255,255,0.9)",
-            border: "none",
+            background: "var(--card)",
+            border: "1px solid var(--line-2)",
             cursor: "pointer",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: saved ? "#e11d48" : "var(--ink-4)",
-            boxShadow: "var(--shadow-sm)",
+            color: saved ? "#e11d48" : "var(--ink-2)",
+            boxShadow: "0 8px 14px -10px rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(6px)",
             WebkitTapHighlightColor: "transparent",
           }}
         >
@@ -543,7 +548,7 @@ function ProductCard({
             </button>
           )}
           <button
-            className="wcm-card-step-btn wcm-card-step-btn-plus"
+            className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action"
             onClick={(e) => {
               e.stopPropagation();
               onAdd(p);
@@ -1632,7 +1637,6 @@ export function ProductDetail({
               }
               onClick={() => toggleWishlist(product.id)}
               aria-label={isSaved ? "Remove from saved" : "Save item"}
-              title={isSaved ? "Remove from saved" : "Save item"}
               style={{
                 width: 50,
                 minWidth: 50,

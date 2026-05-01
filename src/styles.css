@@ -91,56 +91,66 @@
 
 :root[data-theme="dark"],
 .dark {
-  --bg: #0b1220;
-  --bg-elev: #111a2c;
-  --card: #131c30;
-  --card-2: #182238;
+  color-scheme: dark;
 
-  --header-bg: rgba(11, 18, 32, 0.85);
-  --overlay: rgba(0, 0, 0, 0.55);
+  --bg: #111b2b;
+  --bg-elev: #162337;
+  --card: #1b2b43;
+  --card-2: #223551;
 
-  --ink: #f1f5f9;
-  --ink-2: #e2e8f0;
-  --ink-3: #cbd5e1;
-  --ink-4: #94a3b8;
+  --header-bg: rgba(17, 27, 43, 0.72);
+  --overlay: rgba(5, 12, 24, 0.56);
 
-  --line: #1f2a44;
-  --line-2: #243154;
+  --ink: #f5f9ff;
+  --ink-2: #e3edfb;
+  --ink-3: #c9d7eb;
+  --ink-4: #a6bad5;
 
-  --chip: #1a2540;
-  --chip-2: #223057;
+  --line: #3a4f6d;
+  --line-2: #476084;
 
-  --blue-50: #1e293b;
-  --blue-500: #3b82f6;
-  --blue-600: #60a5fa;
-  --blue-700: #93c5fd;
+  --chip: #263a57;
+  --chip-2: #30486b;
 
-  --green-50: #052e26;
-  --green-500: #10b981;
-  --green-600: #34d399;
-  --green-700: #6ee7b7;
-  --soft-green: #0e2a22;
+  --blue-50: #213753;
+  --blue-500: #5a98ff;
+  --blue-600: #84b4ff;
+  --blue-700: #b5d0ff;
 
-  --grad: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-  --grad-soft: linear-gradient(135deg, #142447 0%, #0f2a23 100%);
+  --green-50: #1a453b;
+  --green-500: #2acb9b;
+  --green-600: #57dfb5;
+  --green-700: #9ef3d6;
+  --soft-green: #1e4a3f;
 
-  --pill-info-bg: #1e3a8a;
-  --pill-info-fg: #bfdbfe;
-  --pill-success-bg: #064e3b;
-  --pill-success-fg: #a7f3d0;
-  --pill-warn-bg: #78350f;
-  --pill-warn-fg: #fde68a;
-  --pill-rose-bg: #4c0519;
-  --pill-rose-fg: #fecdd3;
-  --pill-slate-bg: #1e293b;
-  --pill-slate-fg: #cbd5e1;
+  --grad: linear-gradient(135deg, #3f7ef0 0%, #23ba87 100%);
+  --grad-soft: linear-gradient(135deg, #26436f 0%, #235446 100%);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 24px 48px -16px rgba(0, 0, 0, 0.7);
+  --pill-info-bg: #2b4d88;
+  --pill-info-fg: #deecff;
+  --pill-success-bg: #24674f;
+  --pill-success-fg: #d3fbe9;
+  --pill-warn-bg: #845423;
+  --pill-warn-fg: #ffe7bb;
+  --pill-rose-bg: #70203b;
+  --pill-rose-fg: #ffd9e4;
+  --pill-slate-bg: #304766;
+  --pill-slate-fg: #dbe5f3;
+
+  --shadow-sm: 0 1px 2px rgba(4, 10, 20, 0.28);
+  --shadow: 0 8px 22px -10px rgba(4, 10, 20, 0.42);
+  --shadow-lg: 0 28px 56px -20px rgba(4, 10, 20, 0.58);
 
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
+}
+
+:root[data-theme="dark"] body,
+.dark body {
+  background-image:
+    radial-gradient(900px 360px at 8% -10%, rgba(90, 152, 255, 0.16), transparent),
+    radial-gradient(740px 320px at 100% 0%, rgba(42, 203, 155, 0.12), transparent);
+  background-attachment: fixed;
 }
 
 @layer base {
@@ -491,6 +501,44 @@
 
 .wcm-card-step-btn-minus:hover {
   box-shadow: 0 6px 14px -10px rgba(15, 23, 42, 0.35);
+}
+
+.wcm-card-wishlist-btn {
+  transition:
+    transform 150ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.wcm-card-wishlist-btn:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--blue-500) 42%, var(--line-2));
+  box-shadow: 0 10px 18px -11px rgba(15, 23, 42, 0.85);
+}
+
+:root[data-theme="dark"] .wcm-card-wishlist-btn,
+.dark .wcm-card-wishlist-btn {
+  background: rgba(245, 249, 255, 0.94) !important;
+  border-color: rgba(120, 141, 170, 0.5) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wcm-card-hover-action {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+    pointer-events: none;
+    transition:
+      opacity 180ms ease,
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .wcm-product-card:hover .wcm-card-hover-action,
+  .wcm-product-card:focus-within .wcm-card-hover-action {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
 }
 .wcm-order-card-mobile-timeline {
   display: none;
