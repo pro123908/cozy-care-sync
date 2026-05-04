@@ -411,22 +411,26 @@ export function ProductCard({
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 3, flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {p.tags.slice(0, 1).map((t) => (
-            <Pill
-              key={t}
-              tone={
-                t === "Best seller"
-                  ? "green"
-                  : t === "Top rated"
-                    ? "blue"
-                    : t === "Deal"
-                      ? "rose"
-                      : "slate"
-              }
-            >
-              {t}
-            </Pill>
-          ))}
+          {(p.sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? (
+            <Pill tone="green">🔥 Hot</Pill>
+          ) : (
+            p.tags.slice(0, 1).map((t) => (
+              <Pill
+                key={t}
+                tone={
+                  t === "Best seller"
+                    ? "green"
+                    : t === "Top rated"
+                      ? "blue"
+                      : t === "Deal"
+                        ? "rose"
+                        : "slate"
+                }
+              >
+                {t}
+              </Pill>
+            ))
+          )}
           <span style={{ fontSize: compact ? 10 : 11, color: "var(--ink-4)", fontWeight: 600 }}>
             {p.brand}
           </span>

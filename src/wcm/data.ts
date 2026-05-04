@@ -9,6 +9,7 @@ export type Product = {
   was?: number;
   rating: number;
   reviews: number;
+  sales_count?: number;
   stock: string;
   tags: string[];
   blurb: string;

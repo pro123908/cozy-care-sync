@@ -1142,14 +1142,35 @@ function Footer() {
           </p>
         </div>
         {[
-          { h: "Shop", links: ["Monitoring", "Mobility", "Respiratory", "Therapy", "Disposables"] },
+          {
+            h: "Shop",
+            links: [
+              { label: "Monitoring", href: "#" },
+              { label: "Mobility", href: "#" },
+              { label: "Respiratory", href: "#" },
+              { label: "Therapy", href: "#" },
+              { label: "Disposables", href: "#" },
+            ],
+          },
           {
             h: "Help",
-            links: ["Track an order", "Returns & refunds", "Shipping", "Contact us", "FAQs"],
+            links: [
+              { label: "Track an order", href: "#" },
+              { label: "Returns & refunds", href: "/policies#refunds" },
+              { label: "Shipping", href: "/policies#shipping" },
+              { label: "Contact us", href: "#" },
+              { label: "FAQs", href: "#" },
+            ],
           },
           {
             h: "Company",
-            links: ["About Wellcare", "Brand partners", "Careers", "Privacy", "Terms"],
+            links: [
+              { label: "About Wellcare", href: "#" },
+              { label: "Brand partners", href: "#" },
+              { label: "Careers", href: "#" },
+              { label: "Privacy", href: "/policies#privacy" },
+              { label: "Terms", href: "/policies" },
+            ],
           },
         ].map((col) => (
           <div key={col.h}>
@@ -1168,9 +1189,8 @@ function Footer() {
             <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
               {col.links.map((l) => (
                 <a
-                  key={l}
-                  href="#"
-                  onClick={(e) => e.preventDefault()}
+                  key={l.label}
+                  href={l.href}
                   style={{
                     color: "var(--ink-2)",
                     textDecoration: "none",
@@ -1178,7 +1198,7 @@ function Footer() {
                     fontWeight: 600,
                   }}
                 >
-                  {l}
+                  {l.label}
                 </a>
               ))}
             </div>

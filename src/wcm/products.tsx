@@ -95,6 +95,8 @@ export function ProductsPage({
     let arr: Product[] = products;
     if (active !== "all") arr = arr.filter((p) => p.cat === active);
     if (inStockOnly) arr = arr.filter((p) => p.stock !== "Out of stock");
+    if (sort === "popular")
+      arr = [...arr].sort((a, b) => (b.sales_count ?? 0) - (a.sales_count ?? 0));
     if (sort === "low") arr = [...arr].sort((a, b) => a.price - b.price);
     if (sort === "high") arr = [...arr].sort((a, b) => b.price - a.price);
     if (sort === "rating") arr = [...arr].sort((a, b) => b.rating - a.rating);

@@ -67,6 +67,17 @@ function CheckoutPage() {
       push("Could not place order: " + error.message);
       return;
     }
+
+    // Increment sales_count for each product in the order
+    await Promise.all(
+      newOrder.items.map(async (item: { id: string; qty: number }) => {
+        await supabase.rpc("increment_product_sales", {
+          p_id: item.id,
+          p_qty: item.qty,
+        });
+      }),
+    );
+
     setOrders((o) => [newOrder, ...o]);
     setCart([]);
     setCheckoutData(null);

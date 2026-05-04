@@ -22,6 +22,7 @@ import {
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
+  sales_count?: number | null;
 };
 
 type CategoryRecord = Database["public"]["Tables"]["categories"]["Row"];
@@ -348,6 +349,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             was: r.was ?? undefined,
             rating: Number(r.rating),
             reviews: r.reviews,
+            sales_count: Number(r.sales_count ?? 0),
             stock: r.stock,
             tags: r.tags ?? [],
             blurb: r.blurb,
