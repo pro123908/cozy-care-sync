@@ -402,9 +402,7 @@
   flex: 0 0 auto;
 }
 .wcm-trust-ribbon {
-  position: sticky;
-  top: 72px;
-  z-index: 14;
+  position: static;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -543,6 +541,16 @@
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 2px;
+  position: static;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 96%, var(--brand) 4%);
+  border: 1px solid color-mix(in srgb, var(--line) 74%, var(--brand) 26%);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08);
+  transition:
+    background 0.2s,
+    box-shadow 0.2s,
+    border-color 0.2s;
 }
 .wcm-active-filters-label {
   font-size: 12px;

@@ -565,12 +565,12 @@ export function RecentlyViewedRail({
     <div style={{ marginBottom: 10 }}>
       <div
         style={{
-          fontSize: 13,
+          fontSize: 11,
           fontWeight: 700,
-          color: "var(--ink-3)",
+          color: "var(--ink-4)",
           letterSpacing: 0.3,
           textTransform: "uppercase",
-          marginBottom: 8,
+          marginBottom: 6,
         }}
       >
         Recently viewed
@@ -579,7 +579,7 @@ export function RecentlyViewedRail({
         className="wcm-rv-rail"
         style={{
           display: "flex",
-          gap: 10,
+          gap: 8,
           overflowX: "auto",
           paddingBottom: 4,
           scrollbarWidth: "none",
@@ -587,7 +587,7 @@ export function RecentlyViewedRail({
       >
         <style>{`.wcm-rv-rail::-webkit-scrollbar{display:none}`}</style>
         {viewed.map((p) => (
-          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 140 : 170 }}>
+          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 110 : 130 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}

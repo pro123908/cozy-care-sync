@@ -185,10 +185,7 @@ export function FeaturedCollectionsStrip({
 
   return (
     <div className="wcm-featured-wrap">
-      <div className="wcm-featured-head">
-        <div className="wcm-featured-kicker">Picked for quick care</div>
-        <div className="wcm-featured-title">Featured collections</div>
-      </div>
+      <div className="wcm-featured-head"></div>
       <div className="wcm-featured-grid">
         {featured.map((cat, idx) => (
           <button

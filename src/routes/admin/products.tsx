@@ -102,6 +102,8 @@ function AdminProductsPage() {
   const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
   const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
+  const [categoryNameDrafts, setCategoryNameDrafts] = useState<Record<string, string>>({});
+  const [savingCategoryNameId, setSavingCategoryNameId] = useState<string | null>(null);
   const [showCategoryImages, setShowCategoryImages] = useState(false);
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -151,6 +153,7 @@ function AdminProductsPage() {
   }, []);
 
   useEffect(() => {
+    setCategoryNameDrafts(Object.fromEntries(categories.map((c) => [c.id, c.name])));
     setCategoryImageDrafts(
       Object.fromEntries(categories.map((category) => [category.id, category.image_url || ""])),
     );
@@ -501,6 +504,24 @@ function AdminProductsPage() {
     }
   };
 
+  const saveCategoryName = async (categoryId: string) => {
+    const name = categoryNameDrafts[categoryId]?.trim();
+    if (!name) {
+      push("Category name cannot be empty", { tone: "red" });
+      return;
+    }
+    setSavingCategoryNameId(categoryId);
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("categories").update({ name }).eq("id", categoryId);
+    setSavingCategoryNameId(null);
+    if (error) {
+      push(error.message || "Failed to save category name", { tone: "red" });
+      return;
+    }
+    push("Category name saved");
+    await loadCategories();
+  };
+
   const saveCategoryImage = async (categoryId: string) => {
     setSavingCategoryId(categoryId);
     const supabase = await getSupabase();
@@ -820,6 +841,9 @@ function AdminProductsPage() {
                       const isSavingCategory = savingCategoryId === category.id;
                       const isUploadingCategory = uploadingCategoryId === category.id;
 
+                      const draftName = categoryNameDrafts[category.id] ?? category.name;
+                      const isSavingCategoryName = savingCategoryNameId === category.id;
+
                       return (
                         <div
                           key={category.id}
@@ -860,7 +884,55 @@ function AdminProductsPage() {
                           </div>
 
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>{category.name}</div>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 4,
+                                alignItems: "center",
+                                marginBottom: 4,
+                              }}
+                            >
+                              <input
+                                value={draftName}
+                                onChange={(e) =>
+                                  setCategoryNameDrafts((prev) => ({
+                                    ...prev,
+                                    [category.id]: e.target.value,
+                                  }))
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveCategoryName(category.id);
+                                }}
+                                disabled={
+                                  isSavingCategoryName || isSavingCategory || isUploadingCategory
+                                }
+                                style={{
+                                  ...inputStyle,
+                                  height: 30,
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  flex: 1,
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => saveCategoryName(category.id)}
+                                disabled={
+                                  isSavingCategoryName ||
+                                  isSavingCategory ||
+                                  isUploadingCategory ||
+                                  draftName === category.name
+                                }
+                                style={{
+                                  ...miniBtnStyle,
+                                  opacity:
+                                    isSavingCategoryName || draftName === category.name ? 0.5 : 1,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {isSavingCategoryName ? "Saving…" : "Rename"}
+                              </button>
+                            </div>
                             <div
                               style={{
                                 fontSize: 11,

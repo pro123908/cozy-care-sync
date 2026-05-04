@@ -373,7 +373,7 @@ function Header({
           letterSpacing: 0.2,
         }}
       >
-        🚚 Free same-day delivery in Karachi on orders above Rs 2,000
+        🚚 Free same-day delivery in Karachi on orders above Rs 6,000
       </div>
       <header
         style={{

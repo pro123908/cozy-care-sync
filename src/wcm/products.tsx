@@ -11,7 +11,7 @@ import {
   ProductCardSkeleton,
   RecentlyViewedRail,
 } from "./products-card-components";
-import { FeaturedCollectionsStrip, Hero, TrustRibbon } from "./products-marketing-components";
+import { Hero, TrustRibbon } from "./products-marketing-components";
 import {
   PRODUCTS_PAGE_SIZE,
   SORT_OPTIONS,
@@ -417,16 +417,6 @@ export function ProductsPage({
       )}
 
       <div ref={productsTopRef} />
-
-      <FeaturedCollectionsStrip
-        categories={storefrontCategories}
-        onSelect={(cat) => {
-          shouldScrollToProductsRef.current = true;
-          setActive(cat);
-          setGridKey((k) => k + 1);
-          onCategoryChange?.(cat);
-        }}
-      />
 
       {!productsLoaded ? (
         <div
