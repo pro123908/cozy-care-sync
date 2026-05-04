@@ -2358,6 +2358,7 @@ CATEGORIES.forEach((c) => {
 });
 
 export type OrderItem = { id: string; qty: number };
+export type OrderReview = { rating: number; comment: string };
 export type Order = {
   id: string;
   placed: string;
@@ -2371,4 +2372,5 @@ export type Order = {
   shipping: number;
   total: number;
   rider?: { name: string; phone: string };
+  review?: OrderReview;
 };

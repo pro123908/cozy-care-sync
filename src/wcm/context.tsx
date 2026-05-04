@@ -11,7 +11,14 @@ import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToasts } from "./ui";
 import type { WcmUser } from "./auth";
-import { CATEGORIES, PRODUCTS, type Category, type Product, type Order } from "./data";
+import {
+  CATEGORIES,
+  PRODUCTS,
+  type Category,
+  type Product,
+  type Order,
+  type OrderReview,
+} from "./data";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
@@ -71,6 +78,7 @@ type WcmContextType = {
   setOrders: Dispatch<SetStateAction<Order[]>>;
   ordersLoaded: boolean;
   loadOrders: (userId: string) => Promise<void>;
+  submitOrderReview: (orderId: string, rating: number, comment: string) => Promise<void>;
   // Checkout
   checkoutData: CheckoutState | null;
   setCheckoutData: Dispatch<SetStateAction<CheckoutState | null>>;
@@ -152,15 +160,22 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
 
   const loadOrders = useCallback(async (userId: string) => {
     const supabase = await getSupabase();
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    const [ordersRes, reviewsRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false }),
+      supabase.from("order_reviews").select("order_code, rating, comment").eq("user_id", userId),
+    ]);
     setOrdersLoaded(true);
-    if (error || !data) return;
+    if (ordersRes.error || !ordersRes.data) return;
+    const reviewMap: Record<string, OrderReview> = {};
+    for (const r of reviewsRes.data || []) {
+      reviewMap[r.order_code] = { rating: r.rating, comment: r.comment || "" };
+    }
     setOrders(
-      data.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
+      ordersRes.data.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
         id: r.order_code,
         placed: r.placed,
         eta: r.eta,
@@ -173,9 +188,31 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         shipping: r.shipping,
         total: r.total,
         rider: (r.rider as any) || undefined,
+        review: reviewMap[r.order_code],
       })),
     );
   }, []);
+
+  const submitOrderReview = useCallback(
+    async (orderId: string, rating: number, comment: string) => {
+      const supabase = await getSupabase();
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("order_reviews")
+        .upsert(
+          { order_code: orderId, user_id: authUser.id, rating, comment },
+          { onConflict: "order_code,user_id" },
+        );
+      if (error) throw error;
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, review: { rating, comment } } : o)),
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -403,6 +440,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         setOrders,
         ordersLoaded,
         loadOrders,
+        submitOrderReview,
         checkoutData,
         setCheckoutData,
         successOrder,

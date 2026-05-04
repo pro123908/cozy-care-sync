@@ -28,10 +28,7 @@ const EMPTY_DRAFT = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
-const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined;
-const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as
-  | string
-  | undefined;
+const SUPABASE_STORAGE_BUCKET = "product-images";
 const WHATSAPP_IMPORT_TAG = "import:whatsapp";
 
 function isWhatsAppImportedProduct(product: ProductRow) {
@@ -414,45 +411,26 @@ function AdminProductsPage() {
     setSelectedIds((prev) => Array.from(new Set([...prev, ...pageRows.map((r) => r.id)])));
   };
 
-  const cloudinaryReady = Boolean(CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET);
-
-  const uploadImageToCloudinary = async (file: File) => {
-    if (!cloudinaryReady) {
-      push(
-        "Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.",
-      );
-      return;
-    }
-
+  const uploadImageToSupabase = async (file: File) => {
     if (!file.type.startsWith("image/")) {
       push("Please select a valid image file.");
       return;
     }
-
     setUploadingImage(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET!);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-
-      const payload = await response.json();
-
-      if (!response.ok || !payload?.secure_url) {
-        const reason = payload?.error?.message || "Upload failed";
-        push(reason);
+      const supabase = await getSupabase();
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `products/${draft.id || "new"}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(SUPABASE_STORAGE_BUCKET)
+        .upload(path, file, { upsert: true, cacheControl: "31536000" });
+      if (uploadError) {
+        push(uploadError.message);
         return;
       }
-
-      setDraft((d) => ({ ...d, image_url: payload.secure_url as string }));
-      push("Image uploaded to Cloudinary");
+      const { data: urlData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(path);
+      setDraft((d) => ({ ...d, image_url: urlData.publicUrl }));
+      push("Image uploaded");
     } catch {
       push("Could not upload image right now. Please try again.");
     } finally {
@@ -460,42 +438,25 @@ function AdminProductsPage() {
     }
   };
 
-  const uploadCategoryImageToCloudinary = async (categoryId: string, file: File) => {
-    if (!cloudinaryReady) {
-      push(
-        "Cloudinary is not configured. Set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET.",
-      );
-      return;
-    }
-
+  const uploadCategoryImageToSupabase = async (categoryId: string, file: File) => {
     if (!file.type.startsWith("image/")) {
       push("Please select a valid image file.");
       return;
     }
-
     setUploadingCategoryId(categoryId);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET!);
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-
-      const payload = await response.json();
-
-      if (!response.ok || !payload?.secure_url) {
-        const reason = payload?.error?.message || "Upload failed";
-        push(reason);
+      const supabase = await getSupabase();
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `categories/${categoryId}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(SUPABASE_STORAGE_BUCKET)
+        .upload(path, file, { upsert: true, cacheControl: "31536000" });
+      if (uploadError) {
+        push(uploadError.message);
         return;
       }
-
-      setCategoryImageDrafts((prev) => ({ ...prev, [categoryId]: payload.secure_url as string }));
+      const { data: urlData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(path);
+      setCategoryImageDrafts((prev) => ({ ...prev, [categoryId]: urlData.publicUrl }));
       push("Category image uploaded");
     } catch {
       push("Could not upload category image right now. Please try again.");
@@ -819,11 +780,6 @@ function AdminProductsPage() {
                     Category images
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {!cloudinaryReady && (
-                      <span style={{ fontSize: 12, color: "var(--pill-rose-fg)" }}>
-                        Cloudinary env vars missing
-                      </span>
-                    )}
                     <button
                       type="button"
                       onClick={() => setShowCategoryImages((prev) => !prev)}
@@ -961,12 +917,9 @@ function AdminProductsPage() {
                               style={{
                                 ...miniBtnStyle,
                                 textAlign: "center",
-                                opacity:
-                                  cloudinaryReady && !isUploadingCategory && !isSavingCategory
-                                    ? 1
-                                    : 0.6,
+                                opacity: !isUploadingCategory && !isSavingCategory ? 1 : 0.6,
                                 cursor:
-                                  cloudinaryReady && !isUploadingCategory && !isSavingCategory
+                                  !isUploadingCategory && !isSavingCategory
                                     ? "pointer"
                                     : "not-allowed",
                               }}
@@ -975,12 +928,10 @@ function AdminProductsPage() {
                               <input
                                 type="file"
                                 accept="image/*"
-                                disabled={
-                                  !cloudinaryReady || isUploadingCategory || isSavingCategory
-                                }
+                                disabled={isUploadingCategory || isSavingCategory}
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];
-                                  if (file) uploadCategoryImageToCloudinary(category.id, file);
+                                  if (file) uploadCategoryImageToSupabase(category.id, file);
                                   e.currentTarget.value = "";
                                 }}
                                 style={{ display: "none" }}
@@ -1411,28 +1362,23 @@ function AdminProductsPage() {
                     <label
                       style={{
                         ...miniBtnStyle,
-                        opacity: cloudinaryReady && !uploadingImage ? 1 : 0.6,
-                        cursor: cloudinaryReady && !uploadingImage ? "pointer" : "not-allowed",
+                        opacity: !uploadingImage ? 1 : 0.6,
+                        cursor: !uploadingImage ? "pointer" : "not-allowed",
                       }}
                     >
-                      {uploadingImage ? "Uploading..." : "Upload to Cloudinary"}
+                      {uploadingImage ? "Uploading..." : "Upload image"}
                       <input
                         type="file"
                         accept="image/*"
-                        disabled={!cloudinaryReady || uploadingImage}
+                        disabled={uploadingImage}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
-                          if (file) uploadImageToCloudinary(file);
+                          if (file) uploadImageToSupabase(file);
                           e.currentTarget.value = "";
                         }}
                         style={{ display: "none" }}
                       />
                     </label>
-                    {!cloudinaryReady && (
-                      <span style={{ fontSize: 12, color: "var(--pill-rose-fg)" }}>
-                        Missing Cloudinary env vars
-                      </span>
-                    )}
                     {draft.image_url.trim() && (
                       <button
                         type="button"

@@ -452,9 +452,14 @@ export function OrderDetail({
   onClose: () => void;
   onCancel?: () => Promise<void>;
 }) {
-  const { addToCart, products } = useWcm();
+  const { addToCart, products, submitOrderReview, push } = useWcm();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewHover, setReviewHover] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   const handleReorder = () => {
     items.forEach(({ p, qty }) => addToCart(p, qty));
@@ -466,6 +471,20 @@ export function OrderDetail({
     await onCancel();
     setCancelling(false);
     setShowCancelConfirm(false);
+  };
+
+  const handleSubmitReview = async () => {
+    if (reviewRating === 0) return;
+    setSubmittingReview(true);
+    try {
+      await submitOrderReview(order.id, reviewRating, reviewComment.trim());
+      push("Thanks for your review!", { tone: "green" });
+      setShowReview(false);
+    } catch {
+      push("Couldn't submit review. Please try again.", { tone: "rose" });
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const items = order.items
@@ -834,11 +853,12 @@ export function OrderDetail({
           <Btn variant="outline" icon={Icons.refresh} onClick={handleReorder}>
             Reorder
           </Btn>
-          {order.status === "Delivered" ? (
-            <Btn variant="outline" icon={Icons.heart}>
+          {order.status === "Delivered" && !order.review && (
+            <Btn variant="outline" icon={Icons.heart} onClick={() => setShowReview((v) => !v)}>
               Leave a review
             </Btn>
-          ) : (
+          )}
+          {order.status !== "Delivered" &&
             order.status !== "Cancelled" &&
             (showCancelConfirm ? (
               <div
@@ -857,10 +877,147 @@ export function OrderDetail({
               <Btn variant="danger" onClick={() => setShowCancelConfirm(true)}>
                 Cancel order
               </Btn>
-            ))
-          )}
+            ))}
           <Btn icon={Icons.phone}>Contact support</Btn>
         </div>
+
+        {/* Already reviewed badge */}
+        {order.review && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "var(--pill-success-bg)",
+              border: "1px solid #bbf7d0",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <span style={{ display: "inline-flex", gap: 2 }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <svg
+                  key={s}
+                  width={16}
+                  height={16}
+                  viewBox="0 0 24 24"
+                  fill={s <= order.review!.rating ? "#f59e0b" : "var(--line)"}
+                >
+                  <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
+                </svg>
+              ))}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pill-success-fg)" }}>
+              You rated this order
+            </span>
+            {order.review.comment && (
+              <span style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic" }}>
+                · "{order.review.comment}"
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Inline review form */}
+        {showReview && !order.review && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "16px 18px",
+              borderRadius: 14,
+              background: "var(--chip)",
+              border: "1px solid var(--line)",
+            }}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
+              How was your order?
+            </div>
+            {/* Star selector */}
+            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  onMouseEnter={() => setReviewHover(s)}
+                  onMouseLeave={() => setReviewHover(0)}
+                  onClick={() => setReviewRating(s)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 2,
+                    lineHeight: 1,
+                    transition: "transform .1s",
+                    transform: s <= (reviewHover || reviewRating) ? "scale(1.15)" : "scale(1)",
+                  }}
+                >
+                  <svg
+                    width={28}
+                    height={28}
+                    viewBox="0 0 24 24"
+                    fill={s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"}
+                    style={{ transition: "fill .15s" }}
+                  >
+                    <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
+                  </svg>
+                </button>
+              ))}
+              {reviewRating > 0 && (
+                <span
+                  style={{
+                    fontSize: 13,
+                    color: "var(--ink-3)",
+                    alignSelf: "center",
+                    marginLeft: 6,
+                  }}
+                >
+                  {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
+                </span>
+              )}
+            </div>
+            {/* Comment */}
+            <textarea
+              placeholder="Add a comment (optional)"
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              maxLength={500}
+              rows={3}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--line)",
+                background: "var(--card)",
+                color: "var(--ink)",
+                fontSize: 14,
+                fontFamily: "inherit",
+                resize: "vertical",
+                outline: "none",
+                marginBottom: 12,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Btn
+                variant="outline"
+                onClick={() => {
+                  setShowReview(false);
+                  setReviewRating(0);
+                  setReviewComment("");
+                }}
+              >
+                Cancel
+              </Btn>
+              <Btn
+                variant="solid"
+                onClick={handleSubmitReview}
+                disabled={reviewRating === 0 || submittingReview}
+              >
+                {submittingReview ? "Submitting…" : "Submit review"}
+              </Btn>
+            </div>
+          </div>
+        )}
       </Section>
     </div>
   );
