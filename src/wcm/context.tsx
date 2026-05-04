@@ -205,8 +205,12 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
               .select("first_name,last_name,email,role")
               .eq("id", sUser.id)
               .maybeSingle();
-            const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
-            const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
+            const fullName = sUser.user_metadata?.full_name || sUser.user_metadata?.name || "";
+            const [metaFirst = "", ...metaRest] = fullName.trim().split(" ");
+            const metaLast = metaRest.join(" ");
+            const firstName =
+              prof?.first_name || sUser.user_metadata?.first_name || metaFirst || "Friend";
+            const lastName = prof?.last_name || sUser.user_metadata?.last_name || metaLast || "";
             const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
             const role =
               (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
@@ -232,8 +236,12 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
           .select("first_name,last_name,email,role")
           .eq("id", sUser.id)
           .maybeSingle();
-        const firstName = prof?.first_name || sUser.user_metadata?.first_name || "Friend";
-        const lastName = prof?.last_name || sUser.user_metadata?.last_name || "";
+        const fullName = sUser.user_metadata?.full_name || sUser.user_metadata?.name || "";
+        const [metaFirst = "", ...metaRest] = fullName.trim().split(" ");
+        const metaLast = metaRest.join(" ");
+        const firstName =
+          prof?.first_name || sUser.user_metadata?.first_name || metaFirst || "Friend";
+        const lastName = prof?.last_name || sUser.user_metadata?.last_name || metaLast || "";
         const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
         const role = (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
         setUser({ firstName, lastName, email: sUser.email || "", initials, role });

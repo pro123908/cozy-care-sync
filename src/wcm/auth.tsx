@@ -27,6 +27,14 @@ export function AuthModal({
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
+  const signInWithGoogle = async () => {
+    const supabase = await getSupabase();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
+  };
+
   const sendReset = async () => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       setErrs({ email: "Enter a valid email" });
@@ -249,6 +257,62 @@ export function AuthModal({
             </>
           ) : (
             <>
+              <button
+                onClick={signInWithGoogle}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 10,
+                  width: "100%",
+                  padding: "11px 16px",
+                  borderRadius: 12,
+                  border: "1.5px solid var(--line)",
+                  background: "var(--card)",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: "var(--ink)",
+                  fontFamily: "inherit",
+                  transition: "background .15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-elev)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--card)")}
+              >
+                <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.5c3.14 0 5.95 1.08 8.17 2.84l6.1-6.1C34.46 3.1 29.5 1 24 1 14.82 1 7.07 6.48 3.64 14.18l7.1 5.52C12.4 13.6 17.74 9.5 24 9.5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M46.1 24.5c0-1.57-.14-3.09-.4-4.55H24v8.6h12.4c-.54 2.9-2.16 5.36-4.6 7.02l7.1 5.52C43.24 37.3 46.1 31.38 46.1 24.5z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M10.74 28.3A14.56 14.56 0 0 1 9.5 24c0-1.5.26-2.96.72-4.3l-7.1-5.52A23.93 23.93 0 0 0 0 24c0 3.86.92 7.5 2.56 10.72l7.1-5.52z"
+                    transform="translate(.08 0)"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 47c5.5 0 10.12-1.82 13.5-4.96l-7.1-5.52c-1.82 1.22-4.14 1.98-6.4 1.98-6.26 0-11.6-4.1-13.26-9.7l-7.1 5.52C7.07 41.52 14.82 47 24 47z"
+                  />
+                </svg>
+                Continue with Google
+              </button>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  color: "var(--ink-4)",
+                  fontSize: 12,
+                }}
+              >
+                <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+                or
+                <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+              </div>
               {mode === "signup" && (
                 <div className="wcm-form-2" style={{ display: "grid", gap: 10 }}>
                   <TextField
