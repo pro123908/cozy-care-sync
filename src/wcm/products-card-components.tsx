@@ -1,3 +1,4 @@
+import React from "react";
 import { PKR, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
@@ -13,6 +14,41 @@ export function CategoryRail({
   setActive: (v: string) => void;
   categories: Category[];
 }) {
+  const railRef = React.useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const syncScrollButtons = React.useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
+    setCanScrollLeft(rail.scrollLeft > 4);
+    setCanScrollRight(maxScrollLeft - rail.scrollLeft > 4);
+  }, []);
+
+  React.useEffect(() => {
+    syncScrollButtons();
+    const rail = railRef.current;
+    if (!rail) return;
+
+    rail.addEventListener("scroll", syncScrollButtons, { passive: true });
+    window.addEventListener("resize", syncScrollButtons);
+
+    return () => {
+      rail.removeEventListener("scroll", syncScrollButtons);
+      window.removeEventListener("resize", syncScrollButtons);
+    };
+  }, [categories, syncScrollButtons]);
+
+  const scrollRail = (direction: "left" | "right") => {
+    const rail = railRef.current;
+    if (!rail) return;
+    rail.scrollBy({
+      left: direction === "left" ? -220 : 220,
+      behavior: "smooth",
+    });
+  };
+
   const allCategoryImages = categories
     .filter((category) => category.id !== "all")
     .map((category) => (typeof category.image_url === "string" ? category.image_url.trim() : ""))
@@ -20,146 +56,207 @@ export function CategoryRail({
     .slice(0, 4);
 
   return (
-    <div
-      className="cat-rail"
-      style={{
-        display: "flex",
-        gap: 10,
-        overflowX: "auto",
-        padding: "6px 2px",
-        scrollbarWidth: "none",
-      }}
-    >
+    <div style={{ position: "relative" }}>
       <style>{`.cat-rail::-webkit-scrollbar{display:none}`}</style>
-      {categories.map((c) => {
-        const on = c.id === active;
-        const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
-        const showAllCollage = c.id === "all" && allCategoryImages.length > 0;
-        return (
-          <button
-            key={c.id}
-            onClick={() => setActive(c.id)}
-            style={{
-              padding: "10px",
-              borderRadius: 16,
-              minWidth: 176,
-              minHeight: 226,
-              background: on ? "linear-gradient(180deg, #ecfdf3 0%, #e4f7ee 100%)" : "#fff",
-              color: "var(--ink-2)",
-              border: on ? "1px solid #b7ebcc" : "1px solid var(--line)",
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              gap: 8,
-              textAlign: "center",
-              flexShrink: 0,
-              boxShadow: on ? "0 8px 22px rgba(22, 163, 74, .16)" : "var(--shadow-sm)",
-            }}
-          >
-            {showAllCollage ? (
-              <span
-                style={{
-                  width: 150,
-                  height: 150,
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gridTemplateRows: "1fr 1fr",
-                  gap: 2,
-                  flexShrink: 0,
-                  background: "var(--bg-elev)",
-                  boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
-                }}
-              >
-                {allCategoryImages.map((src, idx) => (
+      <button
+        type="button"
+        aria-label="Scroll categories left"
+        onClick={() => scrollRail("left")}
+        disabled={!canScrollLeft}
+        style={{
+          position: "absolute",
+          left: -10,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 38,
+          height: 38,
+          borderRadius: 999,
+          border: "1px solid var(--line)",
+          background: "rgba(255,255,255,.96)",
+          boxShadow: "0 10px 24px rgba(15, 23, 42, .12)",
+          display: "grid",
+          placeItems: "center",
+          color: "var(--ink-2)",
+          cursor: canScrollLeft ? "pointer" : "default",
+          opacity: canScrollLeft ? 1 : 0.45,
+          zIndex: 2,
+        }}
+      >
+        {Icons.chevL}
+      </button>
+      <button
+        type="button"
+        aria-label="Scroll categories right"
+        onClick={() => scrollRail("right")}
+        disabled={!canScrollRight}
+        style={{
+          position: "absolute",
+          right: -10,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 38,
+          height: 38,
+          borderRadius: 999,
+          border: "1px solid var(--line)",
+          background: "rgba(255,255,255,.96)",
+          boxShadow: "0 10px 24px rgba(15, 23, 42, .12)",
+          display: "grid",
+          placeItems: "center",
+          color: "var(--ink-2)",
+          cursor: canScrollRight ? "pointer" : "default",
+          opacity: canScrollRight ? 1 : 0.45,
+          zIndex: 2,
+        }}
+      >
+        {Icons.chev}
+      </button>
+      <div
+        ref={railRef}
+        className="cat-rail"
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          padding: "6px 28px",
+          scrollbarWidth: "none",
+          scrollBehavior: "smooth",
+        }}
+      >
+        {categories.map((c) => {
+          const on = c.id === active;
+          const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
+          const showAllCollage = c.id === "all" && allCategoryImages.length > 0;
+          return (
+            <button
+              key={c.id}
+              onClick={() => setActive(c.id)}
+              style={{
+                padding: "10px",
+                borderRadius: 16,
+                minWidth: 176,
+                minHeight: 226,
+                background: on ? "linear-gradient(180deg, #ecfdf3 0%, #e4f7ee 100%)" : "#fff",
+                color: "var(--ink-2)",
+                border: on ? "1px solid #b7ebcc" : "1px solid var(--line)",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                gap: 8,
+                textAlign: "center",
+                flexShrink: 0,
+                boxShadow: on ? "0 8px 22px rgba(22, 163, 74, .16)" : "var(--shadow-sm)",
+              }}
+            >
+              {showAllCollage ? (
+                <span
+                  style={{
+                    width: 150,
+                    height: 150,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateRows: "1fr 1fr",
+                    gap: 2,
+                    flexShrink: 0,
+                    background: "var(--bg-elev)",
+                    boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                  }}
+                >
+                  {allCategoryImages.map((src, idx) => (
+                    <img
+                      key={`all-cat-${idx}`}
+                      src={src}
+                      alt=""
+                      aria-hidden="true"
+                      loading="eager"
+                      decoding="async"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ))}
+                </span>
+              ) : categoryImage ? (
+                <span
+                  style={{
+                    width: 150,
+                    height: 150,
+                    borderRadius: 14,
+                    overflow: "hidden",
+                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                    display: "inline-flex",
+                    flexShrink: 0,
+                    background: "var(--bg-elev)",
+                    boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                  }}
+                >
                   <img
-                    key={`all-cat-${idx}`}
-                    src={src}
+                    src={categoryImage}
                     alt=""
                     aria-hidden="true"
                     loading="eager"
                     decoding="async"
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
-                ))}
-              </span>
-            ) : categoryImage ? (
+                </span>
+              ) : (
+                <span
+                  style={{
+                    width: 150,
+                    height: 150,
+                    borderRadius: 14,
+                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                    background: "var(--bg-elev)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 24,
+                    color: on ? "#15803d" : "var(--ink-4)",
+                  }}
+                >
+                  {Icons.pkg}
+                </span>
+              )}
               <span
                 style={{
-                  width: 150,
-                  height: 150,
-                  borderRadius: 14,
+                  lineHeight: 1.15,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
                   overflow: "hidden",
-                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
-                  display: "inline-flex",
-                  flexShrink: 0,
-                  background: "var(--bg-elev)",
-                  boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                  minHeight: 24,
+                  fontSize: 11.5,
+                  maxWidth: 150,
                 }}
               >
-                <img
-                  src={categoryImage}
-                  alt=""
-                  aria-hidden="true"
-                  loading="eager"
-                  decoding="async"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
+                {c.name}
               </span>
-            ) : (
               <span
                 style={{
-                  width: 150,
-                  height: 150,
-                  borderRadius: 14,
-                  border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
-                  background: "var(--bg-elev)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 24,
-                  color: on ? "#15803d" : "var(--ink-4)",
+                  fontSize: 11,
+                  padding: "2px 8px",
+                  borderRadius: 99,
+                  background: on ? "#dcfce7" : "var(--chip-2)",
+                  color: on ? "#166534" : "var(--ink-4)",
+                  fontWeight: 700,
+                  marginTop: "auto",
                 }}
               >
-                {Icons.pkg}
+                {c.count} items
               </span>
-            )}
-            <span
-              style={{
-                lineHeight: 1.15,
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                minHeight: 24,
-                fontSize: 11.5,
-                maxWidth: 150,
-              }}
-            >
-              {c.name}
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                padding: "2px 8px",
-                borderRadius: 99,
-                background: on ? "#dcfce7" : "var(--chip-2)",
-                color: on ? "#166534" : "var(--ink-4)",
-                fontWeight: 700,
-                marginTop: "auto",
-              }}
-            >
-              {c.count} items
-            </span>
-          </button>
-        );
-      })}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
