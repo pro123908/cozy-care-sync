@@ -109,6 +109,10 @@ function AdminHomePage() {
             <div style={cardTitleStyle}>Manage orders</div>
             <div style={cardDescStyle}>Track and update order status and progress.</div>
           </Link>
+          <Link to="/admin/sales" style={actionCardStyle}>
+            <div style={cardTitleStyle}>Sales report</div>
+            <div style={cardDescStyle}>See how many units each product has sold.</div>
+          </Link>
         </div>
       </div>
     </AdminGate>

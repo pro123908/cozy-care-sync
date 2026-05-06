@@ -242,6 +242,7 @@ function PoliciesPage() {
 
       {/* Contact strip */}
       <div
+        id="contact"
         style={{
           background:
             "linear-gradient(140deg, rgba(22,163,74,0.12) 0%, rgba(22,163,74,0.04) 100%), var(--card)",

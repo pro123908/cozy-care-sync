@@ -1145,31 +1145,30 @@ function Footer() {
           {
             h: "Shop",
             links: [
-              { label: "Monitoring", href: "#" },
-              { label: "Mobility", href: "#" },
-              { label: "Respiratory", href: "#" },
-              { label: "Therapy", href: "#" },
-              { label: "Disposables", href: "#" },
+              { label: "Glucometers", href: "/?category=glucometers" },
+              { label: "BP Monitors", href: "/?category=bp-digital" },
+              { label: "Wheel Chairs", href: "/?category=wheelchairs" },
+              { label: "Nebulizers", href: "/?category=nebulizer" },
+              { label: "Hearing Aids", href: "/?category=hearing-aids" },
+              { label: "Massagers", href: "/?category=massagers" },
             ],
           },
           {
             h: "Help",
             links: [
-              { label: "Track an order", href: "#" },
-              { label: "Returns & refunds", href: "/policies#refunds" },
+              { label: "Track an order", href: "/orders" },
+              { label: "Returns & refunds", href: "/policies#returns" },
               { label: "Shipping", href: "/policies#shipping" },
-              { label: "Contact us", href: "#" },
-              { label: "FAQs", href: "#" },
+              { label: "Contact us", href: "/policies#contact" },
+              { label: "FAQs", href: "/faqs" },
             ],
           },
           {
             h: "Company",
             links: [
-              { label: "About Wellcare", href: "#" },
-              { label: "Brand partners", href: "#" },
-              { label: "Careers", href: "#" },
+              { label: "About Wellcare", href: "/about" },
               { label: "Privacy", href: "/policies#privacy" },
-              { label: "Terms", href: "/policies" },
+              { label: "Terms", href: "/policies#terms" },
             ],
           },
         ].map((col) => (
