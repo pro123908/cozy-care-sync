@@ -100,7 +100,9 @@ function AdminProductsPage() {
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
   const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
   const [categoryNameDrafts, setCategoryNameDrafts] = useState<Record<string, string>>({});
+  const [categoryTopDrafts, setCategoryTopDrafts] = useState<Record<string, boolean>>({});
   const [savingCategoryNameId, setSavingCategoryNameId] = useState<string | null>(null);
+  const [savingCategoryTopId, setSavingCategoryTopId] = useState<string | null>(null);
   const [showCategoryImages, setShowCategoryImages] = useState(false);
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -132,7 +134,7 @@ function AdminProductsPage() {
     const supabase = await getSupabase();
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug, sort_order, image_url, created_at")
+      .select("id, name, slug, sort_order, image_url, top_category, created_at")
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
@@ -153,6 +155,9 @@ function AdminProductsPage() {
     setCategoryNameDrafts(Object.fromEntries(categories.map((c) => [c.id, c.name])));
     setCategoryImageDrafts(
       Object.fromEntries(categories.map((category) => [category.id, category.image_url || ""])),
+    );
+    setCategoryTopDrafts(
+      Object.fromEntries(categories.map((category) => [category.id, category.top_category])),
     );
   }, [categories]);
 
@@ -493,6 +498,58 @@ function AdminProductsPage() {
     await loadCategories();
   };
 
+  const saveCategoryTopCategory = async (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId);
+    const nextTopCategory = !!categoryTopDrafts[categoryId];
+
+    setSavingCategoryTopId(categoryId);
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ top_category: nextTopCategory })
+      .eq("id", categoryId)
+      .select("id");
+
+    const matchedById = Array.isArray(data) && data.length > 0;
+
+    if (!error && !matchedById && category?.slug) {
+      const { data: slugData, error: slugError } = await supabase
+        .from("categories")
+        .update({ top_category: nextTopCategory })
+        .eq("slug", category.slug)
+        .select("id");
+
+      setSavingCategoryTopId(null);
+      if (slugError) {
+        push(slugError.message || "Failed to save top category", { tone: "red" });
+        return;
+      }
+
+      if (!Array.isArray(slugData) || slugData.length === 0) {
+        push("Top category was not saved (no row matched update).", { tone: "red" });
+        return;
+      }
+
+      push("Top category updated");
+      await loadCategories();
+      return;
+    }
+
+    setSavingCategoryTopId(null);
+    if (error) {
+      push(error.message || "Failed to save top category", { tone: "red" });
+      return;
+    }
+
+    if (!matchedById) {
+      push("Top category was not saved (no row matched update).", { tone: "red" });
+      return;
+    }
+
+    push("Top category updated");
+    await loadCategories();
+  };
+
   const saveCategoryImage = async (categoryId: string) => {
     setSavingCategoryId(categoryId);
     const supabase = await getSupabase();
@@ -809,6 +866,9 @@ function AdminProductsPage() {
 
                       const draftName = categoryNameDrafts[category.id] ?? category.name;
                       const isSavingCategoryName = savingCategoryNameId === category.id;
+                      const draftTopCategory =
+                        categoryTopDrafts[category.id] ?? category.top_category;
+                      const isSavingTopCategory = savingCategoryTopId === category.id;
 
                       return (
                         <div
@@ -908,6 +968,65 @@ function AdminProductsPage() {
                               }}
                             >
                               {category.slug}
+                            </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  color: "var(--ink-3)",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={draftTopCategory}
+                                  onChange={(e) =>
+                                    setCategoryTopDrafts((prev) => ({
+                                      ...prev,
+                                      [category.id]: e.target.checked,
+                                    }))
+                                  }
+                                  disabled={
+                                    isSavingTopCategory ||
+                                    isSavingCategoryName ||
+                                    isSavingCategory ||
+                                    isUploadingCategory
+                                  }
+                                />
+                                Top category
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => saveCategoryTopCategory(category.id)}
+                                disabled={
+                                  isSavingTopCategory ||
+                                  isSavingCategoryName ||
+                                  isSavingCategory ||
+                                  isUploadingCategory ||
+                                  draftTopCategory === category.top_category
+                                }
+                                style={{
+                                  ...miniBtnStyle,
+                                  opacity:
+                                    isSavingTopCategory ||
+                                    draftTopCategory === category.top_category
+                                      ? 0.5
+                                      : 1,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {isSavingTopCategory ? "Saving…" : "Save top"}
+                              </button>
                             </div>
                             <input
                               value={draftImage}

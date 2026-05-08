@@ -22,6 +22,7 @@ export type Category = {
   name: string;
   count: number;
   image_url?: string | null;
+  top_category?: boolean;
 };
 
 export const CATEGORIES: Category[] = [
