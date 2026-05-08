@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { PKR, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
-import { useWcm } from "./context";
+import { useWcm, useProductRatings } from "./context";
 import type { CartLine } from "./context";
 
 export function CategoryRail({
@@ -351,6 +351,8 @@ export function ProductCard({
   compact?: boolean;
 }) {
   const { wishlist, toggleWishlist, setCart } = useWcm();
+  const getProductRatings = useProductRatings();
+  const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
 
@@ -535,9 +537,9 @@ export function ProductCard({
             color: "var(--ink-4)",
           }}
         >
-          <Stars value={p.rating} size={12} />
+          <Stars value={userRating || p.rating} size={12} />
           <span>·</span>
-          <span>{p.reviews} reviews</span>
+          <span>{reviewCount || p.reviews} reviews</span>
         </div>
       </div>
       <div

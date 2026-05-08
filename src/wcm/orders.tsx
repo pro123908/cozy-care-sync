@@ -534,7 +534,7 @@ export function OrderDetail({
   const { addToCart, products, submitOrderReview, push } = useWcm();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+  const [activeReviewProductId, setActiveReviewProductId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewHover, setReviewHover] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
@@ -552,13 +552,16 @@ export function OrderDetail({
     setShowCancelConfirm(false);
   };
 
-  const handleSubmitReview = async () => {
+  const handleSubmitReview = async (productId: string) => {
     if (reviewRating === 0) return;
     setSubmittingReview(true);
     try {
-      await submitOrderReview(order.id, reviewRating, reviewComment.trim());
+      await submitOrderReview(order.id, productId, reviewRating, reviewComment.trim());
       push("Thanks for your review!", { tone: "green" });
-      setShowReview(false);
+      setActiveReviewProductId(null);
+      setReviewRating(0);
+      setReviewHover(0);
+      setReviewComment("");
     } catch {
       push("Couldn't submit review. Please try again.", { tone: "rose" });
     } finally {
@@ -569,6 +572,9 @@ export function OrderDetail({
   const items = order.items
     .map((it) => ({ ...it, p: products.find((p) => p.id === it.id) as Product }))
     .filter((x) => x.p);
+  const productReviews = order.product_reviews || {};
+  const hasPendingProductReviews =
+    order.status === "Delivered" && items.some(({ p }) => !productReviews[p.id]);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <button
@@ -1025,45 +1031,248 @@ export function OrderDetail({
           Items in this order
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          {items.map(({ p, qty }, i) => (
-            <div
-              key={p.id}
-              className="wcm-order-detail-item-row"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "56px 1fr auto auto",
-                gap: 14,
-                alignItems: "center",
-                padding: "12px 0",
-                borderTop: i === 0 ? "none" : "1px solid var(--line-2)",
-              }}
-            >
-              <div
-                className="wcm-order-detail-item-image"
-                style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}
-              >
-                <ProductImage product={p} />
-              </div>
-              <div className="wcm-order-detail-item-info">
-                <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 700 }}>
-                  {p.brand}
+          {items.map(({ p, qty }, i) => {
+            const review = productReviews[p.id];
+            const isEditing = activeReviewProductId === p.id;
+
+            return (
+              <React.Fragment key={p.id}>
+                <div
+                  className="wcm-order-detail-item-row"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "56px 1fr auto auto",
+                    gap: 14,
+                    alignItems: "center",
+                    padding: "12px 0",
+                    borderTop: i === 0 ? "none" : "1px solid var(--line-2)",
+                  }}
+                >
+                  <div
+                    className="wcm-order-detail-item-image"
+                    style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}
+                  >
+                    <ProductImage product={p} />
+                  </div>
+                  <div className="wcm-order-detail-item-info">
+                    <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 700 }}>
+                      {p.brand}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{p.name}</div>
+                    {order.status === "Delivered" && (
+                      <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 10 }}>
+                        {review ? (
+                          <>
+                            <span style={{ display: "inline-flex", gap: 1 }}>
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <svg
+                                  key={s}
+                                  width={14}
+                                  height={14}
+                                  viewBox="0 0 24 24"
+                                  fill={s <= review.rating ? "#f59e0b" : "var(--line)"}
+                                >
+                                  <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
+                                </svg>
+                              ))}
+                            </span>
+                            <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                              Rated
+                            </span>
+                          </>
+                        ) : isEditing && activeReviewProductId === p.id ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 4,
+                              alignItems: "center",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <button
+                                  key={s}
+                                  onMouseEnter={() => setReviewHover(s)}
+                                  onMouseLeave={() => setReviewHover(0)}
+                                  onClick={() => setReviewRating(s)}
+                                  style={{
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    lineHeight: 1,
+                                    transition: "transform .1s",
+                                    transform:
+                                      s <= (reviewHover || reviewRating)
+                                        ? "scale(1.1)"
+                                        : "scale(1)",
+                                  }}
+                                >
+                                  <svg
+                                    width={18}
+                                    height={18}
+                                    viewBox="0 0 24 24"
+                                    fill={
+                                      s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"
+                                    }
+                                  >
+                                    <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
+                                  </svg>
+                                </button>
+                              ))}
+                            </div>
+                            {reviewRating > 0 && (
+                              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                                {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
+                              </span>
+                            )}
+                            <div style={{ display: "flex", gap: 3 }}>
+                              <button
+                                onClick={() => {
+                                  setActiveReviewProductId(null);
+                                  setReviewRating(0);
+                                  setReviewHover(0);
+                                  setReviewComment("");
+                                }}
+                                style={{
+                                  background: "none",
+                                  border: "1px solid var(--line)",
+                                  cursor: "pointer",
+                                  padding: "2px 5px",
+                                  borderRadius: 4,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all .15s",
+                                  color: "var(--ink-3)",
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = "var(--line)";
+                                  e.currentTarget.style.color = "var(--ink)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "none";
+                                  e.currentTarget.style.color = "var(--ink-3)";
+                                }}
+                              >
+                                <svg
+                                  width={12}
+                                  height={12}
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={2.5}
+                                >
+                                  <line x1="18" y1="6" x2="6" y2="18" />
+                                  <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleSubmitReview(p.id)}
+                                disabled={reviewRating === 0 || submittingReview}
+                                style={{
+                                  background: "none",
+                                  border: "1px solid var(--line)",
+                                  cursor:
+                                    reviewRating === 0 || submittingReview
+                                      ? "not-allowed"
+                                      : "pointer",
+                                  padding: "2px 5px",
+                                  borderRadius: 4,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all .15s",
+                                  color:
+                                    reviewRating === 0 || submittingReview
+                                      ? "var(--ink-5)"
+                                      : "var(--ink-3)",
+                                  opacity: reviewRating === 0 || submittingReview ? 0.5 : 1,
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (reviewRating > 0 && !submittingReview) {
+                                    e.currentTarget.style.background = "var(--line)";
+                                    e.currentTarget.style.color = "var(--ink)";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = "none";
+                                  e.currentTarget.style.color =
+                                    reviewRating === 0 || submittingReview
+                                      ? "var(--ink-5)"
+                                      : "var(--ink-3)";
+                                }}
+                              >
+                                {submittingReview ? (
+                                  <svg
+                                    width={12}
+                                    height={12}
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                    style={{ animation: "spin .8s linear infinite" }}
+                                  >
+                                    <circle cx={12} cy={12} r={10} />
+                                    <path d="M12 2a10 10 0 0 1 10 10" />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    width={12}
+                                    height={12}
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={2.5}
+                                  >
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setActiveReviewProductId(p.id);
+                              setReviewRating(0);
+                              setReviewHover(0);
+                              setReviewComment("");
+                            }}
+                            style={{
+                              border: "1px solid var(--line)",
+                              background: "var(--card)",
+                              color: "var(--ink-3)",
+                              borderRadius: 999,
+                              padding: "4px 10px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Rate this product
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    className="wcm-order-detail-item-qty"
+                    style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
+                  >
+                    Qty {qty}
+                  </div>
+                  <div
+                    className="wcm-order-detail-item-price"
+                    style={{ fontSize: 14, fontWeight: 800 }}
+                  >
+                    {PKR(p.price * qty)}
+                  </div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{p.name}</div>
-              </div>
-              <div
-                className="wcm-order-detail-item-qty"
-                style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
-              >
-                Qty {qty}
-              </div>
-              <div
-                className="wcm-order-detail-item-price"
-                style={{ fontSize: 14, fontWeight: 800 }}
-              >
-                {PKR(p.price * qty)}
-              </div>
-            </div>
-          ))}
+              </React.Fragment>
+            );
+          })}
         </div>
         <div
           className="wcm-order-detail-actions"
@@ -1078,9 +1287,27 @@ export function OrderDetail({
           <Btn variant="outline" icon={Icons.refresh} onClick={handleReorder}>
             Reorder
           </Btn>
-          {order.status === "Delivered" && !order.review && (
-            <Btn variant="outline" icon={Icons.heart} onClick={() => setShowReview((v) => !v)}>
-              Leave a review
+          {hasPendingProductReviews && (
+            <Btn
+              variant="outline"
+              icon={Icons.heart}
+              onClick={() => {
+                if (activeReviewProductId) {
+                  setActiveReviewProductId(null);
+                  setReviewRating(0);
+                  setReviewHover(0);
+                  setReviewComment("");
+                  return;
+                }
+                const firstUnrated = items.find(({ p }) => !productReviews[p.id]);
+                if (!firstUnrated) return;
+                setActiveReviewProductId(firstUnrated.p.id);
+                setReviewRating(0);
+                setReviewHover(0);
+                setReviewComment("");
+              }}
+            >
+              {activeReviewProductId ? "Close rating" : "Rate products"}
             </Btn>
           )}
           {order.status !== "Delivered" &&
@@ -1105,144 +1332,6 @@ export function OrderDetail({
             ))}
           <Btn icon={Icons.phone}>Contact support</Btn>
         </div>
-
-        {/* Already reviewed badge */}
-        {order.review && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: "12px 14px",
-              borderRadius: 12,
-              background: "var(--pill-success-bg)",
-              border: "1px solid #bbf7d0",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <span style={{ display: "inline-flex", gap: 2 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <svg
-                  key={s}
-                  width={16}
-                  height={16}
-                  viewBox="0 0 24 24"
-                  fill={s <= order.review!.rating ? "#f59e0b" : "var(--line)"}
-                >
-                  <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
-                </svg>
-              ))}
-            </span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--pill-success-fg)" }}>
-              You rated this order
-            </span>
-            {order.review.comment && (
-              <span style={{ fontSize: 13, color: "var(--ink-3)", fontStyle: "italic" }}>
-                · "{order.review.comment}"
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Inline review form */}
-        {showReview && !order.review && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: "16px 18px",
-              borderRadius: 14,
-              background: "var(--chip)",
-              border: "1px solid var(--line)",
-            }}
-          >
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-              How was your order?
-            </div>
-            {/* Star selector */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-              {[1, 2, 3, 4, 5].map((s) => (
-                <button
-                  key={s}
-                  onMouseEnter={() => setReviewHover(s)}
-                  onMouseLeave={() => setReviewHover(0)}
-                  onClick={() => setReviewRating(s)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 2,
-                    lineHeight: 1,
-                    transition: "transform .1s",
-                    transform: s <= (reviewHover || reviewRating) ? "scale(1.15)" : "scale(1)",
-                  }}
-                >
-                  <svg
-                    width={28}
-                    height={28}
-                    viewBox="0 0 24 24"
-                    fill={s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"}
-                    style={{ transition: "fill .15s" }}
-                  >
-                    <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
-                  </svg>
-                </button>
-              ))}
-              {reviewRating > 0 && (
-                <span
-                  style={{
-                    fontSize: 13,
-                    color: "var(--ink-3)",
-                    alignSelf: "center",
-                    marginLeft: 6,
-                  }}
-                >
-                  {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
-                </span>
-              )}
-            </div>
-            {/* Comment */}
-            <textarea
-              placeholder="Add a comment (optional)"
-              value={reviewComment}
-              onChange={(e) => setReviewComment(e.target.value)}
-              maxLength={500}
-              rows={3}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid var(--line)",
-                background: "var(--card)",
-                color: "var(--ink)",
-                fontSize: 14,
-                fontFamily: "inherit",
-                resize: "vertical",
-                outline: "none",
-                marginBottom: 12,
-              }}
-            />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <Btn
-                variant="outline"
-                onClick={() => {
-                  setShowReview(false);
-                  setReviewRating(0);
-                  setReviewComment("");
-                }}
-              >
-                Cancel
-              </Btn>
-              <Btn
-                variant="solid"
-                onClick={handleSubmitReview}
-                disabled={reviewRating === 0 || submittingReview}
-              >
-                {submittingReview ? "Submitting…" : "Submit review"}
-              </Btn>
-            </div>
-          </div>
-        )}
       </Section>
     </div>
   );

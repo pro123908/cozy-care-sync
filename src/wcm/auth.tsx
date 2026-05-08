@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { Icons, WellcareLogo } from "./icons";
+import { WellcareInlineLoader } from "./loader";
 import { Btn, TextField } from "./ui";
 
 export type WcmRole = "customer" | "staff" | "admin";
@@ -232,7 +233,7 @@ export function AuthModal({
                 placeholder="you@example.com"
               />
               <Btn full size="lg" onClick={sendReset} disabled={loading} style={{ marginTop: 4 }}>
-                {loading ? "Sending…" : "Send reset link"}
+                {loading ? <WellcareInlineLoader label="Sending..." /> : "Send reset link"}
               </Btn>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--ink-4)" }}>
                 <button
@@ -346,7 +347,13 @@ export function AuthModal({
                 placeholder="••••••••"
               />
               <Btn full size="lg" onClick={submit} disabled={loading} style={{ marginTop: 4 }}>
-                {loading ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
+                {loading ? (
+                  <WellcareInlineLoader label="Please wait..." />
+                ) : mode === "signin" ? (
+                  "Sign in"
+                ) : (
+                  "Create account"
+                )}
               </Btn>
               <div style={{ textAlign: "center", fontSize: 13, color: "var(--ink-4)" }}>
                 {mode === "signin" ? "New to Wellcare Mart? " : "Already have an account? "}

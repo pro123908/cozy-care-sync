@@ -79,7 +79,12 @@ type WcmContextType = {
   setOrders: Dispatch<SetStateAction<Order[]>>;
   ordersLoaded: boolean;
   loadOrders: (userId: string) => Promise<void>;
-  submitOrderReview: (orderId: string, rating: number, comment: string) => Promise<void>;
+  submitOrderReview: (
+    orderId: string,
+    productId: string,
+    rating: number,
+    comment: string,
+  ) => Promise<void>;
   // Checkout
   checkoutData: CheckoutState | null;
   setCheckoutData: Dispatch<SetStateAction<CheckoutState | null>>;
@@ -96,6 +101,33 @@ export function useWcm() {
   const ctx = useContext(WcmContext);
   if (!ctx) throw new Error("useWcm must be used within WcmProvider");
   return ctx;
+}
+
+export function useProductRatings() {
+  const { orders } = useWcm();
+
+  return useCallback(
+    (productId: string) => {
+      const ratings: number[] = [];
+
+      for (const order of orders) {
+        const review = order.product_reviews?.[productId];
+        if (review?.rating) {
+          ratings.push(review.rating);
+        }
+      }
+
+      if (ratings.length === 0) {
+        return { average: 0, count: 0 };
+      }
+
+      const sum = ratings.reduce((a, b) => a + b, 0);
+      const average = Math.round((sum / ratings.length) * 2) / 2; // Round to .5
+
+      return { average, count: ratings.length };
+    },
+    [orders],
+  );
 }
 
 export function WcmProvider({ children }: { children: React.ReactNode }) {
@@ -170,13 +202,37 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
-      supabase.from("order_reviews").select("order_code, rating, comment").eq("user_id", userId),
+      supabase
+        .from("order_reviews")
+        .select("order_code, product_id, rating, comment")
+        .eq("user_id", userId),
     ]);
     setOrdersLoaded(true);
     if (ordersRes.error || !ordersRes.data) return;
-    const reviewMap: Record<string, OrderReview> = {};
-    for (const r of reviewsRes.data || []) {
-      reviewMap[r.order_code] = { rating: r.rating, comment: r.comment || "" };
+
+    let reviewsData = reviewsRes.data || [];
+    if (reviewsRes.error) {
+      // Backward compatibility if product_id is not present yet.
+      const fallbackReviewsRes = await supabase
+        .from("order_reviews")
+        .select("order_code, rating, comment")
+        .eq("user_id", userId);
+
+      reviewsData = (fallbackReviewsRes.data || []).map(
+        (row: { order_code: string; rating: number; comment: string | null }) => ({
+          ...row,
+          product_id: "__order__",
+        }),
+      );
+    }
+
+    const reviewMap: Record<string, Record<string, OrderReview>> = {};
+    for (const r of reviewsData) {
+      if (!r.product_id || r.product_id === "__order__") continue;
+      if (!reviewMap[r.order_code]) {
+        reviewMap[r.order_code] = {};
+      }
+      reviewMap[r.order_code][r.product_id] = { rating: r.rating, comment: r.comment || "" };
     }
     setOrders(
       ordersRes.data.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
@@ -192,13 +248,13 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         shipping: r.shipping,
         total: r.total,
         rider: (r.rider as { name?: string; phone?: string } | undefined) || undefined,
-        review: reviewMap[r.order_code],
+        product_reviews: reviewMap[r.order_code] || {},
       })),
     );
   }, []);
 
   const submitOrderReview = useCallback(
-    async (orderId: string, rating: number, comment: string) => {
+    async (orderId: string, productId: string, rating: number, comment: string) => {
       const supabase = await getSupabase();
       const {
         data: { user: authUser },
@@ -207,12 +263,22 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase
         .from("order_reviews")
         .upsert(
-          { order_code: orderId, user_id: authUser.id, rating, comment },
-          { onConflict: "order_code,user_id" },
+          { order_code: orderId, product_id: productId, user_id: authUser.id, rating, comment },
+          { onConflict: "order_code,user_id,product_id" },
         );
       if (error) throw error;
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, review: { rating, comment } } : o)),
+        prev.map((o) =>
+          o.id === orderId
+            ? {
+                ...o,
+                product_reviews: {
+                  ...(o.product_reviews || {}),
+                  [productId]: { rating, comment },
+                },
+              }
+            : o,
+        ),
       );
     },
     [],

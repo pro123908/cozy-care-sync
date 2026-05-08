@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
+import { WellcareLoader } from "@/wcm/loader";
 
 const ProductsPage = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductsPage })),
@@ -36,7 +37,7 @@ function IndexPage() {
   const navigate = useNavigate();
   const { category } = useSearch({ from: "/" });
   return (
-    <Suspense fallback={<ProductsLoadingFallback />}>
+    <Suspense fallback={<WellcareLoader label="Loading products" hint="Preparing your catalog" />}>
       <ProductsPage
         addToCart={addToCart}
         cart={cart}
@@ -56,44 +57,5 @@ function IndexPage() {
         }
       />
     </Suspense>
-  );
-}
-
-function ProductsLoadingFallback() {
-  return (
-    <div
-      style={{
-        padding: 26,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        color: "var(--ink-4)",
-        fontSize: 14,
-        fontWeight: 600,
-      }}
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-        <circle
-          cx="12"
-          cy="12"
-          r="9"
-          fill="none"
-          stroke="currentColor"
-          strokeOpacity="0.25"
-          strokeWidth="2"
-        />
-        <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" strokeWidth="2.4">
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 12 12"
-            to="360 12 12"
-            dur="0.8s"
-            repeatCount="indefinite"
-          />
-        </path>
-      </svg>
-      Loading products...
-    </div>
   );
 }

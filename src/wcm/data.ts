@@ -2374,5 +2374,6 @@ export type Order = {
   shipping: number;
   total: number;
   rider?: { name: string; phone: string };
+  product_reviews?: Record<string, OrderReview>;
   review?: OrderReview;
 };

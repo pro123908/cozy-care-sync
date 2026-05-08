@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PRODUCTS } from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
+import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 
 const ProductDetail = lazy(() =>
@@ -29,7 +30,7 @@ function ProductPage() {
     products.find((p) => p.id === productId) || PRODUCTS.find((p) => p.id === productId);
 
   if (!product && !productsLoaded) {
-    return <div style={{ padding: 20, color: "var(--ink-4)" }}>Loading product…</div>;
+    return <WellcareLoader label="Loading product" compact />;
   }
 
   if (!product) {
@@ -46,7 +47,7 @@ function ProductPage() {
   }
 
   return (
-    <Suspense fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading product…</div>}>
+    <Suspense fallback={<WellcareLoader label="Loading product" compact />}>
       <ProductDetail
         product={product}
         cart={cart}

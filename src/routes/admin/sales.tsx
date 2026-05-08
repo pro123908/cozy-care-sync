@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { AdminGate } from "@/wcm/admin-access";
+import { WellcareLoader } from "@/wcm/loader";
 
 export const Route = createFileRoute("/admin/sales")({
   component: AdminSalesPage,
@@ -601,9 +602,7 @@ function AdminSalesPage() {
           }}
         >
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 14 }}>
-              Loading sales data…
-            </div>
+            <WellcareLoader label="Loading sales data" compact minHeight={120} />
           ) : filtered.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 14 }}>
               No products match your search.

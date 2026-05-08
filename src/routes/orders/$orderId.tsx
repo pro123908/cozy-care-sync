@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
+import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
@@ -52,11 +53,7 @@ function OrderDetailPage() {
   }
 
   if (!ordersLoaded) {
-    return (
-      <div style={{ padding: "64px 24px", textAlign: "center", color: "var(--ink-4)" }}>
-        Loading order…
-      </div>
-    );
+    return <WellcareLoader label="Loading order" compact />;
   }
 
   const order = orders.find((o) => o.id === orderId);
@@ -74,9 +71,7 @@ function OrderDetailPage() {
   }
 
   return (
-    <Suspense
-      fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading order detail…</div>}
-    >
+    <Suspense fallback={<WellcareLoader label="Loading order detail" compact />}>
       <OrderDetail order={order} onClose={() => navigate({ to: "/orders" })} onCancel={onCancel} />
     </Suspense>
   );

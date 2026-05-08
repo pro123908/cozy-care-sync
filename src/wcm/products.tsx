@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { CATEGORIES, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
-import { useWcm } from "./context";
+import { useWcm, useProductRatings } from "./context";
 import type { CartLine } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -669,6 +669,8 @@ export function ProductDetail({
   openProduct: (p: Product) => void;
 }) {
   const { products, categories, categoriesLoaded, wishlist, toggleWishlist } = useWcm();
+  const getProductRatings = useProductRatings();
+  const { average: userRating, count: reviewCount } = getProductRatings(product.id);
   const isMobile = useIsMobile();
   const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
@@ -899,7 +901,10 @@ export function ProductDetail({
                 fontSize: 13,
               }}
             >
-              <Stars value={product.rating} /> <span>· {product.reviews} verified reviews</span>
+              <Stars value={userRating || product.rating} />
+              <span>
+                · {reviewCount || product.reviews} {reviewCount ? "user" : "verified"} reviews
+              </span>
             </div>
           </div>
           <Section

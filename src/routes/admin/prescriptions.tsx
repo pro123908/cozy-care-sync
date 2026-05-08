@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
 import { Icons } from "@/wcm/icons";
+import { WellcareLoader } from "@/wcm/loader";
 
 type PrescriptionRow = Database["public"]["Tables"]["prescription_requests"]["Row"];
 
@@ -162,7 +163,7 @@ function AdminPrescriptionsPage() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {loading ? (
-                <div style={{ color: "var(--ink-4)", fontSize: 14 }}>Loading requests…</div>
+                <WellcareLoader label="Loading requests" compact />
               ) : filtered.length === 0 ? (
                 <div style={{ color: "var(--ink-4)", fontSize: 14 }}>
                   No prescription requests found.
@@ -284,7 +285,7 @@ function AdminPrescriptionsPage() {
                 <div>
                   <div style={sectionLabelStyle}>Attachments</div>
                   {loadingPreviews ? (
-                    <div style={{ color: "var(--ink-4)", fontSize: 14 }}>Loading files…</div>
+                    <WellcareLoader label="Loading files" compact />
                   ) : previewUrls.length === 0 ? (
                     <div style={{ color: "var(--ink-4)", fontSize: 14 }}>
                       No uploaded files found.

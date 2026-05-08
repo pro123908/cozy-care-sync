@@ -5,6 +5,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
+import { WellcareLoader } from "@/wcm/loader";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 
@@ -383,9 +384,7 @@ function AdminOrdersPage() {
           </div>
 
           {loading ? (
-            <div style={{ color: "var(--ink-4)", fontSize: 14, marginTop: 10 }}>
-              Loading orders…
-            </div>
+            <WellcareLoader label="Loading orders" compact />
           ) : (
             <div
               style={{

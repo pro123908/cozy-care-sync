@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
+import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 
@@ -49,7 +50,7 @@ function OrdersPage() {
   }
 
   return (
-    <Suspense fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading orders…</div>}>
+    <Suspense fallback={<WellcareLoader label="Loading orders" compact />}>
       <OrdersList
         orders={orders}
         ordersLoaded={ordersLoaded}

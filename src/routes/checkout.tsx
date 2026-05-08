@@ -4,6 +4,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
 import { useWcm } from "@/wcm/context";
 import { type Order } from "@/wcm/data";
+import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 
 const CheckoutContent = lazy(() =>
@@ -87,9 +88,7 @@ function CheckoutPage() {
   }
 
   return (
-    <Suspense
-      fallback={<div style={{ padding: 20, color: "var(--ink-4)" }}>Loading checkout…</div>}
-    >
+    <Suspense fallback={<WellcareLoader label="Loading checkout" compact />}>
       <CheckoutContent
         {...checkoutData}
         user={user}

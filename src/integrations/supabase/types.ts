@@ -38,6 +38,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      order_reviews: {
+        Row: {
+          id: string;
+          order_code: string;
+          user_id: string;
+          product_id: string;
+          rating: number;
+          comment: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_code: string;
+          user_id: string;
+          product_id?: string;
+          rating: number;
+          comment?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_code?: string;
+          user_id?: string;
+          product_id?: string;
+          rating?: number;
+          comment?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           address: string;
