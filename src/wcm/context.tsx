@@ -382,7 +382,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name, slug, sort_order, image_url")
+        .select("id, name, slug, sort_order, image_url, top_category")
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
 
@@ -400,6 +400,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             name: category.name,
             count: 0,
             image_url: category.image_url,
+            top_category: category.top_category,
           })),
         ];
         setCategories(storefrontCategories);
