@@ -51,7 +51,7 @@ function IndexPage() {
         openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
         goTo={(pg: string) =>
           navigate({
-            to: pg === "orders" ? "/orders" : pg === "prescription" ? "/prescription" : "/",
+            to: pg === "orders" ? "/orders" : "/",
           })
         }
       />

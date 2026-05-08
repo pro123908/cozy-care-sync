@@ -10,8 +10,8 @@ const HERO_BANNERS = [
     lead: "From glucometers to wheelchairs — over 30 essential home-care products from renowned brands. Fast delivery across Pakistan and trusted support after every order.",
     primaryLabel: "Shop products",
     primaryTarget: "products" as const,
-    secondaryLabel: "Upload prescription",
-    secondaryTarget: "prescription" as const,
+    secondaryLabel: "Track an order",
+    secondaryTarget: "orders" as const,
     gradient: "linear-gradient(135deg, #2563eb 0%, #0891b2 52%, #22c55e 100%)",
     artCard: {
       kicker: "HEART RATE",
@@ -75,7 +75,7 @@ const HERO_BANNERS = [
   },
 ];
 
-export function Hero({ goTo }: { goTo: (p: "products" | "orders" | "prescription") => void }) {
+export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const [active, setActive] = useState(0);
   const banner = HERO_BANNERS[active];
 
@@ -153,13 +153,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders" | "prescription
             <Btn
               variant="ghost"
               style={{ color: "#fff", border: "1px solid rgba(255,255,255,.4)" }}
-              icon={
-                banner.secondaryTarget === "orders"
-                  ? Icons.truck
-                  : banner.secondaryTarget === "prescription"
-                    ? Icons.filePlus
-                    : Icons.cart
-              }
+              icon={banner.secondaryTarget === "orders" ? Icons.truck : Icons.cart}
               onClick={() => goTo(banner.secondaryTarget)}
             >
               {banner.secondaryLabel}

@@ -33,23 +33,17 @@ function MetricCard({ label, value }: { label: string; value: string | number })
 
 function AdminHomePage() {
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState({
-    products: 0,
-    activeProducts: 0,
-    orders: 0,
-    prescriptions: 0,
-  });
+  const [metrics, setMetrics] = useState({ products: 0, activeProducts: 0, orders: 0 });
 
   useEffect(() => {
     let cancelled = false;
 
     const loadMetrics = async () => {
       const supabase = await getSupabase();
-      const [productsRes, activeProductsRes, ordersRes, prescriptionsRes] = await Promise.all([
+      const [productsRes, activeProductsRes, ordersRes] = await Promise.all([
         supabase.from("products").select("id", { count: "exact", head: true }),
         supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
         supabase.from("orders").select("id", { count: "exact", head: true }),
-        supabase.from("prescription_requests").select("id", { count: "exact", head: true }),
       ]);
 
       if (cancelled) return;
@@ -58,7 +52,6 @@ function AdminHomePage() {
         products: productsRes.count || 0,
         activeProducts: activeProductsRes.count || 0,
         orders: ordersRes.count || 0,
-        prescriptions: prescriptionsRes.count || 0,
       });
       setLoading(false);
     };
@@ -98,7 +91,6 @@ function AdminHomePage() {
           <MetricCard label="Total products" value={loading ? "…" : metrics.products} />
           <MetricCard label="Active products" value={loading ? "…" : metrics.activeProducts} />
           <MetricCard label="Total orders" value={loading ? "…" : metrics.orders} />
-          <MetricCard label="Prescription requests" value={loading ? "…" : metrics.prescriptions} />
         </div>
 
         <div
@@ -116,10 +108,6 @@ function AdminHomePage() {
           <Link to="/admin/orders" style={actionCardStyle}>
             <div style={cardTitleStyle}>Manage orders</div>
             <div style={cardDescStyle}>Track and update order status and progress.</div>
-          </Link>
-          <Link to="/admin/prescriptions" style={actionCardStyle}>
-            <div style={cardTitleStyle}>Prescription requests</div>
-            <div style={cardDescStyle}>Review uploaded prescriptions and contact customers.</div>
           </Link>
           <Link to="/admin/sales" style={actionCardStyle}>
             <div style={cardTitleStyle}>Sales report</div>

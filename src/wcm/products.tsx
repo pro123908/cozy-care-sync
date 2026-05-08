@@ -62,7 +62,7 @@ export function ProductsPage({
   addToCart: (p: Product) => void;
   openProduct: (p: Product) => void;
   cart: CartLine[];
-  goTo: (p: "products" | "orders" | "prescription") => void;
+  goTo: (p: "products" | "orders") => void;
   category?: string;
   onCategoryChange?: (cat: string) => void;
 }) {

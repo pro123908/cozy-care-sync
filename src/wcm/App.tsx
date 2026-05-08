@@ -303,7 +303,6 @@ function Header({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isProducts = pathname === "/" || pathname.startsWith("/products");
   const isCategories = pathname.startsWith("/categories");
-  const isPrescription = pathname.startsWith("/prescription");
   const isDeals = pathname.startsWith("/deals");
   const isOrders = pathname.startsWith("/orders");
 
@@ -715,13 +714,6 @@ function Header({
                 Deals
               </NavBtn>
               <NavBtn
-                active={isPrescription}
-                onClick={() => navigate({ to: "/prescription" })}
-                icon={Icons.filePlus}
-              >
-                Prescription
-              </NavBtn>
-              <NavBtn
                 active={isOrders}
                 onClick={() => navigate({ to: "/orders" })}
                 icon={Icons.pkg}
@@ -1013,7 +1005,6 @@ function BottomNav({
   const isCartActive = !!cartOpen;
   const isProducts = !isCartActive && (pathname === "/" || pathname.startsWith("/products"));
   const isCategories = !isCartActive && pathname.startsWith("/categories");
-  const isPrescription = !isCartActive && pathname.startsWith("/prescription");
   const isOrders = !isCartActive && pathname.startsWith("/orders");
 
   const items = [
@@ -1026,16 +1017,6 @@ function BottomNav({
         navigate({ to: "/" });
       },
       active: isProducts,
-    },
-    {
-      id: "prescription",
-      label: "Rx",
-      icon: Icons.filePlus,
-      action: () => {
-        onCartClose?.();
-        navigate({ to: "/prescription" });
-      },
-      active: isPrescription,
     },
     {
       id: "categories",
