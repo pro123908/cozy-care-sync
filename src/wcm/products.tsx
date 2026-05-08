@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { CATEGORIES, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
@@ -7,6 +8,7 @@ import type { CartLine } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   CategoryRail,
+  DealsRail,
   ProductCard,
   ProductCardSkeleton,
   RecentlyViewedRail,
@@ -21,6 +23,8 @@ import {
 
 const RECENTLY_VIEWED_KEY = "wcm_recently_viewed";
 const RECENTLY_VIEWED_MAX = 12;
+const HOMEPAGE_TOP_CATEGORIES_MOBILE = 10;
+const HOMEPAGE_TOP_CATEGORIES_DESKTOP = 10;
 
 function useRecentlyViewed() {
   const [ids, setIds] = useState<string[]>(() => {
@@ -58,11 +62,12 @@ export function ProductsPage({
   addToCart: (p: Product) => void;
   openProduct: (p: Product) => void;
   cart: CartLine[];
-  goTo: (p: "products" | "orders") => void;
+  goTo: (p: "products" | "orders" | "prescription") => void;
   category?: string;
   onCategoryChange?: (cat: string) => void;
 }) {
   const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { ids: recentlyViewedIds } = useRecentlyViewed();
   const [active, setActive] = useState(category ?? "all");
@@ -157,6 +162,32 @@ export function ProductsPage({
     return normalized;
   }, [categories, categoriesLoaded, products]);
 
+  const homepageCategories = useMemo(() => {
+    const nonAllCategories = storefrontCategories.filter((cat) => cat.id !== "all");
+    const flaggedCategories = nonAllCategories.filter((cat) => cat.top_category);
+    const rankedByCount = [...nonAllCategories].sort((a, b) => (b.count || 0) - (a.count || 0));
+
+    const rankedCategories =
+      flaggedCategories.length > 0
+        ? [...flaggedCategories, ...rankedByCount.filter((cat) => !cat.top_category)]
+        : rankedByCount;
+
+    if (isMobile) {
+      const mobileVisible = rankedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_MOBILE);
+      const activeCategory = nonAllCategories.find((cat) => cat.id === active);
+      const hasActive =
+        !!activeCategory && mobileVisible.some((category) => category.id === activeCategory.id);
+
+      if (activeCategory && activeCategory.id !== "all" && !hasActive && mobileVisible.length > 0) {
+        mobileVisible[mobileVisible.length - 1] = activeCategory;
+      }
+
+      return mobileVisible;
+    }
+
+    return rankedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_DESKTOP);
+  }, [storefrontCategories, isMobile, active]);
+
   const hasRecentlyViewed = useMemo(() => {
     if (!recentlyViewedIds.length) return false;
     const productIds = new Set(products.map((product) => product.id));
@@ -201,6 +232,13 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <TrustRibbon />
+      <DealsRail
+        products={products}
+        cart={cart}
+        onAdd={addToCart}
+        onOpen={openProduct}
+        isMobile={isMobile}
+      />
       <RecentlyViewedRail
         ids={recentlyViewedIds}
         products={products}
@@ -260,18 +298,27 @@ export function ProductsPage({
         {/* Row 1: Category filter chips */}
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 800,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            color: "var(--ink-4)",
+            display: "flex",
+            alignItems: "center",
             paddingInline: 2,
           }}
         >
-          Categories
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              color: "var(--ink-4)",
+            }}
+          >
+            Categories
+          </div>
         </div>
         <CategoryRail
-          categories={storefrontCategories}
+          categories={homepageCategories}
+          isMobile={isMobile}
+          onViewAll={() => navigate({ to: "/categories" })}
           active={active}
           setActive={(v) => {
             shouldScrollToProductsRef.current = true;

@@ -10,24 +10,34 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WishlistRouteImport } from './routes/wishlist'
+import { Route as PrescriptionRouteImport } from './routes/prescription'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as FaqsRouteImport } from './routes/faqs'
+import { Route as DealsRouteImport } from './routes/deals'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
+import { Route as CategoriesIndexRouteImport } from './routes/categories/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
+import { Route as CategoriesCategoryIdRouteImport } from './routes/categories/$categoryId'
 import { Route as AdminSalesRouteImport } from './routes/admin/sales'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
+import { Route as AdminPrescriptionsRouteImport } from './routes/admin/prescriptions'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 
 const WishlistRoute = WishlistRouteImport.update({
   id: '/wishlist',
   path: '/wishlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrescriptionRoute = PrescriptionRouteImport.update({
+  id: '/prescription',
+  path: '/prescription',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PoliciesRoute = PoliciesRouteImport.update({
@@ -43,6 +53,11 @@ const MapRoute = MapRouteImport.update({
 const FaqsRoute = FaqsRouteImport.update({
   id: '/faqs',
   path: '/faqs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DealsRoute = DealsRouteImport.update({
+  id: '/deals',
+  path: '/deals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -70,6 +85,11 @@ const OrdersIndexRoute = OrdersIndexRouteImport.update({
   path: '/orders/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
+  id: '/categories/',
+  path: '/categories/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -85,6 +105,11 @@ const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   path: '/orders/$orderId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoriesCategoryIdRoute = CategoriesCategoryIdRouteImport.update({
+  id: '/categories/$categoryId',
+  path: '/categories/$categoryId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSalesRoute = AdminSalesRouteImport.update({
   id: '/admin/sales',
   path: '/admin/sales',
@@ -93,6 +118,11 @@ const AdminSalesRoute = AdminSalesRouteImport.update({
 const AdminProductsRoute = AdminProductsRouteImport.update({
   id: '/admin/products',
   path: '/admin/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminPrescriptionsRoute = AdminPrescriptionsRouteImport.update({
+  id: '/admin/prescriptions',
+  path: '/admin/prescriptions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
@@ -106,16 +136,21 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
+  '/prescription': typeof PrescriptionRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/prescriptions': typeof AdminPrescriptionsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
+  '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/categories/': typeof CategoriesIndexRoute
   '/orders/': typeof OrdersIndexRoute
 }
 export interface FileRoutesByTo {
@@ -123,16 +158,21 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
+  '/prescription': typeof PrescriptionRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/prescriptions': typeof AdminPrescriptionsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
+  '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin': typeof AdminIndexRoute
+  '/categories': typeof CategoriesIndexRoute
   '/orders': typeof OrdersIndexRoute
 }
 export interface FileRoutesById {
@@ -141,16 +181,21 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
+  '/prescription': typeof PrescriptionRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/prescriptions': typeof AdminPrescriptionsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
+  '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/categories/': typeof CategoriesIndexRoute
   '/orders/': typeof OrdersIndexRoute
 }
 export interface FileRouteTypes {
@@ -160,16 +205,21 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
+    | '/prescription'
     | '/wishlist'
     | '/admin/orders'
+    | '/admin/prescriptions'
     | '/admin/products'
     | '/admin/sales'
+    | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
     | '/admin/'
+    | '/categories/'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -177,16 +227,21 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
+    | '/prescription'
     | '/wishlist'
     | '/admin/orders'
+    | '/admin/prescriptions'
     | '/admin/products'
     | '/admin/sales'
+    | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
     | '/admin'
+    | '/categories'
     | '/orders'
   id:
     | '__root__'
@@ -194,16 +249,21 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
+    | '/prescription'
     | '/wishlist'
     | '/admin/orders'
+    | '/admin/prescriptions'
     | '/admin/products'
     | '/admin/sales'
+    | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
     | '/admin/'
+    | '/categories/'
     | '/orders/'
   fileRoutesById: FileRoutesById
 }
@@ -212,16 +272,21 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AccountRoute: typeof AccountRoute
   CheckoutRoute: typeof CheckoutRoute
+  DealsRoute: typeof DealsRoute
   FaqsRoute: typeof FaqsRoute
   MapRoute: typeof MapRoute
   PoliciesRoute: typeof PoliciesRoute
+  PrescriptionRoute: typeof PrescriptionRoute
   WishlistRoute: typeof WishlistRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminPrescriptionsRoute: typeof AdminPrescriptionsRoute
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSalesRoute: typeof AdminSalesRoute
+  CategoriesCategoryIdRoute: typeof CategoriesCategoryIdRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  CategoriesIndexRoute: typeof CategoriesIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
 }
 
@@ -232,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/wishlist'
       fullPath: '/wishlist'
       preLoaderRoute: typeof WishlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/prescription': {
+      id: '/prescription'
+      path: '/prescription'
+      fullPath: '/prescription'
+      preLoaderRoute: typeof PrescriptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/policies': {
@@ -253,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/faqs'
       fullPath: '/faqs'
       preLoaderRoute: typeof FaqsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/deals': {
+      id: '/deals'
+      path: '/deals'
+      fullPath: '/deals'
+      preLoaderRoute: typeof DealsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout': {
@@ -290,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/categories/': {
+      id: '/categories/'
+      path: '/categories'
+      fullPath: '/categories/'
+      preLoaderRoute: typeof CategoriesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/admin'
@@ -311,6 +397,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersOrderIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/categories/$categoryId': {
+      id: '/categories/$categoryId'
+      path: '/categories/$categoryId'
+      fullPath: '/categories/$categoryId'
+      preLoaderRoute: typeof CategoriesCategoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/sales': {
       id: '/admin/sales'
       path: '/admin/sales'
@@ -323,6 +416,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/products'
       fullPath: '/admin/products'
       preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/prescriptions': {
+      id: '/admin/prescriptions'
+      path: '/admin/prescriptions'
+      fullPath: '/admin/prescriptions'
+      preLoaderRoute: typeof AdminPrescriptionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/orders': {
@@ -340,16 +440,21 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AccountRoute: AccountRoute,
   CheckoutRoute: CheckoutRoute,
+  DealsRoute: DealsRoute,
   FaqsRoute: FaqsRoute,
   MapRoute: MapRoute,
   PoliciesRoute: PoliciesRoute,
+  PrescriptionRoute: PrescriptionRoute,
   WishlistRoute: WishlistRoute,
   AdminOrdersRoute: AdminOrdersRoute,
+  AdminPrescriptionsRoute: AdminPrescriptionsRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminSalesRoute: AdminSalesRoute,
+  CategoriesCategoryIdRoute: CategoriesCategoryIdRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIndexRoute: AdminIndexRoute,
+  CategoriesIndexRoute: CategoriesIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
 }
 export const routeTree = rootRouteImport
