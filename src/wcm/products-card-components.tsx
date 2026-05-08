@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "@tanstack/react-router";
 import { PKR, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
@@ -9,120 +10,39 @@ export function CategoryRail({
   active,
   setActive,
   categories,
+  onViewAll,
+  isMobile = false,
 }: {
   active: string;
   setActive: (v: string) => void;
   categories: Category[];
+  onViewAll?: () => void;
+  isMobile?: boolean;
 }) {
-  const railRef = React.useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
-  const [canScrollRight, setCanScrollRight] = React.useState(false);
-
-  const syncScrollButtons = React.useCallback(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
-    setCanScrollLeft(rail.scrollLeft > 4);
-    setCanScrollRight(maxScrollLeft - rail.scrollLeft > 4);
-  }, []);
-
-  React.useEffect(() => {
-    syncScrollButtons();
-    const rail = railRef.current;
-    if (!rail) return;
-
-    rail.addEventListener("scroll", syncScrollButtons, { passive: true });
-    window.addEventListener("resize", syncScrollButtons);
-
-    return () => {
-      rail.removeEventListener("scroll", syncScrollButtons);
-      window.removeEventListener("resize", syncScrollButtons);
-    };
-  }, [categories, syncScrollButtons]);
-
-  const scrollRail = (direction: "left" | "right") => {
-    const rail = railRef.current;
-    if (!rail) return;
-    rail.scrollBy({
-      left: direction === "left" ? -220 : 220,
-      behavior: "smooth",
-    });
-  };
-
   const allCategoryImages = categories
     .filter((category) => category.id !== "all")
     .map((category) => (typeof category.image_url === "string" ? category.image_url.trim() : ""))
     .filter(Boolean)
     .slice(0, 4);
+  const visibleCategories = categories;
 
   return (
-    <div style={{ position: "relative" }}>
+    <>
       <style>{`.cat-rail::-webkit-scrollbar{display:none}`}</style>
-      <button
-        type="button"
-        aria-label="Scroll categories left"
-        onClick={() => scrollRail("left")}
-        disabled={!canScrollLeft}
-        style={{
-          position: "absolute",
-          left: -10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 38,
-          height: 38,
-          borderRadius: 999,
-          border: "1px solid var(--line)",
-          background: "rgba(255,255,255,.96)",
-          boxShadow: "0 10px 24px rgba(15, 23, 42, .12)",
-          display: "grid",
-          placeItems: "center",
-          color: "var(--ink-2)",
-          cursor: canScrollLeft ? "pointer" : "default",
-          opacity: canScrollLeft ? 1 : 0.45,
-          zIndex: 2,
-        }}
-      >
-        {Icons.chevL}
-      </button>
-      <button
-        type="button"
-        aria-label="Scroll categories right"
-        onClick={() => scrollRail("right")}
-        disabled={!canScrollRight}
-        style={{
-          position: "absolute",
-          right: -22,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: 38,
-          height: 38,
-          borderRadius: 999,
-          border: "1px solid var(--line)",
-          background: "rgba(255,255,255,.96)",
-          boxShadow: "0 10px 24px rgba(15, 23, 42, .12)",
-          display: "grid",
-          placeItems: "center",
-          color: "var(--ink-2)",
-          cursor: canScrollRight ? "pointer" : "default",
-          opacity: canScrollRight ? 1 : 0.45,
-          zIndex: 2,
-        }}
-      >
-        {Icons.chev}
-      </button>
       <div
-        ref={railRef}
         className="cat-rail"
         style={{
           display: "flex",
+          flexWrap: "nowrap",
           gap: 10,
+          padding: "6px 2px",
           overflowX: "auto",
-          padding: "6px 38px",
+          overflowY: "hidden",
           scrollbarWidth: "none",
           scrollBehavior: "smooth",
         }}
       >
-        {categories.map((c) => {
+        {visibleCategories.map((c) => {
           const on = c.id === active;
           const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
           const showAllCollage = c.id === "all" && allCategoryImages.length > 0;
@@ -134,6 +54,7 @@ export function CategoryRail({
                 padding: "2px 2px 8px",
                 borderRadius: 14,
                 minWidth: 142,
+                width: 142,
                 background: "transparent",
                 color: "var(--ink-2)",
                 border: "none",
@@ -260,8 +181,63 @@ export function CategoryRail({
             </button>
           );
         })}
+        {onViewAll && (
+          <button
+            key="cat-view-all"
+            onClick={onViewAll}
+            style={{
+              padding: "2px 2px 8px",
+              borderRadius: 14,
+              minWidth: 142,
+              width: 142,
+              background: "transparent",
+              color: "var(--ink-2)",
+              border: "none",
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              gap: 12,
+              textAlign: "center",
+              flexShrink: 0,
+              transition: "transform .2s ease",
+            }}
+          >
+            <span
+              style={{
+                width: 128,
+                height: 128,
+                borderRadius: 999,
+                border: "2px dashed var(--blue-300)",
+                background: "var(--card)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "var(--blue-700)",
+                boxShadow: "0 10px 20px rgba(15,23,42,.08)",
+              }}
+            >
+              {Icons.chev}
+            </span>
+            <span
+              style={{
+                lineHeight: 1.2,
+                minHeight: 34,
+                fontSize: 13.5,
+                fontWeight: 700,
+                color: "var(--blue-700)",
+                maxWidth: 138,
+              }}
+            >
+              View all
+            </span>
+          </button>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -693,6 +669,107 @@ export function RecentlyViewedRail({
         <style>{`.wcm-rv-rail::-webkit-scrollbar{display:none}`}</style>
         {viewed.map((p) => (
           <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 110 : 130 }}>
+            <ProductCard
+              p={p}
+              onAdd={onAdd}
+              onOpen={onOpen}
+              cartQty={cart.find((c) => c.id === p.id)?.qty ?? 0}
+              compact
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function DealsRail({
+  products,
+  cart,
+  onAdd,
+  onOpen,
+  isMobile,
+}: {
+  products: Product[];
+  cart: CartLine[];
+  onAdd: (p: Product) => void;
+  onOpen: (p: Product) => void;
+  isMobile: boolean;
+}) {
+  const deals = products
+    .filter((p) => p.was != null && p.was > p.price)
+    .sort((a, b) => (1 - a.price / a.was! - (1 - b.price / b.was!) > 0 ? -1 : 1))
+    .slice(0, 12);
+
+  if (deals.length === 0) return null;
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 800,
+            color: "var(--ink)",
+            letterSpacing: -0.1,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: "#fef2f2",
+              color: "#dc2626",
+              flexShrink: 0,
+            }}
+          >
+            {Icons.percent}
+          </span>
+          Deals &amp; Offers
+        </div>
+        <Link
+          to="/deals"
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "var(--blue-700)",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            whiteSpace: "nowrap",
+          }}
+        >
+          View all {Icons.chev}
+        </Link>
+      </div>
+      <div
+        className="wcm-deals-rail"
+        style={{
+          display: "flex",
+          gap: 8,
+          overflowX: "auto",
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+        }}
+      >
+        <style>{`.wcm-deals-rail::-webkit-scrollbar{display:none}`}</style>
+        {deals.map((p) => (
+          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 130 : 160 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}
