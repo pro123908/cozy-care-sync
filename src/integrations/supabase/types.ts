@@ -15,6 +15,7 @@ export type Database = {
           slug: string;
           sort_order: number;
           image_url: string | null;
+          top_category: boolean;
           created_at: string;
         };
         Insert: {
@@ -23,6 +24,7 @@ export type Database = {
           slug: string;
           sort_order?: number;
           image_url?: string | null;
+          top_category?: boolean;
           created_at?: string;
         };
         Update: {
@@ -31,6 +33,7 @@ export type Database = {
           slug?: string;
           sort_order?: number;
           image_url?: string | null;
+          top_category?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -86,6 +89,45 @@ export type Database = {
           subtotal?: number;
           total?: number;
           user_id?: string;
+        };
+        Relationships: [];
+      };
+      prescription_requests: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          contact_name: string;
+          phone: string;
+          email: string;
+          city: string;
+          notes: string;
+          status: string;
+          file_paths: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          contact_name: string;
+          phone: string;
+          email?: string;
+          city?: string;
+          notes?: string;
+          status?: string;
+          file_paths?: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          contact_name?: string;
+          phone?: string;
+          email?: string;
+          city?: string;
+          notes?: string;
+          status?: string;
+          file_paths?: string[];
+          created_at?: string;
         };
         Relationships: [];
       };
