@@ -29,13 +29,15 @@ function OrderDetailPage() {
       .update({ status: "Cancelled", progress: 0 })
       .eq("order_code", orderId)
       .eq("user_id", session.user.id);
-    if (!error) {
-      setOrders((os) =>
-        os.map((o) => (o.id === orderId ? { ...o, status: "Cancelled", progress: 0 } : o)),
-      );
-      push("Order cancelled");
-      navigate({ to: "/orders" });
+    if (error) {
+      push("Failed to cancel order. Please try again.");
+      return;
     }
+    setOrders((os) =>
+      os.map((o) => (o.id === orderId ? { ...o, status: "Cancelled", progress: 0 } : o)),
+    );
+    push("Order cancelled");
+    navigate({ to: "/orders" });
   };
 
   if (!user) {

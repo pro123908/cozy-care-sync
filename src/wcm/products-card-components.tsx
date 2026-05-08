@@ -91,7 +91,7 @@ export function CategoryRail({
         disabled={!canScrollRight}
         style={{
           position: "absolute",
-          right: -10,
+          right: -22,
           top: "50%",
           transform: "translateY(-50%)",
           width: 38,
@@ -117,7 +117,7 @@ export function CategoryRail({
           display: "flex",
           gap: 10,
           overflowX: "auto",
-          padding: "6px 28px",
+          padding: "6px 38px",
           scrollbarWidth: "none",
           scrollBehavior: "smooth",
         }}
@@ -131,41 +131,42 @@ export function CategoryRail({
               key={c.id}
               onClick={() => setActive(c.id)}
               style={{
-                padding: "10px",
-                borderRadius: 16,
-                minWidth: 176,
-                minHeight: 226,
-                background: on ? "linear-gradient(180deg, #ecfdf3 0%, #e4f7ee 100%)" : "#fff",
+                padding: "2px 2px 8px",
+                borderRadius: 14,
+                minWidth: 142,
+                background: "transparent",
                 color: "var(--ink-2)",
-                border: on ? "1px solid #b7ebcc" : "1px solid var(--line)",
-                fontWeight: 700,
-                fontSize: 12,
+                border: "none",
+                fontWeight: 800,
+                fontSize: 13,
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "flex-start",
-                gap: 8,
+                gap: 12,
                 textAlign: "center",
                 flexShrink: 0,
-                boxShadow: on ? "0 8px 22px rgba(22, 163, 74, .16)" : "var(--shadow-sm)",
+                transition: "transform .2s ease",
               }}
             >
               {showAllCollage ? (
                 <span
                   style={{
-                    width: 150,
-                    height: 150,
-                    borderRadius: 14,
+                    width: 128,
+                    height: 128,
+                    borderRadius: 999,
                     overflow: "hidden",
-                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gridTemplateRows: "1fr 1fr",
                     gap: 2,
                     flexShrink: 0,
-                    background: "var(--bg-elev)",
-                    boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                    background: "#f7f7f7",
+                    boxShadow: on
+                      ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
+                      : "0 10px 20px rgba(15,23,42,.12)",
                   }}
                 >
                   {allCategoryImages.map((src, idx) => (
@@ -188,15 +189,17 @@ export function CategoryRail({
               ) : categoryImage ? (
                 <span
                   style={{
-                    width: 150,
-                    height: 150,
-                    borderRadius: 14,
+                    width: 128,
+                    height: 128,
+                    borderRadius: 999,
                     overflow: "hidden",
-                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
+                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
                     display: "inline-flex",
                     flexShrink: 0,
-                    background: "var(--bg-elev)",
-                    boxShadow: on ? "0 6px 16px rgba(22,163,74,.20)" : "0 2px 8px rgba(0,0,0,.10)",
+                    background: "#f7f7f7",
+                    boxShadow: on
+                      ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
+                      : "0 10px 20px rgba(15,23,42,.12)",
                   }}
                 >
                   <img
@@ -205,22 +208,31 @@ export function CategoryRail({
                     aria-hidden="true"
                     loading="eager"
                     decoding="async"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                      padding: "10%",
+                    }}
                   />
                 </span>
               ) : (
                 <span
                   style={{
-                    width: 150,
-                    height: 150,
-                    borderRadius: 14,
-                    border: on ? "1px solid #86d6a7" : "1px solid var(--line)",
-                    background: "var(--bg-elev)",
+                    width: 128,
+                    height: 128,
+                    borderRadius: 999,
+                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
+                    background: "#e2e8f0",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 24,
-                    color: on ? "#15803d" : "var(--ink-4)",
+                    fontSize: 22,
+                    color: on ? "#0f766e" : "var(--ink-4)",
+                    boxShadow: on
+                      ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
+                      : "0 10px 20px rgba(15,23,42,.12)",
                   }}
                 >
                   {Icons.pkg}
@@ -228,30 +240,20 @@ export function CategoryRail({
               )}
               <span
                 style={{
-                  lineHeight: 1.15,
+                  lineHeight: 1.2,
                   display: "-webkit-box",
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
-                  minHeight: 24,
-                  fontSize: 11.5,
-                  maxWidth: 150,
+                  minHeight: 34,
+                  fontSize: 13.5,
+                  fontWeight: on ? 800 : 700,
+                  color: on ? "var(--ink)" : "var(--ink-2)",
+                  maxWidth: 138,
+                  textTransform: "capitalize",
                 }}
               >
                 {c.name}
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  borderRadius: 99,
-                  background: on ? "#dcfce7" : "var(--chip-2)",
-                  color: on ? "#166534" : "var(--ink-4)",
-                  fontWeight: 700,
-                  marginTop: "auto",
-                }}
-              >
-                {c.count} items
               </span>
             </button>
           );

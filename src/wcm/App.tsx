@@ -283,7 +283,16 @@ function Header({
   isAdmin,
   onSignIn,
   onSignOut,
-}: any) {
+}: {
+  theme: string;
+  toggleTheme: () => void;
+  cartCount: number;
+  onCartOpen: () => void;
+  user: import("./context").WcmUser | null;
+  isAdmin: boolean;
+  onSignIn: () => void;
+  onSignOut: () => Promise<void>;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
@@ -306,8 +315,14 @@ function Header({
     }
   }, []);
 
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return [];
     return products
       .map((p) => {
@@ -328,7 +343,7 @@ function Header({
       .sort((a, b) => b.score - a.score)
       .slice(0, 8)
       .map((x) => x.p);
-  }, [products, search]);
+  }, [products, debouncedSearch]);
 
   const persistRecentSearch = (term: string) => {
     const cleaned = term.trim();
@@ -693,7 +708,7 @@ function Header({
           </div>
 
           <div className="wcm-header-right">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
             <button
               onClick={onCartOpen}
               aria-label="Cart"
@@ -924,7 +939,17 @@ const menuItem: React.CSSProperties = {
   fontFamily: "inherit",
 };
 
-function NavBtn({ active, onClick, children, icon }: any) {
+function NavBtn({
+  active,
+  onClick,
+  children,
+  icon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  icon: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
@@ -948,7 +973,17 @@ function NavBtn({ active, onClick, children, icon }: any) {
   );
 }
 
-function BottomNav({ cartCount, cartOpen, onCartOpen, onCartClose }: any) {
+function BottomNav({
+  cartCount,
+  cartOpen,
+  onCartOpen,
+  onCartClose,
+}: {
+  cartCount: number;
+  cartOpen: boolean;
+  onCartOpen: () => void;
+  onCartClose: () => void;
+}) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isCartActive = !!cartOpen;

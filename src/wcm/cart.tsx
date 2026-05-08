@@ -24,6 +24,7 @@ export type PlacedOrderData = CheckoutData & {
     landmark: string;
   };
   pay: string;
+  promo_code?: string;
 };
 
 export function CartDrawer({
@@ -334,10 +335,12 @@ export function CheckoutContent({
   user,
   onClose,
   onPlace,
+  placing = false,
 }: CheckoutData & {
   user: { firstName: string; lastName: string; email: string; initials: string } | null;
   onClose: () => void;
   onPlace: (d: PlacedOrderData) => void;
+  placing?: boolean;
 }) {
   const [step, setStep] = useState(1);
   const fullName = user ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}` : "";
@@ -349,8 +352,7 @@ export function CheckoutContent({
     city: "Karachi",
     landmark: "",
   });
-  const [pay, setPay] = useState("cod");
-  const [card, setCard] = useState({ num: "", name: "", exp: "", cvv: "" });
+  const [pay, setPay] = useState<"cod" | "bank">("cod");
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [promo, setPromo] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
@@ -370,7 +372,8 @@ export function CheckoutContent({
     }
   }, []);
   const discountAmt = Math.round(subtotal * discountPct);
-  const finalTotal = total - discountAmt;
+  const effectiveShipping = 250;
+  const finalTotal = subtotal + effectiveShipping - discountAmt;
 
   const applyPromo = () => {
     const code = promo.trim().toUpperCase();
@@ -392,22 +395,13 @@ export function CheckoutContent({
     setErrs(e);
     return Object.keys(e).length === 0;
   };
-  const validatePay = () => {
-    if (pay === "cod") return true;
-    const e: Record<string, string> = {};
-    if (!/^\d{12,19}$/.test(card.num.replace(/\s/g, ""))) e.num = "Enter a valid card number";
-    if (!card.name.trim()) e.name = "Required";
-    if (!/^\d{2}\/\d{2}$/.test(card.exp)) e.exp = "MM/YY";
-    if (!/^\d{3,4}$/.test(card.cvv)) e.cvv = "3–4 digits";
-    setErrs(e);
-    return Object.keys(e).length === 0;
-  };
 
   const next = () => {
     if (step === 1 && !validateShip()) return;
-    if (step === 2 && !validatePay()) return;
     setStep((s) => s + 1);
   };
+
+  const payLabel = pay === "cod" ? "Cash on delivery" : "Bank transfer";
 
   const place = () => {
     const compactAddress = `${ship.address}, ${ship.city}`.trim();
@@ -422,12 +416,12 @@ export function CheckoutContent({
 
     onPlace({
       ship,
-      pay:
-        pay === "cod" ? "Cash on delivery" : `Card •••• ${card.num.replace(/\s/g, "").slice(-4)}`,
+      pay: payLabel,
       items,
       subtotal,
-      shipping,
+      shipping: effectiveShipping,
       total: finalTotal,
+      promo_code: promoApplied ? promo.trim().toUpperCase() : undefined,
     });
   };
 
@@ -613,26 +607,10 @@ export function CheckoutContent({
                 />
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "var(--ink-3)",
-                    letterSpacing: 0.2,
-                  }}
-                >
-                  DELIVERY SPEED
-                </div>
                 <DeliveryOption
                   selected
-                  onClick={() => {}}
-                  title="Same-day delivery"
-                  sub="Karachi only · order before 4 PM"
-                  right="Free"
-                />
-                <DeliveryOption
-                  title="Standard 2–3 days"
-                  sub="Across Pakistan via TCS"
+                  title="Standard delivery 2–3 days"
+                  sub="Across Pakistan via TCS · Rs 250"
                   right="Rs 250"
                 />
               </div>
@@ -652,67 +630,59 @@ export function CheckoutContent({
                   sub="Pay when your order arrives"
                 />
                 <PayOption
-                  selected={pay === "card"}
-                  onClick={() => setPay("card")}
+                  selected={pay === "bank"}
+                  onClick={() => setPay("bank")}
                   icon={Icons.card}
-                  title="Debit / Credit card"
-                  sub="Visa, Mastercard accepted"
+                  title="Bank transfer"
+                  sub="Transfer before dispatch · account details below"
                 />
               </div>
-              {pay === "card" && (
-                <Section style={{ padding: 18, marginTop: 6 }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    <TextField
-                      label="Card number"
-                      placeholder="1234 5678 9012 3456"
-                      value={card.num}
-                      onChange={(e) => setCard({ ...card, num: e.target.value })}
-                      error={errs.num}
-                    />
-                    <TextField
-                      label="Cardholder name"
-                      value={card.name}
-                      onChange={(e) => setCard({ ...card, name: e.target.value })}
-                      error={errs.name}
-                    />
-                    <div
-                      className="wcm-form-2"
-                      style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
-                    >
-                      <TextField
-                        label="Expiry"
-                        placeholder="MM/YY"
-                        value={card.exp}
-                        onChange={(e) => setCard({ ...card, exp: e.target.value })}
-                        error={errs.exp}
-                      />
-                      <TextField
-                        label="CVV"
-                        placeholder="123"
-                        value={card.cvv}
-                        onChange={(e) => setCard({ ...card, cvv: e.target.value })}
-                        error={errs.cvv}
-                      />
-                    </div>
+              {pay === "bank" && (
+                <Section style={{ padding: 18, marginTop: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--ink-4)",
+                      letterSpacing: 0.4,
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Bank account details
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
+                    {[
+                      ["Bank", "MCB Islamic Bank"],
+                      ["Account title", "DROXLABS LLP"],
+                      ["Account number", "2691006549640001"],
+                      ["Branch", "Electronic Market Branch"],
+                      ["Branch code", "269"],
+                      ["IBAN", "PK92MCIB2691006549640001"],
+                    ].map(([label, value]) => (
+                      <div key={label} style={{ display: "flex", gap: 8 }}>
+                        <span style={{ color: "var(--ink-4)", fontWeight: 600, minWidth: 130 }}>
+                          {label}
+                        </span>
+                        <span style={{ fontWeight: 700, fontFamily: "monospace" }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      background: "var(--pill-info-bg)",
+                      color: "var(--blue-700)",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Please include your phone number or name as the transfer reference.
                   </div>
                 </Section>
               )}
-              <div
-                style={{
-                  marginTop: 6,
-                  padding: "10px 14px",
-                  borderRadius: 11,
-                  background: "var(--green-50)",
-                  color: "var(--green-700)",
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                {Icons.shield} Encrypted checkout · No payment data is stored on our servers.
-              </div>
             </div>
           )}
           {step === 3 && (
@@ -755,34 +725,19 @@ export function CheckoutContent({
                 </div>
               </Section>
               <Section style={{ padding: 16 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-4)",
-                        fontWeight: 700,
-                        letterSpacing: 0.4,
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      Payment
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3 }}>
-                      {pay === "cod"
-                        ? "Cash on delivery"
-                        : `Card •••• ${card.num.replace(/\s/g, "").slice(-4)}`}
-                    </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "var(--ink-4)",
+                      fontWeight: 700,
+                      letterSpacing: 0.4,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Payment
                   </div>
-                  <button onClick={() => setStep(2)} style={editLink}>
-                    Edit
-                  </button>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3 }}>{payLabel}</div>
                 </div>
               </Section>
               <Section style={{ padding: 16 }}>
@@ -872,16 +827,7 @@ export function CheckoutContent({
           <div style={{ height: 1, background: "var(--line)", margin: "4px 0 12px" }} />
           <Row label="Subtotal" value={PKR(subtotal)} />
           <div style={{ height: 6 }} />
-          <Row
-            label="Delivery"
-            value={
-              shipping === 0 ? (
-                <span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>Free</span>
-              ) : (
-                PKR(shipping)
-              )
-            }
-          />
+          <Row label="Delivery" value={PKR(effectiveShipping)} />
           <div style={{ height: 6 }} />
           <Row label="Tax" value={<span style={{ color: "var(--ink-4)" }}>Included</span>} />
           {discountAmt > 0 && (
@@ -978,8 +924,8 @@ export function CheckoutContent({
                 Continue
               </Btn>
             ) : (
-              <Btn full size="lg" onClick={place} icon={Icons.check}>
-                Place order · {PKR(finalTotal)}
+              <Btn full size="lg" onClick={place} icon={Icons.check} disabled={placing}>
+                {placing ? "Placing order…" : `Place order · ${PKR(finalTotal)}`}
               </Btn>
             )}
           </div>

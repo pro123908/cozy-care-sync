@@ -45,7 +45,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
               letterSpacing: 0.4,
             }}
           >
-            {Icons.sparkle} APRIL HEALTH SAVINGS · UP TO 30% OFF
+            {Icons.sparkle} MAY HEALTH SAVINGS · UP TO 30% OFF
           </div>
           <h1 className="wcm-hero-title">
             Trusted healthcare,

@@ -21,22 +21,20 @@ if (!self.define) {
 
   const singleRequire = (uri, parentUri) => {
     uri = new URL(uri + ".js", parentUri).href;
-    return registry[uri] || (
-      
-        new Promise(resolve => {
-          if ("document" in self) {
-            const script = document.createElement("script");
-            script.src = uri;
-            script.onload = resolve;
-            document.head.appendChild(script);
-          } else {
-            nextDefineUri = uri;
-            importScripts(uri);
-            resolve();
-          }
-        })
-      
-      .then(() => {
+    return (
+      registry[uri] ||
+      new Promise((resolve) => {
+        if ("document" in self) {
+          const script = document.createElement("script");
+          script.src = uri;
+          script.onload = resolve;
+          document.head.appendChild(script);
+        } else {
+          nextDefineUri = uri;
+          importScripts(uri);
+          resolve();
+        }
+      }).then(() => {
         let promise = registry[uri];
         if (!promise) {
           throw new Error(`Module ${uri} didn’t register its module`);
@@ -47,30 +45,32 @@ if (!self.define) {
   };
 
   self.define = (depsNames, factory) => {
-    const uri = nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
+    const uri =
+      nextDefineUri || ("document" in self ? document.currentScript.src : "") || location.href;
     if (registry[uri]) {
       // Module is already loading or loaded.
       return;
     }
     let exports = {};
-    const require = depUri => singleRequire(depUri, uri);
+    const require = (depUri) => singleRequire(depUri, uri);
     const specialDeps = {
       module: { uri },
       exports,
-      require
+      require,
     };
-    registry[uri] = Promise.all(depsNames.map(
-      depName => specialDeps[depName] || require(depName)
-    )).then(deps => {
+    registry[uri] = Promise.all(
+      depsNames.map((depName) => specialDeps[depName] || require(depName)),
+    ).then((deps) => {
       factory(...deps);
       return exports;
     });
   };
 }
-define(['./workbox-86dfaae7'], (function (workbox) { 'use strict';
+define(["./workbox-86dfaae7"], function (workbox) {
+  "use strict";
 
-  self.addEventListener('message', event => {
-    if (event.data && event.data.type === 'SKIP_WAITING') {
+  self.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "SKIP_WAITING") {
       self.skipWaiting();
     }
   });
@@ -80,45 +80,69 @@ define(['./workbox-86dfaae7'], (function (workbox) { 'use strict';
    * requests for URLs in the manifest.
    * See https://goo.gl/S9QRab
    */
-  workbox.precacheAndRoute([{
-    "url": "/index.html",
-    "revision": "0.bifnhipopfg"
-  }], {});
+  workbox.precacheAndRoute(
+    [
+      {
+        url: "/index.html",
+        revision: "0.e61rkvrdnno",
+      },
+    ],
+    {},
+  );
   workbox.cleanupOutdatedCaches();
-  workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
-    allowlist: [/^\/$/],
-    denylist: [/^\/__/, /^\/api\//]
-  }));
-  workbox.registerRoute(({
-    request
-  }) => request.mode === "navigate", new workbox.NetworkFirst({
-    "cacheName": "navigate-cache",
-    "networkTimeoutSeconds": 5,
-    plugins: []
-  }), 'GET');
-  workbox.registerRoute(({
-    request
-  }) => request.destination === "image", new workbox.StaleWhileRevalidate({
-    "cacheName": "images-cache",
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 120,
-      maxAgeSeconds: 2592000
-    })]
-  }), 'GET');
-  workbox.registerRoute(/^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i, new workbox.CacheFirst({
-    "cacheName": "google-fonts-cache",
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 20,
-      maxAgeSeconds: 31536000
-    })]
-  }), 'GET');
-  workbox.registerRoute(/^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i, new workbox.NetworkFirst({
-    "cacheName": "supabase-rest-cache",
-    "networkTimeoutSeconds": 5,
-    plugins: [new workbox.ExpirationPlugin({
-      maxEntries: 40,
-      maxAgeSeconds: 300
-    })]
-  }), 'GET');
-
-}));
+  workbox.registerRoute(
+    new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
+      allowlist: [/^\/$/],
+      denylist: [/^\/__/, /^\/api\//],
+    }),
+  );
+  workbox.registerRoute(
+    ({ request }) => request.mode === "navigate",
+    new workbox.NetworkFirst({
+      cacheName: "navigate-cache",
+      networkTimeoutSeconds: 5,
+      plugins: [],
+    }),
+    "GET",
+  );
+  workbox.registerRoute(
+    ({ request }) => request.destination === "image",
+    new workbox.StaleWhileRevalidate({
+      cacheName: "images-cache",
+      plugins: [
+        new workbox.ExpirationPlugin({
+          maxEntries: 120,
+          maxAgeSeconds: 2592000,
+        }),
+      ],
+    }),
+    "GET",
+  );
+  workbox.registerRoute(
+    /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+    new workbox.CacheFirst({
+      cacheName: "google-fonts-cache",
+      plugins: [
+        new workbox.ExpirationPlugin({
+          maxEntries: 20,
+          maxAgeSeconds: 31536000,
+        }),
+      ],
+    }),
+    "GET",
+  );
+  workbox.registerRoute(
+    /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+    new workbox.NetworkFirst({
+      cacheName: "supabase-rest-cache",
+      networkTimeoutSeconds: 5,
+      plugins: [
+        new workbox.ExpirationPlugin({
+          maxEntries: 40,
+          maxAgeSeconds: 300,
+        }),
+      ],
+    }),
+    "GET",
+  );
+});

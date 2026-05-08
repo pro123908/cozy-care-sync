@@ -17,6 +17,7 @@ function AccountPage() {
   const [lastName, setLastName] = useState(user?.lastName ?? "");
   const [saving, setSaving] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   if (!user) {
     navigate({ to: "/" });
@@ -31,7 +32,10 @@ function AccountPage() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        push("Session expired. Please sign in again.");
+        return;
+      }
       const { error } = await supabase
         .from("profiles")
         .update({ first_name: firstName.trim(), last_name: lastName.trim() })
@@ -54,15 +58,20 @@ function AccountPage() {
   };
 
   const sendPasswordReset = async () => {
-    const supabase = await getSupabase();
-    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${window.location.origin}/`,
-    });
-    if (!error) {
-      setResetSent(true);
-      push("Password reset link sent to your email");
-    } else {
-      push("Failed to send reset link");
+    setResetting(true);
+    try {
+      const supabase = await getSupabase();
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: `${window.location.origin}/`,
+      });
+      if (!error) {
+        setResetSent(true);
+        push("Password reset link sent to your email");
+      } else {
+        push("Failed to send reset link");
+      }
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -219,8 +228,13 @@ function AccountPage() {
             Reset link sent — check your inbox.
           </div>
         ) : (
-          <Btn variant="outline" onClick={sendPasswordReset} icon={Icons.shield}>
-            Send password reset link
+          <Btn
+            variant="outline"
+            onClick={sendPasswordReset}
+            disabled={resetting}
+            icon={Icons.shield}
+          >
+            {resetting ? "Sending…" : "Send password reset link"}
           </Btn>
         )}
       </div>

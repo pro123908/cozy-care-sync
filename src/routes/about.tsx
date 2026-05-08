@@ -3,7 +3,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/about")({
   component: AboutPage,
   head: () => ({
-    meta: [{ title: "About Wellcare Mart" }],
+    meta: [
+      { title: "About Wellcare Mart" },
+      {
+        name: "description",
+        content: "Learn about Wellcare Mart — Pakistan's trusted home healthcare products store.",
+      },
+      { property: "og:title", content: "About Wellcare Mart" },
+      {
+        property: "og:description",
+        content: "Learn about Wellcare Mart — Pakistan's trusted home healthcare products store.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
 });
 

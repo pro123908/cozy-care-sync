@@ -81,7 +81,10 @@ function AdminSalesPage() {
     const aboveAvgCount = rows.filter((r) => r.sales_count > meanSales).length;
     const belowAvgCount = rows.filter((r) => r.sales_count < meanSales && r.sales_count > 0).length;
 
-    const lowStockCount = rows.filter((r) => r.stock === "low" || r.stock === "out").length;
+    const lowStockCount = rows.filter((r) => {
+      const stock = r.stock.trim().toLowerCase();
+      return stock === "low stock" || stock === "out of stock";
+    }).length;
 
     const sortedSales = [...rows.map((r) => r.sales_count)].sort((a, b) => a - b);
     const medianSales = sortedSales[Math.floor(sortedSales.length / 2)];

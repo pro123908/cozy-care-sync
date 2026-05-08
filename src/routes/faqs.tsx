@@ -3,7 +3,22 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/faqs")({
   component: FaqsPage,
   head: () => ({
-    meta: [{ title: "FAQs - Wellcare Mart" }],
+    meta: [
+      { title: "FAQs - Wellcare Mart" },
+      {
+        name: "description",
+        content:
+          "Frequently asked questions about orders, delivery, returns, and products at Wellcare Mart.",
+      },
+      { property: "og:title", content: "FAQs - Wellcare Mart" },
+      {
+        property: "og:description",
+        content:
+          "Frequently asked questions about orders, delivery, returns, and products at Wellcare Mart.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
 });
 
@@ -47,7 +62,15 @@ function FaqsPage() {
         </Link>
       </div>
 
-      <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: "var(--ink)", letterSpacing: -0.5 }}>
+      <h1
+        style={{
+          margin: 0,
+          fontSize: 30,
+          fontWeight: 800,
+          color: "var(--ink)",
+          letterSpacing: -0.5,
+        }}
+      >
         Frequently Asked Questions
       </h1>
       <p style={{ margin: "8px 0 20px", color: "var(--ink-4)", fontSize: 14 }}>
@@ -65,8 +88,12 @@ function FaqsPage() {
               padding: "14px 16px",
             }}
           >
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>{item.q}</h2>
-            <p style={{ margin: "7px 0 0", fontSize: 14, lineHeight: 1.6, color: "var(--ink-3)" }}>{item.a}</p>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>
+              {item.q}
+            </h2>
+            <p style={{ margin: "7px 0 0", fontSize: 14, lineHeight: 1.6, color: "var(--ink-3)" }}>
+              {item.a}
+            </p>
           </section>
         ))}
       </div>

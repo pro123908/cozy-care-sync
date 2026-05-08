@@ -416,6 +416,11 @@ function AdminProductsPage() {
       push("Please select a valid image file.");
       return;
     }
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      push(`Image must be smaller than ${MAX_SIZE_MB}MB.`);
+      return;
+    }
     setUploadingImage(true);
     try {
       const supabase = await getSupabase();
@@ -441,6 +446,11 @@ function AdminProductsPage() {
   const uploadCategoryImageToSupabase = async (categoryId: string, file: File) => {
     if (!file.type.startsWith("image/")) {
       push("Please select a valid image file.");
+      return;
+    }
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      push(`Image must be smaller than ${MAX_SIZE_MB}MB.`);
       return;
     }
     setUploadingCategoryId(categoryId);

@@ -46,6 +46,7 @@ const CLOUDINARY_API_SECRET = Deno.env.get("CLOUDINARY_API_SECRET") || "";
 const CLOUDINARY_UPLOAD_FOLDER = Deno.env.get("CLOUDINARY_UPLOAD_FOLDER") || "whatsapp-imports";
 const GREEN_API_ID_INSTANCE = Deno.env.get("GREEN_API_ID_INSTANCE") || "";
 const GREEN_API_TOKEN = Deno.env.get("GREEN_API_TOKEN") || "";
+const WHATSAPP_IMPORT_WEBHOOK_SECRET = Deno.env.get("WHATSAPP_IMPORT_WEBHOOK_SECRET") || "";
 const IMPORT_SOURCE_TAG = "import:whatsapp";
 const DUPLICATE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -117,10 +118,10 @@ async function uploadBlobToCloudinary(blob: Blob, productId: string): Promise<st
   form.append("folder", folder);
   form.append("public_id", publicId);
 
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    { method: "POST", body: form },
-  );
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: form,
+  });
   const json = await res.json().catch(() => ({}) as Record<string, unknown>);
   if (!res.ok) {
     const msg =
@@ -148,10 +149,17 @@ function toSlug(value: string) {
 }
 
 function getCategoryPrefix(categorySlug: string) {
-  const parts = categorySlug.trim().toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  const parts = categorySlug
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
   if (parts.length === 0) return "prd";
   if (parts.length === 1) return parts[0].slice(0, 3);
-  return parts.map((p) => p[0]).join("").slice(0, 4);
+  return parts
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 4);
 }
 
 function getCategoryProductSequence(id: string, prefix: string) {
@@ -189,7 +197,11 @@ async function getNextSortOrder() {
 // ---------------------------------------------------------------------------
 
 function normalizeSenderTag(sender: string) {
-  return sender.trim().toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
+  return sender
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .slice(0, 24);
 }
 
 function getImportTags(tags: string[], sender: string) {
@@ -231,7 +243,10 @@ function parsePrice(raw: string | undefined) {
 }
 
 function parseMessage(body: string): ParsedMessage | null {
-  const lines = body.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = body
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   let name = "";
   let categoryRaw = "";
@@ -243,22 +258,54 @@ function parseMessage(body: string): ParsedMessage | null {
 
   for (const line of lines) {
     const match = line.match(/^([a-zA-Z ]+?)\s*[:=-]\s*(.+)$/);
-    if (!match) { if (!name) name = line; continue; }
+    if (!match) {
+      if (!name) name = line;
+      continue;
+    }
     const key = match[1].trim().toLowerCase();
     const value = match[2].trim();
-    if (key === "name" || key === "product" || key === "title") { name = value; continue; }
-    if (key === "category" || key === "cat") { categoryRaw = value; continue; }
-    if (key === "brand") { brand = value; continue; }
-    if (key === "price" || key === "amount" || key === "cost") { price = parsePrice(value); continue; }
-    if (key === "stock" || key === "availability") { stock = value; continue; }
-    if (key === "description" || key === "desc" || key === "blurb") { blurb = value; continue; }
+    if (key === "name" || key === "product" || key === "title") {
+      name = value;
+      continue;
+    }
+    if (key === "category" || key === "cat") {
+      categoryRaw = value;
+      continue;
+    }
+    if (key === "brand") {
+      brand = value;
+      continue;
+    }
+    if (key === "price" || key === "amount" || key === "cost") {
+      price = parsePrice(value);
+      continue;
+    }
+    if (key === "stock" || key === "availability") {
+      stock = value;
+      continue;
+    }
+    if (key === "description" || key === "desc" || key === "blurb") {
+      blurb = value;
+      continue;
+    }
     if (key === "tags" || key === "tag") {
-      tags = value.split(",").map((t) => t.trim()).filter(Boolean);
+      tags = value
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
     }
   }
 
   if (!name) return null;
-  return { name, categoryRaw: categoryRaw || undefined, brand: brand || undefined, price, stock, blurb, tags };
+  return {
+    name,
+    categoryRaw: categoryRaw || undefined,
+    brand: brand || undefined,
+    price,
+    stock,
+    blurb,
+    tags,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -268,7 +315,16 @@ function parseMessage(body: string): ParsedMessage | null {
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
-  const payload = await req.json().catch(() => null) as GreenApiPayload | null;
+  if (!WHATSAPP_IMPORT_WEBHOOK_SECRET) {
+    return new Response("Server misconfigured", { status: 500 });
+  }
+
+  const providedSecret = req.headers.get("x-webhook-secret") || "";
+  if (providedSecret !== WHATSAPP_IMPORT_WEBHOOK_SECRET) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const payload = (await req.json().catch(() => null)) as GreenApiPayload | null;
 
   // Always respond 200 immediately
   const ack = new Response("OK", { status: 200 });

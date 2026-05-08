@@ -116,26 +116,28 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<WcmUser | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const [cart, setCart] = useState<CartLine[]>([]);
-  useEffect(() => {
+  const [cart, setCart] = useState<CartLine[]>(() => {
     try {
       const saved = localStorage.getItem("wcm-cart");
-      if (saved) setCart(JSON.parse(saved));
-    } catch {}
-  }, []);
+      return saved ? (JSON.parse(saved) as CartLine[]) : [];
+    } catch {
+      return [];
+    }
+  });
   useEffect(() => {
     try {
       localStorage.setItem("wcm-cart", JSON.stringify(cart));
     } catch {}
   }, [cart]);
 
-  const [wishlist, setWishlist] = useState<string[]>([]);
-  useEffect(() => {
+  const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("wcm-wishlist");
-      if (saved) setWishlist(JSON.parse(saved));
-    } catch {}
-  }, []);
+      return saved ? (JSON.parse(saved) as string[]) : [];
+    } catch {
+      return [];
+    }
+  });
   useEffect(() => {
     try {
       localStorage.setItem("wcm-wishlist", JSON.stringify(wishlist));
@@ -144,10 +146,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
 
   const toggleWishlist = (id: string) => {
     setWishlist((w) => {
-      const next = w.includes(id) ? w.filter((x) => x !== id) : [...w, id];
-      push(next.includes(id) ? "Added to saved items" : "Removed from saved items");
-      return next;
+      const isAdding = !w.includes(id);
+      return isAdding ? [...w, id] : w.filter((x) => x !== id);
     });
+    const isCurrentlySaved = wishlist.includes(id);
+    push(isCurrentlySaved ? "Removed from saved items" : "Added to saved items");
   };
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -184,11 +187,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         progress: r.progress,
         address: r.address,
         payment: r.payment,
-        items: (r.items as any) || [],
+        items: (r.items as Array<{ id: string; qty: number }>) || [],
         subtotal: r.subtotal,
         shipping: r.shipping,
         total: r.total,
-        rider: (r.rider as any) || undefined,
+        rider: (r.rider as { name?: string; phone?: string } | undefined) || undefined,
         review: reviewMap[r.order_code],
       })),
     );

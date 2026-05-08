@@ -46,9 +46,30 @@
   </head>
   <body>
     <main class="card" role="main" aria-live="polite">
-      <h1>You are offline</h1>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="36"
+        height="36"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#2563eb"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        style="margin-bottom: 10px"
+      >
+        <path d="M1 1l22 22" />
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+        <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+      <h1>You're offline</h1>
       <p>
-        Wellcare Mart requires an internet connection. Please check your connection and try again.
+        Don't worry &mdash; your cart is saved and we'll reconnect automatically once you're back
+        online.
       </p>
       <button
         onclick="window.location.reload()"

@@ -3,7 +3,20 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/map")({
   component: MapPage,
   head: () => ({
-    meta: [{ title: "Store Location - Wellcare Mart" }],
+    meta: [
+      { title: "Store Location - Wellcare Mart" },
+      {
+        name: "description",
+        content: "Find Wellcare Mart's store location and get directions.",
+      },
+      { property: "og:title", content: "Store Location - Wellcare Mart" },
+      {
+        property: "og:description",
+        content: "Find Wellcare Mart's store location and get directions.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
 });
 
@@ -24,7 +37,15 @@ function MapPage() {
         </Link>
       </div>
 
-      <h1 style={{ margin: 0, fontSize: 30, fontWeight: 800, color: "var(--ink)", letterSpacing: -0.5 }}>
+      <h1
+        style={{
+          margin: 0,
+          fontSize: 30,
+          fontWeight: 800,
+          color: "var(--ink)",
+          letterSpacing: -0.5,
+        }}
+      >
         Our Location
       </h1>
       <p style={{ margin: "8px 0 18px", color: "var(--ink-4)", fontSize: 14 }}>

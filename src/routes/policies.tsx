@@ -4,6 +4,22 @@ import { Icons } from "@/wcm/icons";
 
 export const Route = createFileRoute("/policies")({
   component: PoliciesPage,
+  head: () => ({
+    meta: [
+      { title: "Policies - Wellcare Mart" },
+      {
+        name: "description",
+        content: "Privacy, returns, shipping, and terms policies for Wellcare Mart.",
+      },
+      { property: "og:title", content: "Policies - Wellcare Mart" },
+      {
+        property: "og:description",
+        content: "Privacy, returns, shipping, and terms policies for Wellcare Mart.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 const sections = [

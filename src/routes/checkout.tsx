@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
@@ -21,67 +21,57 @@ function CheckoutPage() {
   const { checkoutData, setCheckoutData, user, setAuthOpen, setCart, setOrders, push } = useWcm();
   const navigate = useNavigate();
 
+  const [placing, setPlacing] = useState(false);
+
   const placeOrder = async (data: PlacedOrderData) => {
+    setPlacing(true);
     const supabase = await getSupabase();
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    if (!session?.user) {
+    if (!session) {
       setAuthOpen(true);
+      setPlacing(false);
       return;
     }
-    const id = "WCM-" + Math.random().toString(36).slice(2, 7).toUpperCase();
-    const today = new Date();
-    const fmt = (d: Date) =>
-      d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-    const eta = new Date(today);
-    eta.setDate(today.getDate() + 1);
-    const newOrder: Order = {
-      id,
-      placed: fmt(today),
-      eta: fmt(eta),
-      status: "Order placed",
-      progress: 0,
-      address: `${data.ship.address}, ${data.ship.city}`,
-      payment: data.pay,
-      items: data.items.map((it: any) => ({ id: it.p.id, qty: it.qty })),
-      subtotal: data.subtotal,
-      shipping: data.shipping,
-      total: data.total,
+
+    // Prices are NOT trusted from the client — the edge function re-fetches
+    // product prices from the DB and recomputes subtotal/shipping/total.
+    const body = {
+      items: data.items.map((it: { p: { id: string }; qty: number }) => ({
+        id: it.p.id,
+        qty: it.qty,
+      })),
+      ship: data.ship,
+      pay: data.pay,
+      // Pass promo code so the edge function can validate and apply it server-side.
+      // The discount amount from the client is ignored; the server recomputes it.
+      promo_code: data.promo_code,
     };
-    const { error } = await supabase.from("orders").insert({
-      user_id: session.user.id,
-      order_code: id,
-      placed: newOrder.placed,
-      eta: newOrder.eta,
-      status: newOrder.status,
-      progress: 0,
-      address: newOrder.address,
-      payment: newOrder.payment,
-      items: newOrder.items as any,
-      subtotal: newOrder.subtotal,
-      shipping: newOrder.shipping,
-      total: newOrder.total,
+
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/place-order`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(body),
     });
-    if (error) {
-      push("Could not place order: " + error.message);
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      push(json?.error ?? "Could not place order. Please try again.");
+      setPlacing(false);
       return;
     }
 
-    // Increment sales_count for each product in the order
-    await Promise.all(
-      newOrder.items.map(async (item: { id: string; qty: number }) => {
-        await supabase.rpc("increment_product_sales", {
-          p_id: item.id,
-          p_qty: item.qty,
-        });
-      }),
-    );
-
+    const newOrder: Order = json.order;
     setOrders((o) => [newOrder, ...o]);
     setCart([]);
     setCheckoutData(null);
     navigate({ to: "/orders/$orderId", params: { orderId: newOrder.id } });
+    setPlacing(false);
   };
 
   if (!checkoutData) {
@@ -103,6 +93,7 @@ function CheckoutPage() {
       <CheckoutContent
         {...checkoutData}
         user={user}
+        placing={placing}
         onClose={() => navigate({ to: "/" })}
         onPlace={placeOrder}
       />
