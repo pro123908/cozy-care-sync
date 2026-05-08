@@ -196,7 +196,7 @@ export function CategoryRail({
                     border: on ? "3px solid #0f766e" : "2px solid #ffffff",
                     display: "inline-flex",
                     flexShrink: 0,
-                    background: "#f7f7f7",
+                    background: "#ffffff",
                     boxShadow: on
                       ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
                       : "0 10px 20px rgba(15,23,42,.12)",
@@ -213,7 +213,9 @@ export function CategoryRail({
                       height: "100%",
                       objectFit: "contain",
                       display: "block",
-                      padding: "10%",
+                      boxSizing: "border-box",
+                      padding: "8%",
+                      background: "#ffffff",
                     }}
                   />
                 </span>

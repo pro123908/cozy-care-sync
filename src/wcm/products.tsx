@@ -1139,7 +1139,6 @@ export function ProductDetail({
           </Section>
           <div className="wcm-product-badges">
             {[
-              { i: Icons.truck, t: "Same-day dispatch", s: "Order before 4 PM" },
               { i: Icons.shield, t: "100% authentic", s: "Direct from brands" },
               { i: Icons.refresh, t: "7-day returns", s: "No questions asked" },
             ].map((b) => (

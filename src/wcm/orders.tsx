@@ -119,18 +119,6 @@ export function OrdersList({
               fontWeight: 700,
             }}
           >
-            {Icons.truck} Same-day dispatch
-          </span>
-          <span
-            style={{
-              borderRadius: 99,
-              border: "1px solid var(--line)",
-              padding: "6px 10px",
-              fontSize: 12,
-              color: "var(--ink-3)",
-              fontWeight: 700,
-            }}
-          >
             {Icons.shield} Secure checkout
           </span>
         </div>
