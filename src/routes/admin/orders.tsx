@@ -14,7 +14,8 @@ type StatusOption = {
 };
 
 const STATUS_OPTIONS: StatusOption[] = [
-  { status: "Order placed", progress: 20 },
+  { status: "Order placed", progress: 10 },
+  { status: "Order confirmed", progress: 25 },
   { status: "Processing", progress: 40 },
   { status: "Out for delivery", progress: 80 },
   { status: "Delivered", progress: 100 },
@@ -94,7 +95,7 @@ function AdminOrdersPage() {
           : segment === "new"
             ? o.status === "Order placed"
             : segment === "active"
-              ? ["Processing", "Out for delivery"].includes(o.status)
+              ? ["Order confirmed", "Processing", "Out for delivery"].includes(o.status)
               : segment === "delivered"
                 ? o.status === "Delivered"
                 : o.status === "Cancelled";
@@ -306,8 +307,9 @@ function AdminOrdersPage() {
               {
                 id: "active",
                 label: "In progress",
-                count: rows.filter((r) => ["Processing", "Out for delivery"].includes(r.status))
-                  .length,
+                count: rows.filter((r) =>
+                  ["Order confirmed", "Processing", "Out for delivery"].includes(r.status),
+                ).length,
               },
               {
                 id: "delivered",
@@ -645,6 +647,7 @@ function BulkStatusMenu({
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
     "Order placed": { bg: "var(--pill-info-bg)", color: "var(--pill-info-fg)" },
+    "Order confirmed": { bg: "var(--pill-ok-bg)", color: "var(--pill-ok-fg)" },
     Processing: { bg: "var(--pill-warn-bg)", color: "#b45309" },
     "Out for delivery": { bg: "#ede9fe", color: "#6d28d9" },
     Delivered: { bg: "var(--pill-ok-bg)", color: "var(--pill-ok-fg)" },
