@@ -19,6 +19,7 @@ export function getSupabase() {
           storage: localStorage,
           persistSession: true,
           autoRefreshToken: true,
+          flowType: "pkce",
         },
       }),
     );
