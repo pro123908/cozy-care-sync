@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { PRODUCTS, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row } from "./ui";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type CartLine = { id: string; qty: number };
 type CartItem = CartLine & { p: Product };
@@ -327,6 +326,8 @@ const miniBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
+import { useIsMobile } from "@/hooks/use-mobile";
+
 export function CheckoutContent({
   items,
   subtotal,
@@ -343,6 +344,13 @@ export function CheckoutContent({
   placing?: boolean;
 }) {
   const [step, setStep] = useState(1);
+  const isMobile = useIsMobile();
+  // Scroll to top on mobile when moving to step 2 or 3
+  React.useEffect(() => {
+    if (isMobile && (step === 2 || step === 3)) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step, isMobile]);
   const fullName = user ? `${user.firstName}${user.lastName ? " " + user.lastName : ""}` : "";
   const [ship, setShip] = useState({
     name: fullName,
