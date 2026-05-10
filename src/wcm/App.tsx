@@ -182,6 +182,7 @@ function AppLayout() {
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
     if (!user) {
       setCartOpen(false);
+      push("Please sign in to continue checkout.", { tone: "orange" });
       setAuthOpen(true);
       return;
     }
@@ -1020,7 +1021,7 @@ function BottomNav({
     },
     {
       id: "categories",
-      label: "Cats",
+      label: "Categories",
       icon: Icons.filter,
       action: () => {
         onCartClose?.();

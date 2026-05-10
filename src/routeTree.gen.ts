@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WishlistRouteImport } from './routes/wishlist'
+import { Route as ProductsRouteImport } from './routes/products'
 import { Route as PrescriptionRouteImport } from './routes/prescription'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as MapRouteImport } from './routes/map'
@@ -33,6 +34,11 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 const WishlistRoute = WishlistRouteImport.update({
   id: '/wishlist',
   path: '/wishlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsRoute = ProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrescriptionRoute = PrescriptionRouteImport.update({
@@ -96,9 +102,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
-  id: '/products/$productId',
-  path: '/products/$productId',
-  getParentRoute: () => rootRouteImport,
+  id: '/$productId',
+  path: '/$productId',
+  getParentRoute: () => ProductsRoute,
 } as any)
 const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
@@ -141,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/products': typeof ProductsRouteWithChildren
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/products': typeof ProductsRouteWithChildren
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/products': typeof ProductsRouteWithChildren
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/products'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/products'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/products'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -277,6 +289,7 @@ export interface RootRouteChildren {
   MapRoute: typeof MapRoute
   PoliciesRoute: typeof PoliciesRoute
   PrescriptionRoute: typeof PrescriptionRoute
+  ProductsRoute: typeof ProductsRouteWithChildren
   WishlistRoute: typeof WishlistRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPrescriptionsRoute: typeof AdminPrescriptionsRoute
@@ -284,7 +297,6 @@ export interface RootRouteChildren {
   AdminSalesRoute: typeof AdminSalesRoute
   CategoriesCategoryIdRoute: typeof CategoriesCategoryIdRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
-  ProductsProductIdRoute: typeof ProductsProductIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
@@ -297,6 +309,13 @@ declare module '@tanstack/react-router' {
       path: '/wishlist'
       fullPath: '/wishlist'
       preLoaderRoute: typeof WishlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products': {
+      id: '/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof ProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/prescription': {
@@ -385,10 +404,10 @@ declare module '@tanstack/react-router' {
     }
     '/products/$productId': {
       id: '/products/$productId'
-      path: '/products/$productId'
+      path: '/$productId'
       fullPath: '/products/$productId'
       preLoaderRoute: typeof ProductsProductIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof ProductsRoute
     }
     '/orders/$orderId': {
       id: '/orders/$orderId'
@@ -435,6 +454,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProductsRouteChildren {
+  ProductsProductIdRoute: typeof ProductsProductIdRoute
+}
+
+const ProductsRouteChildren: ProductsRouteChildren = {
+  ProductsProductIdRoute: ProductsProductIdRoute,
+}
+
+const ProductsRouteWithChildren = ProductsRoute._addFileChildren(
+  ProductsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -445,6 +476,7 @@ const rootRouteChildren: RootRouteChildren = {
   MapRoute: MapRoute,
   PoliciesRoute: PoliciesRoute,
   PrescriptionRoute: PrescriptionRoute,
+  ProductsRoute: ProductsRouteWithChildren,
   WishlistRoute: WishlistRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPrescriptionsRoute: AdminPrescriptionsRoute,
@@ -452,7 +484,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminSalesRoute: AdminSalesRoute,
   CategoriesCategoryIdRoute: CategoriesCategoryIdRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
-  ProductsProductIdRoute: ProductsProductIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,

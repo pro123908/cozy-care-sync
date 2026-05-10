@@ -372,8 +372,8 @@ export function CheckoutContent({
     }
   }, []);
   const discountAmt = Math.round(subtotal * discountPct);
-  const effectiveShipping = 250;
-  const finalTotal = subtotal + effectiveShipping - discountAmt;
+  const effectiveShipping = Math.max(0, shipping);
+  const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt);
 
   const applyPromo = () => {
     const code = promo.trim().toUpperCase();
@@ -610,8 +610,8 @@ export function CheckoutContent({
                 <DeliveryOption
                   selected
                   title="Standard delivery 2–3 days"
-                  sub="Across Pakistan via TCS · Rs 250"
-                  right="Rs 250"
+                  sub={`Across Pakistan via TCS · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
+                  right={effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}
                 />
               </div>
             </div>
@@ -827,7 +827,16 @@ export function CheckoutContent({
           <div style={{ height: 1, background: "var(--line)", margin: "4px 0 12px" }} />
           <Row label="Subtotal" value={PKR(subtotal)} />
           <div style={{ height: 6 }} />
-          <Row label="Delivery" value={PKR(effectiveShipping)} />
+          <Row
+            label="Delivery"
+            value={
+              effectiveShipping === 0 ? (
+                <span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>Free</span>
+              ) : (
+                PKR(effectiveShipping)
+              )
+            }
+          />
           <div style={{ height: 6 }} />
           <Row label="Tax" value={<span style={{ color: "var(--ink-4)" }}>Included</span>} />
           {discountAmt > 0 && (

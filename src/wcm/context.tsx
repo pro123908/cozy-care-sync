@@ -459,11 +459,16 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!error && data && data.length > 0) {
+        const normalizedCategoryName = (name: string) => {
+          if (name.trim().toLowerCase() === "disposible items") return "Disposable Items";
+          return name;
+        };
+
         const storefrontCategories: Category[] = [
           { id: "all", name: "All products", count: 0 },
           ...data.map((category: CategoryRecord) => ({
             id: category.slug,
-            name: category.name,
+            name: normalizedCategoryName(category.name),
             count: 0,
             image_url: category.image_url,
             top_category: category.top_category,
