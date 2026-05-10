@@ -38,6 +38,36 @@ export type Database = {
         };
         Relationships: [];
       };
+      homepage_banners: {
+        Row: {
+          id: string;
+          image_url: string;
+          alt_text: string;
+          sort_order: number;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          image_url: string;
+          alt_text?: string;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          image_url?: string;
+          alt_text?: string;
+          sort_order?: number;
+          active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       order_reviews: {
         Row: {
           id: string;

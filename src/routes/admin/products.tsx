@@ -11,6 +11,7 @@ import { useWcm } from "@/wcm/context";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
+type HomepageBannerRow = Database["public"]["Tables"]["homepage_banners"]["Row"];
 
 const EMPTY_DRAFT = {
   id: "",
@@ -31,6 +32,7 @@ const EMPTY_DRAFT = {
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 const SUPABASE_STORAGE_BUCKET = "product-images";
 const WHATSAPP_IMPORT_TAG = "import:whatsapp";
+const HOMEPAGE_BANNER_PATH_PREFIX = "homepage-banners";
 
 function isWhatsAppImportedProduct(product: ProductRow) {
   return Array.isArray(product.tags) && product.tags.includes(WHATSAPP_IMPORT_TAG);
@@ -99,9 +101,26 @@ function AdminProductsPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingCategoryId, setUploadingCategoryId] = useState<string | null>(null);
   const [savingCategoryId, setSavingCategoryId] = useState<string | null>(null);
+  const [uploadingHomepageBannerId, setUploadingHomepageBannerId] = useState<string | null>(null);
+  const [savingHomepageBannerId, setSavingHomepageBannerId] = useState<string | null>(null);
+  const [deletingHomepageBannerId, setDeletingHomepageBannerId] = useState<string | null>(null);
+  const [creatingHomepageBanner, setCreatingHomepageBanner] = useState(false);
   const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
   const [categoryNameDrafts, setCategoryNameDrafts] = useState<Record<string, string>>({});
   const [categoryTopDrafts, setCategoryTopDrafts] = useState<Record<string, boolean>>({});
+  const [homepageBanners, setHomepageBanners] = useState<HomepageBannerRow[]>([]);
+  const [homepageBannerImageDrafts, setHomepageBannerImageDrafts] = useState<
+    Record<string, string>
+  >({});
+  const [homepageBannerAltDrafts, setHomepageBannerAltDrafts] = useState<Record<string, string>>(
+    {},
+  );
+  const [homepageBannerSortDrafts, setHomepageBannerSortDrafts] = useState<Record<string, number>>(
+    {},
+  );
+  const [homepageBannerActiveDrafts, setHomepageBannerActiveDrafts] = useState<
+    Record<string, boolean>
+  >({});
   const [savingCategoryNameId, setSavingCategoryNameId] = useState<string | null>(null);
   const [savingCategoryTopId, setSavingCategoryTopId] = useState<string | null>(null);
   const [showCategoryImages, setShowCategoryImages] = useState(false);
@@ -147,9 +166,30 @@ function AdminProductsPage() {
     setCategories(data || []);
   };
 
+  const loadHomepageBanners = async () => {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from("homepage_banners")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      // Ignore missing table errors before migration is applied.
+      if (error.code !== "42P01") {
+        push(error.message || "Failed to load homepage banners", { tone: "red" });
+      }
+      setHomepageBanners([]);
+      return;
+    }
+
+    setHomepageBanners(data || []);
+  };
+
   useEffect(() => {
     loadProducts();
     loadCategories();
+    loadHomepageBanners();
   }, []);
 
   useEffect(() => {
@@ -161,6 +201,21 @@ function AdminProductsPage() {
       Object.fromEntries(categories.map((category) => [category.id, category.top_category])),
     );
   }, [categories]);
+
+  useEffect(() => {
+    setHomepageBannerImageDrafts(
+      Object.fromEntries(homepageBanners.map((banner) => [banner.id, banner.image_url || ""])),
+    );
+    setHomepageBannerAltDrafts(
+      Object.fromEntries(homepageBanners.map((banner) => [banner.id, banner.alt_text || ""])),
+    );
+    setHomepageBannerSortDrafts(
+      Object.fromEntries(homepageBanners.map((banner) => [banner.id, banner.sort_order || 0])),
+    );
+    setHomepageBannerActiveDrafts(
+      Object.fromEntries(homepageBanners.map((banner) => [banner.id, banner.active])),
+    );
+  }, [homepageBanners]);
 
   const categoryBySlug = useMemo(() => new Map(categories.map((c) => [c.slug, c])), [categories]);
 
@@ -601,6 +656,126 @@ function AdminProductsPage() {
 
     push("Category image saved");
     await loadCategories();
+  };
+
+  const createHomepageBanner = async () => {
+    setCreatingHomepageBanner(true);
+    const nextSortOrder =
+      homepageBanners.length > 0
+        ? Math.max(...homepageBanners.map((banner) => banner.sort_order || 0)) + 1
+        : 1;
+
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("homepage_banners").insert({
+      image_url: "",
+      alt_text: "Homepage banner",
+      sort_order: nextSortOrder,
+      active: true,
+      updated_at: new Date().toISOString(),
+    });
+
+    setCreatingHomepageBanner(false);
+
+    if (error) {
+      push(error.message || "Failed to create homepage banner", { tone: "red" });
+      return;
+    }
+
+    push("Homepage banner created");
+    await loadHomepageBanners();
+  };
+
+  const saveHomepageBanner = async (bannerId: string) => {
+    const imageUrl = (homepageBannerImageDrafts[bannerId] || "").trim();
+    const altText = (homepageBannerAltDrafts[bannerId] || "Homepage banner").trim();
+    const sortOrder = Math.max(0, Math.round(Number(homepageBannerSortDrafts[bannerId]) || 0));
+    const active = !!homepageBannerActiveDrafts[bannerId];
+
+    if (!imageUrl) {
+      push("Banner image URL is required", { tone: "red" });
+      return;
+    }
+
+    setSavingHomepageBannerId(bannerId);
+
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from("homepage_banners")
+      .update({
+        image_url: imageUrl,
+        alt_text: altText,
+        sort_order: sortOrder,
+        active,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bannerId);
+
+    setSavingHomepageBannerId(null);
+
+    if (error) {
+      push(error.message || "Failed to save homepage banner", { tone: "red" });
+      return;
+    }
+
+    push("Homepage banner saved");
+    await loadHomepageBanners();
+  };
+
+  const deleteHomepageBanner = async (bannerId: string) => {
+    setDeletingHomepageBannerId(bannerId);
+
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("homepage_banners").delete().eq("id", bannerId);
+
+    setDeletingHomepageBannerId(null);
+
+    if (error) {
+      push(error.message || "Failed to delete homepage banner", { tone: "red" });
+      return;
+    }
+
+    push("Homepage banner removed");
+    await loadHomepageBanners();
+  };
+
+  const uploadHomepageBannerImageToSupabase = async (bannerId: string, file: File) => {
+    if (!file.type.startsWith("image/")) {
+      push("Please select a valid image file.");
+      return;
+    }
+
+    const MAX_SIZE_MB = 5;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      push(`Image must be smaller than ${MAX_SIZE_MB}MB.`);
+      return;
+    }
+
+    setUploadingHomepageBannerId(bannerId);
+
+    try {
+      const supabase = await getSupabase();
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${HOMEPAGE_BANNER_PATH_PREFIX}/${bannerId}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(SUPABASE_STORAGE_BUCKET)
+        .upload(path, file, { upsert: true, cacheControl: "31536000" });
+
+      if (uploadError) {
+        push(uploadError.message || "Failed to upload banner image", { tone: "red" });
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from(SUPABASE_STORAGE_BUCKET).getPublicUrl(path);
+      setHomepageBannerImageDrafts((prev) => ({
+        ...prev,
+        [bannerId]: urlData.publicUrl,
+      }));
+      push("Banner image uploaded");
+    } catch {
+      push("Could not upload banner image right now. Please try again.", { tone: "red" });
+    } finally {
+      setUploadingHomepageBannerId(null);
+    }
   };
 
   return (
@@ -1092,6 +1267,252 @@ function AdminProductsPage() {
                               }}
                             >
                               Remove
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  border: "1px solid var(--line)",
+                  borderRadius: 12,
+                  padding: 12,
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
+                      Homepage banner carousel
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>
+                      Manage dynamic homepage images shown in the storefront hero.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={createHomepageBanner}
+                    disabled={creatingHomepageBanner}
+                    style={{ ...miniBtnStyle, opacity: creatingHomepageBanner ? 0.6 : 1 }}
+                  >
+                    {creatingHomepageBanner ? "Adding..." : "+ Add banner"}
+                  </button>
+                </div>
+
+                {homepageBanners.length === 0 ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--ink-4)",
+                      border: "1px dashed var(--line)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      background: "var(--bg-elev)",
+                    }}
+                  >
+                    No homepage banners yet. Add a banner to enable dynamic carousel images.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {homepageBanners.map((banner) => {
+                      const draftImage = homepageBannerImageDrafts[banner.id] || "";
+                      const draftAlt = homepageBannerAltDrafts[banner.id] || "";
+                      const draftSortOrder = homepageBannerSortDrafts[banner.id] ?? 0;
+                      const draftActive = homepageBannerActiveDrafts[banner.id] ?? banner.active;
+                      const isSavingBanner = savingHomepageBannerId === banner.id;
+                      const isDeletingBanner = deletingHomepageBannerId === banner.id;
+                      const isUploadingBanner = uploadingHomepageBannerId === banner.id;
+
+                      return (
+                        <div
+                          key={banner.id}
+                          style={{
+                            border: "1px solid var(--line)",
+                            borderRadius: 10,
+                            padding: 10,
+                            display: "grid",
+                            gridTemplateColumns: "96px 1fr auto",
+                            gap: 10,
+                            alignItems: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 96,
+                              height: 64,
+                              borderRadius: 10,
+                              overflow: "hidden",
+                              border: "1px solid var(--line)",
+                              background: "var(--bg-elev)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {draftImage ? (
+                              <img
+                                src={draftImage}
+                                alt={draftAlt || "Homepage banner preview"}
+                                loading="lazy"
+                                decoding="async"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              <span style={{ fontSize: 11, color: "var(--ink-4)" }}>No image</span>
+                            )}
+                          </div>
+
+                          <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
+                            <input
+                              value={draftImage}
+                              placeholder="https://..."
+                              onChange={(e) =>
+                                setHomepageBannerImageDrafts((prev) => ({
+                                  ...prev,
+                                  [banner.id]: e.target.value,
+                                }))
+                              }
+                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                            />
+                            <input
+                              value={draftAlt}
+                              placeholder="Alt text"
+                              onChange={(e) =>
+                                setHomepageBannerAltDrafts((prev) => ({
+                                  ...prev,
+                                  [banner.id]: e.target.value,
+                                }))
+                              }
+                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                            />
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: 12,
+                                  color: "var(--ink-3)",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Sort order
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={draftSortOrder}
+                                  onChange={(e) =>
+                                    setHomepageBannerSortDrafts((prev) => ({
+                                      ...prev,
+                                      [banner.id]: Math.max(0, Number(e.target.value) || 0),
+                                    }))
+                                  }
+                                  style={{
+                                    ...inputStyle,
+                                    width: 92,
+                                    height: 30,
+                                    padding: "0 8px",
+                                    fontSize: 12,
+                                  }}
+                                />
+                              </label>
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  color: "var(--ink-3)",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={draftActive}
+                                  onChange={(e) =>
+                                    setHomepageBannerActiveDrafts((prev) => ({
+                                      ...prev,
+                                      [banner.id]: e.target.checked,
+                                    }))
+                                  }
+                                />
+                                Active
+                              </label>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <label
+                              style={{
+                                ...miniBtnStyle,
+                                textAlign: "center",
+                                opacity:
+                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
+                                    ? 1
+                                    : 0.6,
+                                cursor:
+                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
+                                    ? "pointer"
+                                    : "not-allowed",
+                              }}
+                            >
+                              {isUploadingBanner ? "Uploading..." : "Upload"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={isUploadingBanner || isSavingBanner || isDeletingBanner}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) uploadHomepageBannerImageToSupabase(banner.id, file);
+                                  e.currentTarget.value = "";
+                                }}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => saveHomepageBanner(banner.id)}
+                              disabled={isSavingBanner || isUploadingBanner || isDeletingBanner}
+                              style={{
+                                ...miniBtnStyle,
+                                opacity:
+                                  isSavingBanner || isUploadingBanner || isDeletingBanner ? 0.6 : 1,
+                              }}
+                            >
+                              {isSavingBanner ? "Saving..." : "Save"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmAction({
+                                  title: "Delete homepage banner",
+                                  body: "This will remove the selected banner image from the homepage carousel.",
+                                  onConfirm: async () => deleteHomepageBanner(banner.id),
+                                })
+                              }
+                              disabled={isDeletingBanner || isSavingBanner || isUploadingBanner}
+                              style={{
+                                ...miniDangerBtnStyle,
+                                opacity:
+                                  isDeletingBanner || isSavingBanner || isUploadingBanner ? 0.6 : 1,
+                              }}
+                            >
+                              {isDeletingBanner ? "Deleting..." : "Delete"}
                             </button>
                           </div>
                         </div>
