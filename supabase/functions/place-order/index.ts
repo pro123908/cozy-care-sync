@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 // Types
 // ---------------------------------------------------------------------------
 
-type OrderItem = { id: string; qty: number };
+type OrderItem = { id: string; qty: number; size?: string };
 
 type ShipDetails = {
   name: string;
@@ -193,7 +193,11 @@ Deno.serve(async (req: Request) => {
   const eta = new Date(today);
   eta.setDate(today.getDate() + 1);
 
-  const orderItems = items.map((item) => ({ id: item.id, qty: item.qty }));
+  const orderItems = items.map((item) => ({
+    id: item.id,
+    qty: item.qty,
+    ...(item.size ? { size: item.size } : {}),
+  }));
 
   const { error: insertErr } = await serviceClient.from("orders").insert({
     user_id: user.id,

@@ -3,7 +3,7 @@ import { PRODUCTS, PKR, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row } from "./ui";
 
-type CartLine = { id: string; qty: number };
+type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
 
 export type CheckoutData = {

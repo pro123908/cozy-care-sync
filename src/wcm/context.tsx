@@ -42,7 +42,7 @@ function scheduleIdleTask(task: () => void) {
   return () => window.clearTimeout(handle);
 }
 
-export type CartLine = { id: string; qty: number };
+export type CartLine = { id: string; qty: number; size?: string };
 export type CheckoutState = { items: any[]; subtotal: number; shipping: number; total: number };
 
 // Re-export for consumers
@@ -65,7 +65,7 @@ type WcmContextType = {
   cartOpen: boolean;
   setCartOpen: (v: boolean) => void;
   cartCount: number;
-  addToCart: (p: Product, qty?: number) => void;
+  addToCart: (p: Product, qty?: number, size?: string) => void;
   // Wishlist
   wishlist: string[];
   toggleWishlist: (id: string) => void;
@@ -372,11 +372,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const addToCart = (p: Product, qty = 1) => {
+  const addToCart = (p: Product, qty = 1, size?: string) => {
     setCart((c) => {
-      const i = c.findIndex((x) => x.id === p.id);
+      const i = c.findIndex((x) => x.id === p.id && x.size === size);
       if (i >= 0) return c.map((x, idx) => (idx === i ? { ...x, qty: x.qty + qty } : x));
-      return [...c, { id: p.id, qty }];
+      return [...c, { id: p.id, qty, ...(size ? { size } : {}) }];
     });
     push(`Added ${p.name} to cart`);
   };

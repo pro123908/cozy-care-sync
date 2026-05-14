@@ -355,7 +355,6 @@ export function ProductCard({
   const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
-
   const removeOneFromCart = () => {
     setCart((current) => {
       const index = current.findIndex((line) => line.id === p.id);

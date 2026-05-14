@@ -70,9 +70,10 @@ function CheckoutPage() {
       // Prices are NOT trusted from the client — the edge function re-fetches
       // product prices from the DB and recomputes subtotal/shipping/total.
       const body = {
-        items: data.items.map((it: { p: { id: string }; qty: number }) => ({
+        items: data.items.map((it: { p: { id: string }; qty: number; size?: string }) => ({
           id: it.p.id,
           qty: it.qty,
+          ...(it.size ? { size: it.size } : {}),
         })),
         ship: data.ship,
         pay: data.pay,

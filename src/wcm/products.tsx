@@ -664,7 +664,7 @@ export function ProductDetail({
 }: {
   product: Product;
   onClose: () => void;
-  addToCart: (p: Product, qty?: number) => void;
+  addToCart: (p: Product, qty?: number, size?: string) => void;
   cart: CartLine[];
   openProduct: (p: Product) => void;
 }) {
@@ -674,6 +674,14 @@ export function ProductDetail({
   const isMobile = useIsMobile();
   const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  const [selectedAgeGroup, setSelectedAgeGroup] = useState<"Child" | "Adult" | null>(null);
+  const [selectedFit, setSelectedFit] = useState<"Adjustable" | "Medium" | null>(null);
+  const isOrthoBelt = product.cat === "ortho-belts";
+  const isPolysling = product.id === "belt-004";
+  const isAbdominalBelt = product.id === "belt-003";
+
+  const variantKey = [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
 
   // Track this product as recently viewed
   useEffect(() => {
@@ -972,6 +980,94 @@ export function ProductDetail({
               {Icons.dot} {product.stock}
             </div>
           </Section>
+          {isPolysling && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
+                Type{selectedAgeGroup ? `: ${selectedAgeGroup}` : ""}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["Child", "Adult"] as const).map((group) => (
+                  <button
+                    key={group}
+                    onClick={() => setSelectedAgeGroup(group === selectedAgeGroup ? null : group)}
+                    style={{
+                      padding: "6px 20px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      border: selectedAgeGroup === group
+                        ? "2px solid #0d9488"
+                        : "1.5px solid var(--line)",
+                      background: selectedAgeGroup === group ? "#f0fdfa" : "var(--card)",
+                      color: selectedAgeGroup === group ? "#0f766e" : "var(--ink-3)",
+                      transition: "border-color .12s, background .12s, color .12s",
+                    }}
+                  >
+                    {group}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isAbdominalBelt && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
+                Fit{selectedFit ? `: ${selectedFit}` : ""}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {(["Adjustable", "Medium"] as const).map((fit) => (
+                  <button
+                    key={fit}
+                    onClick={() => setSelectedFit(fit === selectedFit ? null : fit)}
+                    style={{
+                      padding: "6px 20px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      border: selectedFit === fit ? "2px solid #0d9488" : "1.5px solid var(--line)",
+                      background: selectedFit === fit ? "#f0fdfa" : "var(--card)",
+                      color: selectedFit === fit ? "#0f766e" : "var(--ink-3)",
+                      transition: "border-color .12s, background .12s, color .12s",
+                    }}
+                  >
+                    {fit}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {isOrthoBelt && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
+                Size{selectedSize ? `: ${selectedSize}` : ""}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(["S", "M", "L", "XL", "XXL", "XXXL"] as const).map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size === selectedSize ? null : size)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 8,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      border: selectedSize === size
+                        ? "2px solid #0d9488"
+                        : "1.5px solid var(--line)",
+                      background: selectedSize === size ? "#f0fdfa" : "var(--card)",
+                      color: selectedSize === size ? "#0f766e" : "var(--ink-3)",
+                      transition: "border-color .12s, background .12s, color .12s",
+                    }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="wcm-add-row">
             <div
               className="wcm-add-qty"
@@ -1012,7 +1108,7 @@ export function ProductDetail({
               full
               size="lg"
               icon={Icons.cart}
-              onClick={() => addToCart(product, qty)}
+              onClick={() => addToCart(product, qty, variantKey)}
               style={{ minHeight: 50 }}
             >
               {inCart ? "Update cart" : "Add to cart"} · {PKR(product.price * qty)}
@@ -1089,7 +1185,7 @@ export function ProductDetail({
               </button>
             </div>
             <button
-              onClick={() => addToCart(product, qty)}
+              onClick={() => addToCart(product, qty, variantKey)}
               className="wcm-pdp-sticky-add"
               style={{
                 border: "none",
