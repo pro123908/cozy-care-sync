@@ -677,7 +677,7 @@ export function ProductDetail({
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<"Child" | "Adult" | null>(null);
   const [selectedFit, setSelectedFit] = useState<"Adjustable" | "Medium" | null>(null);
-  const isOrthoBelt = product.cat === "ortho-belts" && product.id !== "belt-003";
+  const isOrthoBelt = product.cat === "ortho-belts" && product.id !== "belt-003" && product.id !== "belt-004";
   const isPolysling = product.id === "belt-004";
   const isAbdominalBelt = product.id === "belt-003";
 
