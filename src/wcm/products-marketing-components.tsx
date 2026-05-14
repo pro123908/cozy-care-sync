@@ -126,7 +126,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
 
   const banner = banners[active] || HERO_BANNERS[0];
   const imageOnlyBannerEnabled = dynamicImages.length > 0 && !!banner.imageUrl;
-  const showImageCarouselArrows = imageOnlyBannerEnabled && banners.length > 1;
+  const showImageCarouselArrows = imageOnlyBannerEnabled && dynamicImages.length > 1;
 
   const goToPreviousBanner = () => {
     setActive((current) => (current - 1 + banners.length) % banners.length);
@@ -167,14 +167,6 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   }, []);
 
   useEffect(() => {
-    if (banners.length <= 1) return;
-    const timer = window.setInterval(() => {
-      setActive((current) => (current + 1) % banners.length);
-    }, 6000);
-    return () => window.clearInterval(timer);
-  }, [banners.length]);
-
-  useEffect(() => {
     if (active < banners.length) return;
     setActive(0);
   }, [active, banners.length]);
@@ -189,6 +181,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       style={{
         position: "relative",
         overflow: "hidden",
+        transform: "translateZ(0)",
         borderRadius: "var(--radius-lg)",
         background: imageOnlyBannerEnabled
           ? "#0f172a"
@@ -216,9 +209,9 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            // objectFit: "cover",
             animation: "wcmHeroSlideIn .2s ease",
-            willChange: "transform",
+            zIndex: 1,
           }}
         />
       )}
