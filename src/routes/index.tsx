@@ -1,61 +1,48 @@
-import { Suspense, lazy } from "react";
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { useWcm } from "@/wcm/context";
-import { WellcareLoader } from "@/wcm/loader";
-
-const ProductsPage = lazy(() =>
-  import("@/wcm/products").then((m) => ({ default: m.ProductsPage })),
-);
+import { createFileRoute } from "@tanstack/react-router";
+import heroImage from "@/assets/whatsapp-hero.jpeg";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    category: typeof search.category === "string" ? search.category : "all",
-  }),
   component: IndexPage,
   head: () => ({
     meta: [
-      { title: "Wellcare Mart — Medical Supplies & Equipment" },
+      { title: "Wellcare Mart" },
       {
         name: "description",
-        content:
-          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
+        content: "A simple landing page showing the selected WhatsApp image.",
       },
-      { property: "og:title", content: "Wellcare Mart — Medical Supplies & Equipment" },
+      { property: "og:title", content: "Wellcare Mart" },
       {
         property: "og:description",
-        content:
-          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
+        content: "A simple landing page showing the selected WhatsApp image.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });
 
 function IndexPage() {
-  const { addToCart, cart } = useWcm();
-  const navigate = useNavigate();
-  const { category } = useSearch({ from: "/" });
   return (
-    <Suspense fallback={<WellcareLoader label="Loading products" hint="Preparing your catalog" />}>
-      <ProductsPage
-        addToCart={addToCart}
-        cart={cart}
-        category={category}
-        onCategoryChange={(cat) =>
-          navigate({
-            to: "/",
-            search: { category: cat === "all" ? undefined : cat },
-            resetScroll: false,
-          })
-        }
-        openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
-        goTo={(pg: string) =>
-          navigate({
-            to: pg === "orders" ? "/orders" : "/",
-          })
-        }
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        padding: "0",
+        margin: "0",
+        backgroundColor: "#000",
+      }}
+    >
+      <img
+        src={heroImage}
+        alt="WhatsApp image"
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100vh",
+          objectFit: "contain",
+        }}
       />
-    </Suspense>
+    </div>
   );
 }
