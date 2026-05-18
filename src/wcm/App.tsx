@@ -178,8 +178,6 @@ function AppLayout() {
   } = useWcm();
 
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isRoot = pathname === "/";
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
     if (!user) {
@@ -195,33 +193,29 @@ function AppLayout() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      {!isRoot && (
-        <Header
-          theme={theme}
-          toggleTheme={toggleTheme}
-          cartCount={cartCount}
-          onCartOpen={() => setCartOpen(true)}
-          user={user}
-          isAdmin={isAdmin}
-          onSignIn={() => setAuthOpen(true)}
-          onSignOut={onSignOut}
-        />
-      )}
+      <Header
+        theme={theme}
+        toggleTheme={toggleTheme}
+        cartCount={cartCount}
+        onCartOpen={() => setCartOpen(true)}
+        user={user}
+        isAdmin={isAdmin}
+        onSignIn={() => setAuthOpen(true)}
+        onSignOut={onSignOut}
+      />
       <main
         className="wcm-main"
         style={{ width: "100%", maxWidth: 1240, margin: "0 auto", flex: 1 }}
       >
         <Outlet />
       </main>
-      {!isRoot && <Footer />}
-      {!isRoot && (
-        <BottomNav
-          cartCount={cartCount}
-          cartOpen={cartOpen}
-          onCartOpen={() => setCartOpen(true)}
-          onCartClose={() => setCartOpen(false)}
-        />
-      )}
+      <Footer />
+      <BottomNav
+        cartCount={cartCount}
+        cartOpen={cartOpen}
+        onCartOpen={() => setCartOpen(true)}
+        onCartClose={() => setCartOpen(false)}
+      />
       <PwaInstallBanner />
 
       <Suspense fallback={null}>
