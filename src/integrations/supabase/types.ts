@@ -107,6 +107,7 @@ export type Database = {
           items: Json;
           order_code: string;
           payment: string;
+          phone: string;
           placed: string;
           progress: number;
           rider: Json | null;
@@ -124,6 +125,7 @@ export type Database = {
           items?: Json;
           order_code: string;
           payment: string;
+          phone: string;
           placed: string;
           progress?: number;
           rider?: Json | null;
@@ -141,6 +143,7 @@ export type Database = {
           items?: Json;
           order_code?: string;
           payment?: string;
+          phone?: string;
           placed?: string;
           progress?: number;
           rider?: Json | null;

@@ -88,7 +88,8 @@ function AdminOrdersPage() {
         !q ||
         o.order_code.toLowerCase().includes(q) ||
         o.user_id.toLowerCase().includes(q) ||
-        o.status.toLowerCase().includes(q);
+        o.status.toLowerCase().includes(q) ||
+        (o.phone || "").toLowerCase().includes(q);
 
       const segmentMatch =
         segment === "all"
@@ -406,6 +407,7 @@ function AdminOrdersPage() {
                     </th>
                     <th style={thStyle}>Order</th>
                     <th style={thStyle}>User</th>
+                    <th style={thStyle}>Phone</th>
                     <th style={thStyle}>Amount</th>
                     <th style={thStyle}>Status</th>
                     <th style={thStyle}>Placed</th>
@@ -424,6 +426,7 @@ function AdminOrdersPage() {
                       </td>
                       <td style={tdStyle}>{o.order_code}</td>
                       <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
+                      <td style={tdStyle}>{o.phone || "—"}</td>
                       <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
                       <td style={tdStyle}>
                         <StatusPill status={o.status} />
@@ -752,9 +755,7 @@ function OrderDetailsModal({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <DetailRow label="Placed" value={new Date(order.created_at).toLocaleString()} />
           <DetailRow label="Payment" value={order.payment} />
-          <DetailRow label="Subtotal" value={`Rs ${order.subtotal.toLocaleString()}`} />
-          <DetailRow label="Shipping" value={`Rs ${order.shipping.toLocaleString()}`} />
-          <DetailRow label="Total" value={`Rs ${order.total.toLocaleString()}`} />
+            <DetailRow label="Phone" value={order.phone || "Not provided"} />
           <DetailRow label="Address" value={order.address} />
         </div>
 

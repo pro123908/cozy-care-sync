@@ -2368,6 +2368,7 @@ export type Order = {
   status: string;
   progress: number;
   address: string;
+  phone?: string;
   payment: string;
   items: OrderItem[];
   subtotal: number;

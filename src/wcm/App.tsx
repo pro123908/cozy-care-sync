@@ -727,6 +727,35 @@ function Header({
           <div className="wcm-header-right">
             {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
             <button
+              onClick={() => {
+                const phone = "923001234567"; // Replace with actual WhatsApp number
+                const message = "Hi, I'd like to inquire about your products.";
+                const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                window.open(url, "_blank");
+              }}
+              title="Contact via WhatsApp"
+              aria-label="Contact via WhatsApp"
+              className="wcm-desktop-only"
+              style={{
+                ...iconBtn,
+                color: "#25D366",
+                borderColor: "rgba(37, 211, 102, .25)",
+                background: "rgba(37, 211, 102, .08)",
+                marginRight: 8,
+                transition: "transform .15s, box-shadow .15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.05)";
+                e.currentTarget.style.boxShadow = "0 0 0 4px rgba(37,211,102,.08)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              {Icons.whatsapp}
+            </button>
+            <button
               onClick={onCartOpen}
               aria-label="Cart"
               className="wcm-desktop-only"

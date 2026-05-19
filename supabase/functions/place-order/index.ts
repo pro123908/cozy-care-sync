@@ -199,22 +199,27 @@ Deno.serve(async (req: Request) => {
     ...(item.size ? { size: item.size } : {}),
   }));
 
-  const { error: insertErr } = await serviceClient.from("orders").insert({
-    user_id: user.id,
-    order_code: orderId,
-    placed: fmtDate(today),
-    eta: fmtDate(eta),
-    status: "Order placed",
-    progress: 0,
-    address: `${ship.address}, ${ship.city}`,
-    payment: pay,
-    items: orderItems,
-    subtotal,
-    shipping,
-    total,
-  });
+  const { data: insertedOrder, error: insertErr } = await serviceClient
+    .from("orders")
+    .insert({
+      user_id: user.id,
+      order_code: orderId,
+      placed: fmtDate(today),
+      eta: fmtDate(eta),
+      status: "Order placed",
+      progress: 0,
+      address: `${ship.address}, ${ship.city}`,
+      phone: ship.phone,
+      payment: pay,
+      items: orderItems,
+      subtotal,
+      shipping,
+      total,
+    })
+    .select()
+    .single();
 
-  if (insertErr) {
+  if (insertErr || !insertedOrder) {
     return json({ error: "Failed to create order" }, 500, origin);
   }
 
@@ -230,21 +235,10 @@ Deno.serve(async (req: Request) => {
   // ------------------------------------------------------------------
   // 7. Return created order to client
   // ------------------------------------------------------------------
+  // Return the actual inserted DB row so callers (and admin UIs) see the same data
   return json(
     {
-      order: {
-        id: orderId,
-        placed: fmtDate(today),
-        eta: fmtDate(eta),
-        status: "Order placed",
-        progress: 0,
-        address: `${ship.address}, ${ship.city}`,
-        payment: pay,
-        items: orderItems,
-        subtotal,
-        shipping,
-        total,
-      },
+      order: insertedOrder,
     },
     201,
     origin,
