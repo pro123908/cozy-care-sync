@@ -49,7 +49,6 @@ CREATE TABLE public.orders (
   status TEXT NOT NULL DEFAULT 'Order placed',
   progress INT NOT NULL DEFAULT 0,
   address TEXT NOT NULL,
-  phone TEXT NOT NULL DEFAULT '',
   payment TEXT NOT NULL,
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   subtotal INT NOT NULL DEFAULT 0,

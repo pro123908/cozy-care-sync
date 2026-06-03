@@ -13,21 +13,10 @@ export const Route = createFileRoute("/products/$productId")({
   component: ProductPage,
   head: ({ params }: { params: { productId: string } }) => {
     const p = PRODUCTS.find((x) => x.id === params.productId);
-    const title = p ? `${p.name} — Wellcare Mart` : "Product — Wellcare Mart";
-    const description = p
-      ? p.blurb || `Shop ${p.name} from Wellcare Mart. Learn more about the product, pricing, and availability.`
-      : "Product details and availability at Wellcare Mart.";
-
     return {
       meta: [
-        { title },
-        { name: "description", content: description },
-        { property: "og:title", content: title },
-        { property: "og:description", content: description },
-        { property: "og:type", content: "product" },
-        { property: "og:url", content: `/products/${params.productId}` },
-        ...(p?.image_url ? [{ property: "og:image", content: p.image_url }] : []),
-        { name: "twitter:card", content: "summary_large_image" },
+        { title: p ? `${p.name} — Wellcare Mart` : "Product — Wellcare Mart" },
+        { name: "description", content: p ? p.blurb : "Product details" },
       ],
     };
   },

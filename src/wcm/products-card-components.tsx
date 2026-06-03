@@ -33,13 +33,13 @@ export function CategoryRail({
         className="cat-rail"
         style={{
           display: "flex",
-          flexWrap: "nowrap",
-          gap: 10,
-          padding: "6px 2px",
-          overflowX: "auto",
-          overflowY: "hidden",
+          flexWrap: "wrap",
+          gap: 6,
+          padding: "3px 2px",
+          justifyContent: "center",
+          overflowX: "visible",
+          overflowY: "visible",
           scrollbarWidth: "none",
-          scrollBehavior: "smooth",
         }}
       >
         {visibleCategories.map((c) => {
@@ -51,10 +51,10 @@ export function CategoryRail({
               key={c.id}
               onClick={() => setActive(c.id)}
               style={{
-                padding: "2px 2px 8px",
+                padding: "2px 2px 6px",
                 borderRadius: 14,
-                minWidth: 142,
-                width: 142,
+                minWidth: 135,
+                width: 135,
                 background: "transparent",
                 color: "var(--ink-2)",
                 border: "none",
@@ -74,8 +74,8 @@ export function CategoryRail({
               {showAllCollage ? (
                 <span
                   style={{
-                    width: 128,
-                    height: 128,
+                    width: 104,
+                    height: 104,
                     borderRadius: 999,
                     overflow: "hidden",
                     border: on ? "3px solid #0f766e" : "2px solid #ffffff",
@@ -110,8 +110,8 @@ export function CategoryRail({
               ) : categoryImage ? (
                 <span
                   style={{
-                    width: 128,
-                    height: 128,
+                    width: 104,
+                    height: 104,
                     borderRadius: 999,
                     overflow: "hidden",
                     border: on ? "3px solid #0f766e" : "2px solid #ffffff",
@@ -143,8 +143,8 @@ export function CategoryRail({
               ) : (
                 <span
                   style={{
-                    width: 128,
-                    height: 128,
+                    width: 104,
+                    height: 104,
                     borderRadius: 999,
                     border: on ? "3px solid #0f766e" : "2px solid #ffffff",
                     background: "#e2e8f0",
@@ -186,10 +186,10 @@ export function CategoryRail({
             key="cat-view-all"
             onClick={onViewAll}
             style={{
-              padding: "2px 2px 8px",
+              padding: "2px 2px 6px",
               borderRadius: 14,
-              minWidth: 142,
-              width: 142,
+              minWidth: 135,
+              width: 135,
               background: "transparent",
               color: "var(--ink-2)",
               border: "none",
@@ -208,8 +208,8 @@ export function CategoryRail({
           >
             <span
               style={{
-                width: 128,
-                height: 128,
+                width: 104,
+                height: 104,
                 borderRadius: 999,
                 border: "2px dashed var(--blue-300)",
                 background: "var(--card)",

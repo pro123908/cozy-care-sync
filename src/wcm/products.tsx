@@ -24,7 +24,8 @@ import {
 const RECENTLY_VIEWED_KEY = "wcm_recently_viewed";
 const RECENTLY_VIEWED_MAX = 12;
 const HOMEPAGE_TOP_CATEGORIES_MOBILE = 10;
-const HOMEPAGE_TOP_CATEGORIES_DESKTOP = 10;
+// Show 15 categories: 8 in row 1, 7 in row 2 + view-all button
+const HOMEPAGE_TOP_CATEGORIES_DESKTOP = 15;
 
 function useRecentlyViewed() {
   const [ids, setIds] = useState<string[]>(() => {
@@ -172,8 +173,34 @@ export function ProductsPage({
         ? [...flaggedCategories, ...rankedByCount.filter((cat) => !cat.top_category)]
         : rankedByCount;
 
+    const homepageOrder = [
+      "glucometers",
+      "bp-digital",
+      "weight-scale",
+      "nebulizer",
+      "camote-chairs",
+      "walkers",
+      "patient-sticks",
+      "wheelchairs",
+      "massagers",
+      "air-mattress",
+      "heating-pad",
+      "sugar-strips",
+      "ortho-belts",
+      "other",
+    ];
+
+    const orderedCategories = [...rankedCategories].sort((a, b) => {
+      const aIndex = homepageOrder.indexOf(a.id);
+      const bIndex = homepageOrder.indexOf(b.id);
+      if (aIndex === -1 && bIndex === -1) return 0;
+      if (aIndex === -1) return 1;
+      if (bIndex === -1) return -1;
+      return aIndex - bIndex;
+    });
+
     if (isMobile) {
-      const mobileVisible = rankedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_MOBILE);
+      const mobileVisible = orderedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_MOBILE);
       const activeCategory = nonAllCategories.find((cat) => cat.id === active);
       const hasActive =
         !!activeCategory && mobileVisible.some((category) => category.id === activeCategory.id);
@@ -185,7 +212,7 @@ export function ProductsPage({
       return mobileVisible;
     }
 
-    return rankedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_DESKTOP);
+    return orderedCategories.slice(0, HOMEPAGE_TOP_CATEGORIES_DESKTOP);
   }, [storefrontCategories, isMobile, active]);
 
   const hasRecentlyViewed = useMemo(() => {

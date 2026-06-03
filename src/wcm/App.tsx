@@ -217,6 +217,7 @@ function AppLayout() {
         onCartClose={() => setCartOpen(false)}
       />
       <PwaInstallBanner />
+      <WhatsAppFloatingChat />
 
       <Suspense fallback={null}>
         <CartDrawer
@@ -252,6 +253,56 @@ function AppLayout() {
       </Suspense>
       <Toaster />
     </div>
+  );
+}
+
+function WhatsAppFloatingChat() {
+  const phone = import.meta.env.VITE_WHATSAPP_NUMBER || "923001234567";
+  const message = "Hi, I need support with my order.";
+
+  const openWhatsApp = () => {
+    const cleanPhone = phone.replace(/\D/g, "");
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <button
+      onClick={openWhatsApp}
+      type="button"
+      aria-label="Chat on WhatsApp"
+      title="Chat on WhatsApp"
+      style={{
+        position: "fixed",
+        right: 16,
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
+        zIndex: 70,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        minHeight: 52,
+        padding: "0 14px",
+        borderRadius: 999,
+        border: "none",
+        background: "linear-gradient(135deg, #25d366 0%, #128c7e 100%)",
+        color: "#fff",
+        fontWeight: 800,
+        fontSize: 13.5,
+        boxShadow: "0 14px 30px rgba(18, 140, 126, 0.28)",
+        cursor: "pointer",
+        fontFamily: "inherit",
+      }}
+    >
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <img
+          src="/whatsapp_icon.png"
+          alt=""
+          style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
+        />
+      </span>
+      <span>WhatsApp</span>
+    </button>
   );
 }
 
@@ -753,7 +804,11 @@ function Header({
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
-              {Icons.whatsapp}
+              <img
+                src="/whatsapp_icon.png"
+                alt=""
+                style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
+              />
             </button>
             <button
               onClick={onCartOpen}
