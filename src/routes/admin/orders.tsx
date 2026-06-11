@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -26,6 +26,9 @@ const STATUS_OPTIONS: StatusOption[] = [
 const PAGE_SIZE = 10;
 
 export const Route = createFileRoute("/admin/orders")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    orderId: typeof search.orderId === "string" ? search.orderId : undefined,
+  }),
   component: AdminOrdersPage,
   head: () => ({
     meta: [{ title: "Admin Orders — Wellcare Mart" }],
@@ -34,6 +37,8 @@ export const Route = createFileRoute("/admin/orders")({
 
 function AdminOrdersPage() {
   const { push } = useWcm();
+  const navigate = useNavigate();
+  const { orderId } = useSearch({ from: "/admin/orders" });
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -44,7 +49,6 @@ function AdminOrdersPage() {
   const [deletingBulk, setDeletingBulk] = useState(false);
   const [updatingBulk, setUpdatingBulk] = useState(false);
   const [page, setPage] = useState(1);
-  const [activeOrder, setActiveOrder] = useState<OrderRow | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pendingStatus, setPendingStatus] = useState<{
     id: string;
@@ -88,6 +92,7 @@ function AdminOrdersPage() {
         !q ||
         o.order_code.toLowerCase().includes(q) ||
         o.user_id.toLowerCase().includes(q) ||
+        (o.phone || "").toLowerCase().includes(q) ||
         o.status.toLowerCase().includes(q);
 
       const segmentMatch =
@@ -123,6 +128,17 @@ function AdminOrdersPage() {
 
   const selectedCountOnPage = pageRows.filter((row) => selectedIds.includes(row.id)).length;
   const allOnPageSelected = pageRows.length > 0 && selectedCountOnPage === pageRows.length;
+  const activeOrder = useMemo(
+    () => (orderId ? rows.find((row) => row.id === orderId) || null : null),
+    [rows, orderId],
+  );
+
+  const clearOrderView = () => {
+    navigate({
+      to: "/admin/orders",
+      search: (prev) => ({ ...prev, orderId: undefined }),
+    });
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -164,15 +180,6 @@ function AdminOrdersPage() {
           : r,
       ),
     );
-    setActiveOrder((prev) =>
-      prev && prev.id === id
-        ? {
-            ...prev,
-            status: selected.status,
-            progress: selected.progress,
-          }
-        : prev,
-    );
     push("Order updated");
   };
 
@@ -189,7 +196,9 @@ function AdminOrdersPage() {
 
     setRows((prev) => prev.filter((r) => r.id !== id));
     setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
-    setActiveOrder((prev) => (prev?.id === id ? null : prev));
+    if (orderId === id) {
+      clearOrderView();
+    }
     push("Order deleted");
   };
 
@@ -208,7 +217,9 @@ function AdminOrdersPage() {
 
     setRows((prev) => prev.filter((row) => !ids.includes(row.id)));
     setSelectedIds([]);
-    setActiveOrder((prev) => (prev && ids.includes(prev.id) ? null : prev));
+    if (orderId && ids.includes(orderId)) {
+      clearOrderView();
+    }
     push(ids.length === 1 ? "Order deleted" : `${ids.length} orders deleted`);
   };
 
@@ -240,15 +251,6 @@ function AdminOrdersPage() {
           : row,
       ),
     );
-    setActiveOrder((prev) =>
-      prev && ids.includes(prev.id)
-        ? {
-            ...prev,
-            status: selected.status,
-            progress: selected.progress,
-          }
-        : prev,
-    );
     push(ids.length === 1 ? "Order updated" : `${ids.length} orders updated`);
   };
 
@@ -279,210 +281,252 @@ function AdminOrdersPage() {
           </Link>
         </div>
 
-        <section style={{ ...cardStyle, marginTop: 18 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 10,
-            }}
-          >
-            <h2 style={sectionTitleStyle}>All orders</h2>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by order code, status, user id"
-              style={searchInputStyle}
-            />
-          </div>
-
-          <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
-            {[
-              { id: "all", label: "All", count: rows.length },
-              {
-                id: "new",
-                label: "New",
-                count: rows.filter((r) => r.status === "Order placed").length,
-              },
-              {
-                id: "active",
-                label: "In progress",
-                count: rows.filter((r) =>
-                  ["Order confirmed", "Processing", "Out for delivery"].includes(r.status),
-                ).length,
-              },
-              {
-                id: "delivered",
-                label: "Delivered",
-                count: rows.filter((r) => r.status === "Delivered").length,
-              },
-              {
-                id: "cancelled",
-                label: "Cancelled",
-                count: rows.filter((r) => r.status === "Cancelled").length,
-              },
-            ].map((seg) => (
-              <button
-                key={seg.id}
-                onClick={() => setSegment(seg.id as typeof segment)}
-                style={{
-                  border:
-                    segment === seg.id ? "1px solid var(--blue-600)" : "1px solid var(--line)",
-                  background: segment === seg.id ? "var(--pill-info-bg)" : "var(--card)",
-                  color: segment === seg.id ? "var(--pill-info-fg)" : "var(--ink-3)",
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: "6px 10px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                {seg.label} ({seg.count})
-              </button>
-            ))}
-          </div>
-
-          <div
-            style={{
-              marginTop: 10,
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
-            <BulkStatusMenu
-              disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
-              busy={updatingBulk}
-              options={STATUS_OPTIONS}
-              onChoose={(status) =>
-                setPendingBulkStatus({ count: selectedIds.length, nextStatus: status })
-              }
-            />
-            <button
-              onClick={() => setPendingBulkDelete(selectedIds.length)}
-              disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
-              style={{
-                ...miniDangerBtnStyle,
-                opacity: selectedIds.length && !deletingBulk && !updatingBulk ? 1 : 0.6,
-              }}
-            >
-              {deletingBulk ? "Deleting..." : `Delete selected (${selectedIds.length})`}
-            </button>
-            {selectedIds.length > 0 && (
-              <button onClick={() => setSelectedIds([])} style={miniBtnStyle}>
-                Clear selection
-              </button>
+        {orderId && (
+          <section style={{ marginTop: 18 }}>
+            {loading ? (
+              <WellcareLoader label="Loading order details" compact />
+            ) : activeOrder ? (
+              <OrderDetailsPanel
+                order={activeOrder}
+                savingId={savingId}
+                onBack={clearOrderView}
+                onChangeStatus={(id, nextStatus) => setPendingStatus({ id, nextStatus })}
+                onDelete={(id, orderCode) => setPendingDeleteOrder({ id, orderCode })}
+              />
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>
+                  Order not found
+                </div>
+                <div style={{ fontSize: 13, color: "var(--ink-4)" }}>
+                  The selected order could not be found. It may have been deleted.
+                </div>
+                <div>
+                  <button onClick={clearOrderView} style={miniBtnStyle}>
+                    Back to all orders
+                  </button>
+                </div>
+              </div>
             )}
-          </div>
+          </section>
+        )}
 
-          <div style={{ marginTop: 10, color: "var(--ink-4)", fontSize: 12 }}>
-            Showing {filtered.length === 0 ? 0 : pageStart + 1}-
-            {Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
-          </div>
-
-          {loading ? (
-            <WellcareLoader label="Loading orders" compact />
-          ) : (
+        {!orderId && (
+          <section style={{ ...cardStyle, marginTop: 18 }}>
             <div
               style={{
-                marginTop: 10,
-                border: "1px solid var(--line)",
-                borderRadius: 12,
-                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
               }}
             >
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "var(--bg-elev)", color: "var(--ink-3)" }}>
-                    <th style={thStyle}>
-                      <input
-                        type="checkbox"
-                        checked={allOnPageSelected}
-                        onChange={togglePageSelection}
-                      />
-                    </th>
-                    <th style={thStyle}>Order</th>
-                    <th style={thStyle}>User</th>
-                    <th style={thStyle}>Amount</th>
-                    <th style={thStyle}>Status</th>
-                    <th style={thStyle}>Placed</th>
-                    <th style={thStyle}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map((o) => (
-                    <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
-                      <td style={tdStyle}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(o.id)}
-                          onChange={() => toggleSelect(o.id)}
-                        />
-                      </td>
-                      <td style={tdStyle}>{o.order_code}</td>
-                      <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
-                      <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
-                      <td style={tdStyle}>
-                        <StatusPill status={o.status} />
-                        <div style={{ marginTop: 4, color: "var(--ink-4)", fontSize: 11 }}>
-                          {o.progress}%
-                        </div>
-                      </td>
-                      <td style={tdStyle}>{new Date(o.created_at).toLocaleString()}</td>
-                      <td style={tdStyle}>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button onClick={() => setActiveOrder(o)} style={miniBtnStyle}>
-                            View details
-                          </button>
-                          <button
-                            onClick={() =>
-                              setPendingDeleteOrder({ id: o.id, orderCode: o.order_code })
-                            }
-                            style={miniDangerBtnStyle}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <h2 style={sectionTitleStyle}>All orders</h2>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search by order code, status, user id"
+                style={searchInputStyle}
+              />
             </div>
-          )}
 
-          {!loading && filtered.length > 0 && (
+            <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {[
+                { id: "all", label: "All", count: rows.length },
+                {
+                  id: "new",
+                  label: "New",
+                  count: rows.filter((r) => r.status === "Order placed").length,
+                },
+                {
+                  id: "active",
+                  label: "In progress",
+                  count: rows.filter((r) =>
+                    ["Order confirmed", "Processing", "Out for delivery"].includes(r.status),
+                  ).length,
+                },
+                {
+                  id: "delivered",
+                  label: "Delivered",
+                  count: rows.filter((r) => r.status === "Delivered").length,
+                },
+                {
+                  id: "cancelled",
+                  label: "Cancelled",
+                  count: rows.filter((r) => r.status === "Cancelled").length,
+                },
+              ].map((seg) => (
+                <button
+                  key={seg.id}
+                  onClick={() => setSegment(seg.id as typeof segment)}
+                  style={{
+                    border:
+                      segment === seg.id ? "1px solid var(--blue-600)" : "1px solid var(--line)",
+                    background: segment === seg.id ? "var(--pill-info-bg)" : "var(--card)",
+                    color: segment === seg.id ? "var(--pill-info-fg)" : "var(--ink-3)",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: "6px 10px",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {seg.label} ({seg.count})
+                </button>
+              ))}
+            </div>
+
             <div
               style={{
                 marginTop: 10,
                 display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
                 alignItems: "center",
-                justifyContent: "space-between",
               }}
             >
+              <BulkStatusMenu
+                disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
+                busy={updatingBulk}
+                options={STATUS_OPTIONS}
+                onChoose={(status) =>
+                  setPendingBulkStatus({ count: selectedIds.length, nextStatus: status })
+                }
+              />
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                style={miniBtnStyle}
+                onClick={() => setPendingBulkDelete(selectedIds.length)}
+                disabled={selectedIds.length === 0 || deletingBulk || updatingBulk}
+                style={{
+                  ...miniDangerBtnStyle,
+                  opacity: selectedIds.length && !deletingBulk && !updatingBulk ? 1 : 0.6,
+                }}
               >
-                Previous
+                {deletingBulk ? "Deleting..." : `Delete selected (${selectedIds.length})`}
               </button>
-              <span style={{ color: "var(--ink-4)", fontSize: 12 }}>
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                style={miniBtnStyle}
-              >
-                Next
-              </button>
+              {selectedIds.length > 0 && (
+                <button onClick={() => setSelectedIds([])} style={miniBtnStyle}>
+                  Clear selection
+                </button>
+              )}
             </div>
-          )}
-        </section>
+
+            <div style={{ marginTop: 10, color: "var(--ink-4)", fontSize: 12 }}>
+              Showing {filtered.length === 0 ? 0 : pageStart + 1}-
+              {Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length}
+            </div>
+
+            {loading ? (
+              <WellcareLoader label="Loading orders" compact />
+            ) : (
+              <div
+                style={{
+                  marginTop: 10,
+                  border: "1px solid var(--line)",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                }}
+              >
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--bg-elev)", color: "var(--ink-3)" }}>
+                      <th style={thStyle}>
+                        <input
+                          type="checkbox"
+                          checked={allOnPageSelected}
+                          onChange={togglePageSelection}
+                        />
+                      </th>
+                      <th style={thStyle}>Order</th>
+                      <th style={thStyle}>User</th>
+                      <th style={thStyle}>Phone</th>
+                      <th style={thStyle}>Amount</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Placed</th>
+                      <th style={thStyle}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((o) => (
+                      <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
+                        <td style={tdStyle}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(o.id)}
+                            onChange={() => toggleSelect(o.id)}
+                          />
+                        </td>
+                        <td style={tdStyle}>{o.order_code}</td>
+                        <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
+                        <td style={tdStyle}>{o.phone || "-"}</td>
+                        <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
+                        <td style={tdStyle}>
+                          <StatusPill status={o.status} />
+                          <div style={{ marginTop: 4, color: "var(--ink-4)", fontSize: 11 }}>
+                            {o.progress}%
+                          </div>
+                        </td>
+                        <td style={tdStyle}>{new Date(o.created_at).toLocaleString()}</td>
+                        <td style={tdStyle}>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              onClick={() =>
+                                navigate({
+                                  to: "/admin/orders",
+                                  search: (prev) => ({ ...prev, orderId: o.id }),
+                                })
+                              }
+                              style={miniBtnStyle}
+                            >
+                              View details
+                            </button>
+                            <button
+                              onClick={() =>
+                                setPendingDeleteOrder({ id: o.id, orderCode: o.order_code })
+                              }
+                              style={miniDangerBtnStyle}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!loading && filtered.length > 0 && (
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={miniBtnStyle}
+                >
+                  Previous
+                </button>
+                <span style={{ color: "var(--ink-4)", fontSize: 12 }}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={miniBtnStyle}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
       {pendingStatus && statusTarget && (
@@ -530,16 +574,6 @@ function AdminOrdersPage() {
             await patchOrders(selectedIds, pendingBulkStatus.nextStatus);
             setPendingBulkStatus(null);
           }}
-        />
-      )}
-
-      {activeOrder && (
-        <OrderDetailsModal
-          order={activeOrder}
-          savingId={savingId}
-          onClose={() => setActiveOrder(null)}
-          onChangeStatus={(id, nextStatus) => setPendingStatus({ id, nextStatus })}
-          onDelete={(id, orderCode) => setPendingDeleteOrder({ id, orderCode })}
         />
       )}
     </AdminGate>
@@ -671,16 +705,16 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function OrderDetailsModal({
+function OrderDetailsPanel({
   order,
   savingId,
-  onClose,
+  onBack,
   onChangeStatus,
   onDelete,
 }: {
   order: OrderRow;
   savingId: string | null;
-  onClose: () => void;
+  onBack: () => void;
   onChangeStatus: (id: string, nextStatus: string) => void;
   onDelete: (id: string, orderCode: string) => void;
 }) {
@@ -690,23 +724,29 @@ function OrderDetailsModal({
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 600,
-          maxHeight: "90vh",
-          overflowY: "auto",
-          background: "var(--card)",
-          border: "1px solid var(--line)",
-          borderRadius: 18,
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 20,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: "none",
+        margin: 0,
+        background: "transparent",
+        border: "none",
+        borderRadius: 0,
+        padding: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <div style={{ ...cardStyle, display: "flex", justifyContent: "space-between", gap: 8 }}>
+        <button onClick={onBack} style={miniBtnStyle}>
+          Back to all orders
+        </button>
+        <Link to="/admin/orders" style={linkBtnStyle}>
+          Orders list
+        </Link>
+      </div>
+      <div style={cardStyle}>
         {/* Header */}
         <div
           style={{
@@ -742,9 +782,6 @@ function OrderDetailsModal({
             >
               Delete order
             </button>
-            <button onClick={onClose} style={{ ...miniBtnStyle, flexShrink: 0 }}>
-              ✕ Close
-            </button>
           </div>
         </div>
 
@@ -752,6 +789,7 @@ function OrderDetailsModal({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <DetailRow label="Placed" value={new Date(order.created_at).toLocaleString()} />
           <DetailRow label="Payment" value={order.payment} />
+          <DetailRow label="Phone" value={order.phone || "-"} />
           <DetailRow label="Subtotal" value={`Rs ${order.subtotal.toLocaleString()}`} />
           <DetailRow label="Shipping" value={`Rs ${order.shipping.toLocaleString()}`} />
           <DetailRow label="Total" value={`Rs ${order.total.toLocaleString()}`} />
@@ -772,6 +810,7 @@ function OrderDetailsModal({
               items.map((item: any, idx: number) => {
                 const prod = productMap.get(item.id);
                 const imgUrl = prod?.image_url || item.image_url;
+                const productName = prod?.name || item.name || item.id || "Item";
                 return (
                   <div
                     key={`${item.id || "item"}-${idx}`}
@@ -817,9 +856,29 @@ function OrderDetailsModal({
                           <span style={{ fontSize: 16, color: "var(--ink-4)" }}>📦</span>
                         )}
                       </div>
-                      <span style={{ color: "var(--ink)", fontWeight: 600, minWidth: 0 }}>
-                        {item.name || item.id || "Item"}
-                      </span>
+                      {item.id ? (
+                        <div style={{ minWidth: 0 }}>
+                          <Link
+                            to="/products/$productId"
+                            params={{ productId: item.id }}
+                            style={{
+                              color: "var(--ink)",
+                              fontWeight: 700,
+                              textDecoration: "underline",
+                              textUnderlineOffset: 2,
+                            }}
+                          >
+                            {productName}
+                          </Link>
+                          <div style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 2 }}>
+                            {item.id}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--ink)", fontWeight: 600, minWidth: 0 }}>
+                          {productName}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
                       {item.price != null && (
