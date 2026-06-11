@@ -46,11 +46,13 @@ export function CategoryRail({
           const on = c.id === active;
           const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
           const showAllCollage = c.id === "all" && allCategoryImages.length > 0;
+          const showOfferBadge = c.id !== "all";
           return (
             <button
               key={c.id}
               onClick={() => setActive(c.id)}
               style={{
+                position: "relative",
                 padding: "2px 2px 6px",
                 borderRadius: 14,
                 minWidth: 135,
@@ -71,6 +73,32 @@ export function CategoryRail({
                 transition: "transform .2s ease",
               }}
             >
+              {showOfferBadge ? (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 3,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 900,
+                    letterSpacing: 0.25,
+                    textTransform: "uppercase",
+                    whiteSpace: "nowrap",
+                    color: "#fff",
+                    background: "linear-gradient(135deg, #ef4444, #b91c1c)",
+                    boxShadow: "0 8px 16px -10px rgba(127, 29, 29, 0.85)",
+                  }}
+                >
+                  Flat 20% off
+                </span>
+              ) : null}
               {showAllCollage ? (
                 <span
                   style={{

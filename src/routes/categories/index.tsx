@@ -105,6 +105,7 @@ function CategoriesPage() {
                 })
               }
               style={{
+                position: "relative",
                 padding: "2px 2px 8px",
                 borderRadius: 14,
                 display: "flex",
@@ -126,6 +127,30 @@ function CategoriesPage() {
                 e.currentTarget.style.transform = "translateY(0)";
               }}
             >
+              <span
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  zIndex: 2,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  fontSize: 10,
+                  fontWeight: 900,
+                  letterSpacing: 0.25,
+                  textTransform: "uppercase",
+                  whiteSpace: "nowrap",
+                  color: "#fff",
+                  background: "linear-gradient(135deg, #ef4444, #b91c1c)",
+                  boxShadow: "0 8px 16px -10px rgba(127, 29, 29, 0.85)",
+                }}
+              >
+                Flat 20% off
+              </span>
               <span
                 style={{
                   width: isMobile ? 112 : 128,

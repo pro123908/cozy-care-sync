@@ -120,6 +120,25 @@ function CategoryProductsPage() {
               {categoryProducts.length} products in this category
             </p>
           )}
+          <div
+            style={{
+              marginTop: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4px 12px",
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 0.25,
+              textTransform: "uppercase",
+              color: "#fff",
+              background: "linear-gradient(135deg, #ef4444, #b91c1c)",
+              boxShadow: "0 8px 16px -10px rgba(127, 29, 29, 0.85)",
+            }}
+          >
+            Flat 20% off
+          </div>
         </div>
         <Btn variant="outline" icon={Icons.home} onClick={() => navigate({ to: "/" })}>
           Shop all
