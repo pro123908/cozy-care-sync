@@ -13,6 +13,7 @@ type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 type HomepageBannerRow = Database["public"]["Tables"]["homepage_banners"]["Row"];
 type ProductSizeOptionDraft = { id: string; size: string; price: number };
+type ProductVariantOptionDraft = { id: string; name: string; price: number };
 
 const EMPTY_DRAFT = {
   id: "",
@@ -29,6 +30,7 @@ const EMPTY_DRAFT = {
   active: true,
   tags: "",
   size_options: [] as ProductSizeOptionDraft[],
+  variant_options: [] as ProductVariantOptionDraft[],
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -102,6 +104,38 @@ function normalizeSizeOptionsForSave(
 ): Array<{ size: string; price: number }> {
   return normalizeSizeOptionsForDraft(input).map((option) => ({
     size: option.size,
+    price: option.price,
+  }));
+}
+
+function normalizeVariantOptionsForDraft(
+  input?: Array<{ name?: string | null; price?: number | null }> | null,
+): ProductVariantOptionDraft[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const normalized: ProductVariantOptionDraft[] = [];
+
+  for (const option of input) {
+    const name = typeof option?.name === "string" ? option.name.trim() : "";
+    const price = Number(option?.price);
+    const key = name.toLowerCase();
+    if (!name || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      id: `${key}-${normalized.length}`,
+      name,
+      price: Math.round(price),
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeVariantOptionsForSave(
+  input: ProductVariantOptionDraft[],
+): Array<{ name: string; price: number }> {
+  return normalizeVariantOptionsForDraft(input).map((option) => ({
+    name: option.name,
     price: option.price,
   }));
 }
@@ -379,6 +413,14 @@ function AdminProductsPage() {
             }>)
           : [],
       ),
+      variant_options: normalizeVariantOptionsForDraft(
+        Array.isArray((p as ProductRow & { variant_options?: unknown }).variant_options)
+          ? ((p as ProductRow & { variant_options?: unknown }).variant_options as Array<{
+              name?: string | null;
+              price?: number | null;
+            }>)
+          : [],
+      ),
     });
     setProductIdManuallyEdited(true);
     setSelectedId(p.id);
@@ -425,6 +467,7 @@ function AdminProductsPage() {
         .map((x) => x.trim())
         .filter(Boolean),
       size_options: normalizeSizeOptionsForSave(draft.size_options),
+      variant_options: normalizeVariantOptionsForSave(draft.variant_options),
       updated_at: new Date().toISOString(),
     };
 
@@ -2030,6 +2073,114 @@ function AdminProductsPage() {
                     <span style={fieldHintStyle}>
                       Example: belts can use S/M/L/XL/2XL with different prices; first-aid kits can
                       use S/M/L.
+                    </span>
+                  </div>
+                </Field>
+                <Field label="Optional variant pricing">
+                  <div
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: 10,
+                      padding: 10,
+                      background: "var(--bg-elev)",
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    {draft.variant_options.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                        No named variants configured. Product uses base price only.
+                      </div>
+                    ) : (
+                      draft.variant_options.map((option) => (
+                        <div
+                          key={option.id}
+                          style={{ display: "grid", gridTemplateColumns: "1fr 150px auto", gap: 8 }}
+                        >
+                          <input
+                            value={option.name}
+                            onChange={(e) =>
+                              setDraft((current) => ({
+                                ...current,
+                                variant_options: current.variant_options.map((row) =>
+                                  row.id === option.id ? { ...row, name: e.target.value } : row,
+                                ),
+                              }))
+                            }
+                            placeholder="Variant name (e.g. Standard, Premium)"
+                            style={inputStyle}
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={option.price}
+                            onChange={(e) =>
+                              setDraft((current) => ({
+                                ...current,
+                                variant_options: current.variant_options.map((row) =>
+                                  row.id === option.id
+                                    ? {
+                                        ...row,
+                                        price: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                                      }
+                                    : row,
+                                ),
+                              }))
+                            }
+                            placeholder="Price"
+                            style={inputStyle}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDraft((current) => ({
+                                ...current,
+                                variant_options: current.variant_options.filter(
+                                  (row) => row.id !== option.id,
+                                ),
+                              }))
+                            }
+                            style={miniDangerBtnStyle}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            variant_options: [
+                              ...current.variant_options,
+                              {
+                                id: `variant-${Date.now()}-${current.variant_options.length}`,
+                                name: "",
+                                price: current.price || 0,
+                              },
+                            ],
+                          }))
+                        }
+                        style={miniBtnStyle}
+                      >
+                        + Add variant row
+                      </button>
+                      {draft.variant_options.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDraft((current) => ({ ...current, variant_options: [] }))
+                          }
+                          style={miniDangerBtnStyle}
+                        >
+                          Clear variant pricing
+                        </button>
+                      )}
+                    </div>
+                    <span style={fieldHintStyle}>
+                      Example: Standard / Premium / Gift Pack, each with its own price.
                     </span>
                   </div>
                 </Field>

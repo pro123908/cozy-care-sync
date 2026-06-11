@@ -1262,7 +1262,9 @@ export function OrderDetail({
                     style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
                   >
                     Qty {qty}
-                    {size ? <div style={{ marginTop: 2, fontSize: 11 }}>Size {size}</div> : null}
+                    {size ? (
+                      <div style={{ marginTop: 2, fontSize: 11 }}>Selection {size}</div>
+                    ) : null}
                   </div>
                   <div
                     className="wcm-order-detail-item-price"

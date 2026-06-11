@@ -249,6 +249,7 @@ export type Database = {
           updated_at: string;
           category_id: string | null;
           size_options: Json;
+          variant_options: Json;
         };
         Insert: {
           id: string;
@@ -271,6 +272,7 @@ export type Database = {
           updated_at?: string;
           category_id?: string | null;
           size_options?: Json;
+          variant_options?: Json;
         };
         Update: {
           id?: string;
@@ -293,6 +295,7 @@ export type Database = {
           updated_at?: string;
           category_id?: string | null;
           size_options?: Json;
+          variant_options?: Json;
         };
         Relationships: [];
       };

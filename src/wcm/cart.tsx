@@ -196,7 +196,7 @@ export function CartDrawer({
                     </div>
                     {size && (
                       <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>
-                        Size: {size}
+                        Selection: {size}
                       </div>
                     )}
                     <div
@@ -788,7 +788,7 @@ export function CheckoutContent({
                         </div>
                         <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
                           Qty {qty}
-                          {size ? ` · Size ${size}` : ""}
+                          {size ? ` · Selection ${size}` : ""}
                           {p.brand ? ` · ${p.brand}` : ""}
                         </div>
                       </div>

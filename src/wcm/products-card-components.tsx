@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { PKR, getDisplayPrice, type Category, type Product } from "./data";
+import { PKR, getDisplayPrice, getSelectableOptions, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -356,7 +356,7 @@ export function ProductCard({
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
   const displayPrice = getDisplayPrice(p);
-  const hasSizePricing = Array.isArray(p.size_options) && p.size_options.length > 0;
+  const hasSelectableOptions = getSelectableOptions(p).length > 0;
   const resolvedReviewCount = reviewCount || p.reviews;
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
@@ -599,11 +599,6 @@ export function ProductCard({
             }}
           >
             {PKR(displayPrice)}
-            {hasSizePricing && (
-              <span style={{ fontSize: compact ? 10 : 11, color: "var(--ink-4)", fontWeight: 600 }}>
-                From
-              </span>
-            )}
           </div>
           {p.was && (
             <div
@@ -618,7 +613,7 @@ export function ProductCard({
           )}
         </div>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          {isInCart && (
+          {isInCart && !hasSelectableOptions && (
             <button
               className="wcm-card-step-btn wcm-card-step-btn-minus"
               onClick={(e) => {
@@ -649,10 +644,22 @@ export function ProductCard({
             className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action"
             onClick={(e) => {
               e.stopPropagation();
+              if (hasSelectableOptions) {
+                onOpen(p);
+                return;
+              }
               onAdd(p);
             }}
-            aria-label={isInCart ? `Add one more to cart (currently ${cartQty})` : "Add to cart"}
-            title={isInCart ? "Add one more" : "Add to cart"}
+            aria-label={
+              hasSelectableOptions
+                ? "Choose options"
+                : isInCart
+                  ? `Add one more to cart (currently ${cartQty})`
+                  : "Add to cart"
+            }
+            title={
+              hasSelectableOptions ? "Choose options" : isInCart ? "Add one more" : "Add to cart"
+            }
             style={{
               display: "inline-flex",
               alignItems: "center",

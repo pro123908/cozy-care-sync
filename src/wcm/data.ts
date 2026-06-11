@@ -16,10 +16,16 @@ export type Product = {
   swatch: string;
   image_url?: string | null;
   size_options?: ProductSizeOption[];
+  variant_options?: ProductVariantOption[];
 };
 
 export type ProductSizeOption = {
   size: string;
+  price: number;
+};
+
+export type ProductVariantOption = {
+  name: string;
   price: number;
 };
 
@@ -75,13 +81,44 @@ export function normalizeSizeOptions(options?: ProductSizeOption[] | null): Prod
   return normalized;
 }
 
+export function normalizeVariantOptions(
+  options?: ProductVariantOption[] | null,
+): ProductVariantOption[] {
+  if (!Array.isArray(options)) return [];
+  const seen = new Set<string>();
+  const normalized: ProductVariantOption[] = [];
+
+  for (const option of options) {
+    const name = typeof option?.name === "string" ? option.name.trim() : "";
+    const price = Number(option?.price);
+    const key = name.toLowerCase();
+    if (!name || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({ name, price: Math.round(price) });
+  }
+
+  return normalized;
+}
+
+export function getSelectableOptions(product: Product): Array<{ label: string; price: number }> {
+  const variantOptions = normalizeVariantOptions(product.variant_options);
+  if (variantOptions.length > 0) {
+    return variantOptions.map((option) => ({ label: option.name, price: option.price }));
+  }
+
+  return normalizeSizeOptions(product.size_options).map((option) => ({
+    label: option.size,
+    price: option.price,
+  }));
+}
+
 export function getUnitPrice(product: Product, selectedSize?: string): number {
-  const options = normalizeSizeOptions(product.size_options);
+  const options = getSelectableOptions(product);
   if (!options.length) return product.price;
 
   if (selectedSize) {
     const matched = options.find(
-      (option) => option.size.toLowerCase() === selectedSize.toLowerCase(),
+      (option) => option.label.toLowerCase() === selectedSize.toLowerCase(),
     );
     if (matched) return matched.price;
   }
@@ -90,7 +127,7 @@ export function getUnitPrice(product: Product, selectedSize?: string): number {
 }
 
 export function getDisplayPrice(product: Product): number {
-  const options = normalizeSizeOptions(product.size_options);
+  const options = getSelectableOptions(product);
   if (!options.length) return product.price;
   return Math.min(...options.map((option) => option.price));
 }

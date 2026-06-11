@@ -1,6 +1,13 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CATEGORIES, PKR, getUnitPrice, normalizeSizeOptions, type Product } from "./data";
+import {
+  CATEGORIES,
+  PKR,
+  getSelectableOptions,
+  getUnitPrice,
+  normalizeVariantOptions,
+  type Product,
+} from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -715,8 +722,11 @@ export function ProductDetail({
   const isPolysling = product.id === "belt-004";
   const isAbdominalBelt = product.id === "belt-003";
 
-  const sizeOptions = normalizeSizeOptions(product.size_options);
-  const hasDynamicSizeOptions = sizeOptions.length > 0;
+  const variantOptions = normalizeVariantOptions(product.variant_options);
+  const selectableOptions = getSelectableOptions(product);
+  const hasSelectableOptions = selectableOptions.length > 0;
+  const hasVariantPricing = variantOptions.length > 0;
+  const optionLabel = hasVariantPricing ? "Variant" : "Size";
   const variantKey =
     [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
   const resolvedUnitPrice = getUnitPrice(product, selectedSize || undefined);
@@ -754,14 +764,14 @@ export function ProductDetail({
   }, [product.id, detailImages.length]);
 
   useEffect(() => {
-    if (!hasDynamicSizeOptions) {
+    if (!hasSelectableOptions) {
       if (!isOrthoBelt) setSelectedSize(null);
       return;
     }
-    if (!selectedSize || !sizeOptions.some((option) => option.size === selectedSize)) {
-      setSelectedSize(sizeOptions[0].size);
+    if (!selectedSize || !selectableOptions.some((option) => option.label === selectedSize)) {
+      setSelectedSize(selectableOptions[0].label);
     }
-  }, [hasDynamicSizeOptions, isOrthoBelt, selectedSize, sizeOptions]);
+  }, [hasSelectableOptions, isOrthoBelt, selectedSize, selectableOptions]);
 
   const cycleView = (dir: 1 | -1) => {
     if (detailImages.length <= 1) return;
@@ -1089,7 +1099,7 @@ export function ProductDetail({
               </div>
             </div>
           )}
-          {hasDynamicSizeOptions && (
+          {hasSelectableOptions && (
             <div
               style={{
                 display: "flex",
@@ -1111,19 +1121,20 @@ export function ProductDetail({
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-2)" }}>
-                  Size{selectedSize ? `: ${selectedSize}` : ""}
+                  {optionLabel}
+                  {selectedSize ? `: ${selectedSize}` : ""}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
                   Select one option
                 </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {sizeOptions.map((option) => {
-                  const isSelected = selectedSize === option.size;
+                {selectableOptions.map((option) => {
+                  const isSelected = selectedSize === option.label;
                   return (
                     <button
-                      key={option.size}
-                      onClick={() => setSelectedSize(option.size)}
+                      key={option.label}
+                      onClick={() => setSelectedSize(option.label)}
                       style={{
                         padding: "7px 12px",
                         borderRadius: 10,
@@ -1141,7 +1152,7 @@ export function ProductDetail({
                         lineHeight: 1.2,
                       }}
                     >
-                      <span>{option.size}</span>
+                      <span>{option.label}</span>
                       <span style={{ opacity: 0.85, fontWeight: 600 }}>{PKR(option.price)}</span>
                     </button>
                   );
@@ -1149,7 +1160,7 @@ export function ProductDetail({
               </div>
             </div>
           )}
-          {!hasDynamicSizeOptions && isOrthoBelt && (
+          {!hasSelectableOptions && isOrthoBelt && (
             <div
               style={{
                 display: "flex",

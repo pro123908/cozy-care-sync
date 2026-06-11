@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, useSearch } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -37,7 +37,6 @@ export const Route = createFileRoute("/admin/orders")({
 
 function AdminOrdersPage() {
   const { push } = useWcm();
-  const navigate = useNavigate();
   const { orderId } = useSearch({ from: "/admin/orders" });
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,7 +122,7 @@ function AdminOrdersPage() {
   }, [page, totalPages]);
 
   useEffect(() => {
-    setSelectedIds((prev) => prev.filter((id) => filtered.some((row) => row.id === id)));
+    setSelectedIds((prev: string[]) => prev.filter((id) => filtered.some((row) => row.id === id)));
   }, [filtered]);
 
   const selectedCountOnPage = pageRows.filter((row) => selectedIds.includes(row.id)).length;
@@ -134,22 +133,25 @@ function AdminOrdersPage() {
   );
 
   const clearOrderView = () => {
-    navigate({
-      to: "/admin/orders",
-      search: {},
-    });
+    window.location.assign("/admin/orders");
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedIds((prev: string[]) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   const togglePageSelection = () => {
     if (allOnPageSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageRows.some((row) => row.id === id)));
+      setSelectedIds((prev: string[]) =>
+        prev.filter((id) => !pageRows.some((row) => row.id === id)),
+      );
       return;
     }
-    setSelectedIds((prev) => Array.from(new Set([...prev, ...pageRows.map((row) => row.id)])));
+    setSelectedIds((prev: string[]) =>
+      Array.from(new Set([...prev, ...pageRows.map((row) => row.id)])),
+    );
   };
 
   const patchOrder = async (id: string, nextStatus: string) => {
@@ -169,7 +171,7 @@ function AdminOrdersPage() {
       return;
     }
 
-    setRows((prev) =>
+    setRows((prev: OrderRow[]) =>
       prev.map((r) =>
         r.id === id
           ? {
@@ -194,8 +196,8 @@ function AdminOrdersPage() {
       return;
     }
 
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
+    setRows((prev: OrderRow[]) => prev.filter((r) => r.id !== id));
+    setSelectedIds((prev: string[]) => prev.filter((selectedId) => selectedId !== id));
     if (orderId === id) {
       clearOrderView();
     }
@@ -215,7 +217,7 @@ function AdminOrdersPage() {
       return;
     }
 
-    setRows((prev) => prev.filter((row) => !ids.includes(row.id)));
+    setRows((prev: OrderRow[]) => prev.filter((row) => !ids.includes(row.id)));
     setSelectedIds([]);
     if (orderId && ids.includes(orderId)) {
       clearOrderView();
@@ -240,7 +242,7 @@ function AdminOrdersPage() {
       return;
     }
 
-    setRows((prev) =>
+    setRows((prev: OrderRow[]) =>
       prev.map((row) =>
         ids.includes(row.id)
           ? {
@@ -471,10 +473,9 @@ function AdminOrdersPage() {
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <button
                               onClick={() =>
-                                navigate({
-                                  to: "/admin/orders",
-                                  search: { orderId: o.id },
-                                })
+                                window.location.assign(
+                                  `/admin/orders?orderId=${encodeURIComponent(o.id)}`,
+                                )
                               }
                               style={miniBtnStyle}
                             >
@@ -882,7 +883,7 @@ function OrderDetailsPanel({
                           </div>
                           {item.size ? (
                             <div style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 2 }}>
-                              Size:{" "}
+                              Selection:{" "}
                               <span style={{ fontWeight: 700, color: "var(--ink-3)" }}>
                                 {item.size}
                               </span>

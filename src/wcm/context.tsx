@@ -19,11 +19,13 @@ import {
   type Order,
   type OrderReview,
   normalizeSizeOptions,
+  normalizeVariantOptions,
 } from "./data";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
   sales_count?: number | null;
+  variant_options?: unknown;
 };
 
 type CategoryRecord = Database["public"]["Tables"]["categories"]["Row"];
@@ -452,6 +454,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             size_options: normalizeSizeOptions(
               Array.isArray(r.size_options)
                 ? (r.size_options as Array<{ size?: string; price?: number }>)
+                : [],
+            ),
+            variant_options: normalizeVariantOptions(
+              Array.isArray(r.variant_options)
+                ? (r.variant_options as Array<{ name?: string; price?: number }>)
                 : [],
             ),
           })),

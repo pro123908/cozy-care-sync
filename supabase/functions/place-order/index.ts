@@ -23,12 +23,14 @@ type RequestBody = {
 };
 
 type SizeOption = { size: string; price: number };
+type VariantOption = { name: string; price: number };
 type ProductRow = {
   id: string;
   price: number;
   active: boolean;
   stock: string;
   size_options?: SizeOption[] | null;
+  variant_options?: VariantOption[] | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -92,6 +94,21 @@ function normalizeSizeOptions(options?: SizeOption[] | null): SizeOption[] {
     if (!size || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
     seen.add(key);
     normalized.push({ size, price: Math.round(price) });
+  }
+  return normalized;
+}
+
+function normalizeVariantOptions(options?: VariantOption[] | null): VariantOption[] {
+  if (!Array.isArray(options)) return [];
+  const seen = new Set<string>();
+  const normalized: VariantOption[] = [];
+  for (const option of options) {
+    const name = typeof option?.name === "string" ? option.name.trim() : "";
+    const price = Number(option?.price);
+    const key = name.toLowerCase();
+    if (!name || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({ name, price: Math.round(price) });
   }
   return normalized;
 }
@@ -172,7 +189,7 @@ Deno.serve(async (req: Request) => {
   const productIds = [...new Set(items.map((i) => i.id))];
   const { data: products, error: productsErr } = await serviceClient
     .from("products")
-    .select("id, price, active, stock, size_options")
+    .select("id, price, active, stock, size_options, variant_options")
     .in("id", productIds);
 
   if (productsErr || !products) {
@@ -197,21 +214,30 @@ Deno.serve(async (req: Request) => {
   // ------------------------------------------------------------------
   const pricedItems = items.map((item) => {
     const product = productMap.get(item.id)!;
+    const variantOptions = normalizeVariantOptions(product.variant_options);
     const sizeOptions = normalizeSizeOptions(product.size_options);
+    const selectableOptions =
+      variantOptions.length > 0
+        ? variantOptions.map((option) => ({ label: option.name, price: option.price }))
+        : sizeOptions.map((option) => ({ label: option.size, price: option.price }));
     let unitPrice = product.price;
 
-    if (sizeOptions.length > 0) {
+    if (selectableOptions.length > 0) {
       if (!item.size || !item.size.trim()) {
-        return { error: `Please select size for ${item.id}` } as const;
+        return { error: `Please select an option for ${item.id}` } as const;
       }
       const selected = sizeOptions.find(
         (option) => option.size.toLowerCase() === item.size!.trim().toLowerCase(),
       );
-      if (!selected) {
+      const selectedVariant = variantOptions.find(
+        (option) => option.name.toLowerCase() === item.size!.trim().toLowerCase(),
+      );
+      const resolvedSelection = selectedVariant || selected;
+      if (!resolvedSelection) {
         return { error: `Invalid size selected for ${item.id}` } as const;
       }
-      unitPrice = selected.price;
-      item.size = selected.size;
+      unitPrice = resolvedSelection.price;
+      item.size = "name" in resolvedSelection ? resolvedSelection.name : resolvedSelection.size;
     }
 
     return {
