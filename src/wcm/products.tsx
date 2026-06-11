@@ -186,7 +186,7 @@ export function ProductsPage({
       "air-mattress",
       "heating-pad",
       "sugar-strips",
-      "ortho-belts",
+      "orthobelts-supports",
       "other",
     ];
 
@@ -704,11 +704,13 @@ export function ProductDetail({
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<"Child" | "Adult" | null>(null);
   const [selectedFit, setSelectedFit] = useState<"Adjustable" | "Medium" | null>(null);
-  const isOrthoBelt = product.cat === "ortho-belts" && product.id !== "belt-003" && product.id !== "belt-004";
+  const isOrthoBelt =
+    product.cat === "ortho-belts" && product.id !== "belt-003" && product.id !== "belt-004";
   const isPolysling = product.id === "belt-004";
   const isAbdominalBelt = product.id === "belt-003";
 
-  const variantKey = [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
+  const variantKey =
+    [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
 
   // Track this product as recently viewed
   useEffect(() => {
@@ -1023,9 +1025,10 @@ export function ProductDetail({
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: "pointer",
-                      border: selectedAgeGroup === group
-                        ? "2px solid #0d9488"
-                        : "1.5px solid var(--line)",
+                      border:
+                        selectedAgeGroup === group
+                          ? "2px solid #0d9488"
+                          : "1.5px solid var(--line)",
                       background: selectedAgeGroup === group ? "#f0fdfa" : "var(--card)",
                       color: selectedAgeGroup === group ? "#0f766e" : "var(--ink-3)",
                       transition: "border-color .12s, background .12s, color .12s",
@@ -1081,9 +1084,8 @@ export function ProductDetail({
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: "pointer",
-                      border: selectedSize === size
-                        ? "2px solid #0d9488"
-                        : "1.5px solid var(--line)",
+                      border:
+                        selectedSize === size ? "2px solid #0d9488" : "1.5px solid var(--line)",
                       background: selectedSize === size ? "#f0fdfa" : "var(--card)",
                       color: selectedSize === size ? "#0f766e" : "var(--ink-3)",
                       transition: "border-color .12s, background .12s, color .12s",

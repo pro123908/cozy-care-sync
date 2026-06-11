@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PRODUCTS } from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
@@ -12,11 +12,25 @@ const ProductDetail = lazy(() =>
 export const Route = createFileRoute("/products/$productId")({
   component: ProductPage,
   head: ({ params }: { params: { productId: string } }) => {
-    const p = PRODUCTS.find((x) => x.id === params.productId);
+    const normalizedId = params.productId.trim().toLowerCase();
+    const p = PRODUCTS.find((x) => x.id.toLowerCase() === normalizedId);
+    const readableFallbackName = params.productId
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+    const productName = p?.name || readableFallbackName || "Product";
+    const description = p?.blurb?.trim() || `${productName} at Wellcare Mart.`;
+
     return {
+      title: `${productName} — Wellcare Mart`,
       meta: [
-        { title: p ? `${p.name} — Wellcare Mart` : "Product — Wellcare Mart" },
-        { name: "description", content: p ? p.blurb : "Product details" },
+        { title: `${productName} — Wellcare Mart` },
+        { name: "description", content: description },
+        { property: "og:title", content: `${productName} — Wellcare Mart` },
+        { property: "og:description", content: description },
+        { name: "twitter:title", content: `${productName} — Wellcare Mart` },
+        { name: "twitter:description", content: description },
       ],
     };
   },
@@ -28,6 +42,23 @@ function ProductPage() {
   const navigate = useNavigate();
   const product =
     products.find((p) => p.id === productId) || PRODUCTS.find((p) => p.id === productId);
+
+  useEffect(() => {
+    const readableFallbackName = productId
+      .split("-")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+    const productName = product?.name || readableFallbackName || "Product";
+    const description = product?.blurb?.trim() || `${productName} at Wellcare Mart.`;
+
+    document.title = `${productName} — Wellcare Mart`;
+
+    const descriptionMeta = document.querySelector('meta[name="description"]');
+    if (descriptionMeta) {
+      descriptionMeta.setAttribute("content", description);
+    }
+  }, [product, productId]);
 
   if (!product && !productsLoaded) {
     return <WellcareLoader label="Loading product" compact />;

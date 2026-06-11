@@ -35,13 +35,24 @@ function CategoryProductsPage() {
   const resolvedCategoryId =
     categoryId === "weight-scale-digital" || categoryId === "weight-scale-manual"
       ? "weight-scale"
-      : categoryId;
+      : categoryId === "ortho-belts" || categoryId === "supports"
+        ? "orthobelts-supports"
+        : categoryId;
 
   const source = categoriesLoaded && categories.length > 0 ? categories : CATEGORIES;
-  const category = source.find((c) => c.id === resolvedCategoryId);
+  const category =
+    source.find((c) => c.id === resolvedCategoryId) ||
+    (resolvedCategoryId === "orthobelts-supports"
+      ? { id: "orthobelts-supports", name: "Orthobelts and Supports", count: 0 }
+      : undefined);
   const categoryName = category?.name || startCase(resolvedCategoryId);
 
-  const categoryProducts = products.filter((p) => p.cat === resolvedCategoryId);
+  const categoryIdsForProducts =
+    resolvedCategoryId === "orthobelts-supports"
+      ? ["orthobelts-supports", "ortho-belts", "supports"]
+      : [resolvedCategoryId];
+
+  const categoryProducts = products.filter((p) => categoryIdsForProducts.includes(p.cat));
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
 
   if (!category) {

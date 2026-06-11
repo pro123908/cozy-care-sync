@@ -115,17 +115,18 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const [bannersResolved, setBannersResolved] = useState(false);
   const [slideTick, setSlideTick] = useState(0);
 
-  const banners: HeroBanner[] =
-    dynamicImages.length > 0
-      ? dynamicImages.map((row, index) => ({
-          ...HERO_BANNERS[index % HERO_BANNERS.length],
-          imageUrl: row.image_url,
-          imageAlt: row.alt_text || `Homepage banner ${index + 1}`,
-        }))
-      : HERO_BANNERS;
+  const hasDynamicBanners = dynamicImages.length > 0;
+
+  const banners: HeroBanner[] = hasDynamicBanners
+    ? dynamicImages.map((row, index) => ({
+        ...HERO_BANNERS[index % HERO_BANNERS.length],
+        imageUrl: row.image_url,
+        imageAlt: row.alt_text || `Homepage banner ${index + 1}`,
+      }))
+    : HERO_BANNERS;
 
   const banner = banners[active] || HERO_BANNERS[0];
-  const imageOnlyBannerEnabled = dynamicImages.length > 0 && !!banner.imageUrl;
+  const imageOnlyBannerEnabled = hasDynamicBanners && !!banner.imageUrl;
   const showImageCarouselArrows = imageOnlyBannerEnabled && dynamicImages.length > 1;
 
   const goToPreviousBanner = () => {
@@ -154,7 +155,10 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         return;
       }
       if (Array.isArray(data) && data.length > 0) {
-        setDynamicImages(data as HomepageBannerRow[]);
+        const normalized = (data as HomepageBannerRow[]).filter(
+          (row) => typeof row.image_url === "string" && row.image_url.trim().length > 0,
+        );
+        setDynamicImages(normalized);
       }
       setBannersResolved(true);
     };
@@ -209,7 +213,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             inset: 0,
             width: "100%",
             height: "100%",
-            // objectFit: "cover",
+            objectFit: "cover",
             animation: "wcmHeroSlideIn .2s ease",
             zIndex: 1,
           }}
@@ -271,7 +275,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           </button>
         </>
       )}
-      {bannersResolved && !imageOnlyBannerEnabled && (
+      {bannersResolved && !hasDynamicBanners && (
         <>
           <div
             style={{
