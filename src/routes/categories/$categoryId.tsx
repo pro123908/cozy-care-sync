@@ -32,12 +32,16 @@ function CategoryProductsPage() {
   const { products, productsLoaded, addToCart, cart, categories, categoriesLoaded } = useWcm();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const resolvedCategoryId =
+    categoryId === "weight-scale-digital" || categoryId === "weight-scale-manual"
+      ? "weight-scale"
+      : categoryId;
 
   const source = categoriesLoaded && categories.length > 0 ? categories : CATEGORIES;
-  const category = source.find((c) => c.id === categoryId);
-  const categoryName = category?.name || startCase(categoryId);
+  const category = source.find((c) => c.id === resolvedCategoryId);
+  const categoryName = category?.name || startCase(resolvedCategoryId);
 
-  const categoryProducts = products.filter((p) => p.cat === categoryId);
+  const categoryProducts = products.filter((p) => p.cat === resolvedCategoryId);
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
 
   if (!category) {
