@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PKR, type Order, type Product } from "./data";
+import { PKR, getUnitPrice, type Order, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Pill, Btn, Section, Row } from "./ui";
 import { useWcm } from "./context";
@@ -541,7 +541,7 @@ export function OrderDetail({
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const handleReorder = () => {
-    items.forEach(({ p, qty }) => addToCart(p, qty));
+    items.forEach(({ p, qty, size }) => addToCart(p, qty, size));
   };
 
   const handleCancel = async () => {
@@ -1031,7 +1031,7 @@ export function OrderDetail({
           Items in this order
         </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          {items.map(({ p, qty }, i) => {
+          {items.map(({ p, qty, size, unit_price }, i) => {
             const review = productReviews[p.id];
             const isEditing = activeReviewProductId === p.id;
 
@@ -1262,12 +1262,13 @@ export function OrderDetail({
                     style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
                   >
                     Qty {qty}
+                    {size ? <div style={{ marginTop: 2, fontSize: 11 }}>Size {size}</div> : null}
                   </div>
                   <div
                     className="wcm-order-detail-item-price"
                     style={{ fontSize: 14, fontWeight: 800 }}
                   >
-                    {PKR(p.price * qty)}
+                    {PKR((unit_price ?? getUnitPrice(p, size)) * qty)}
                   </div>
                 </div>
               </React.Fragment>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
-import { PKR, type Category, type Product } from "./data";
+import { PKR, getDisplayPrice, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -355,6 +355,8 @@ export function ProductCard({
   const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
+  const displayPrice = getDisplayPrice(p);
+  const hasSizePricing = Array.isArray(p.size_options) && p.size_options.length > 0;
   const resolvedReviewCount = reviewCount || p.reviews;
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
@@ -586,8 +588,22 @@ export function ProductCard({
         }}
       >
         <div>
-          <div style={{ fontWeight: 800, fontSize: compact ? 14 : 16, color: "var(--ink)" }}>
-            {PKR(p.price)}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 6,
+              fontWeight: 800,
+              fontSize: compact ? 14 : 16,
+              color: "var(--ink)",
+            }}
+          >
+            {PKR(displayPrice)}
+            {hasSizePricing && (
+              <span style={{ fontSize: compact ? 10 : 11, color: "var(--ink-4)", fontWeight: 600 }}>
+                From
+              </span>
+            )}
           </div>
           {p.was && (
             <div

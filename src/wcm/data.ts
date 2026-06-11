@@ -15,6 +15,12 @@ export type Product = {
   blurb: string;
   swatch: string;
   image_url?: string | null;
+  size_options?: ProductSizeOption[];
+};
+
+export type ProductSizeOption = {
+  size: string;
+  price: number;
 };
 
 export type Category = {
@@ -51,6 +57,43 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const PKR = (n: number) => "Rs " + n.toLocaleString("en-PK");
+
+export function normalizeSizeOptions(options?: ProductSizeOption[] | null): ProductSizeOption[] {
+  if (!Array.isArray(options)) return [];
+  const seen = new Set<string>();
+  const normalized: ProductSizeOption[] = [];
+
+  for (const option of options) {
+    const size = typeof option?.size === "string" ? option.size.trim() : "";
+    const price = Number(option?.price);
+    const key = size.toLowerCase();
+    if (!size || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({ size, price: Math.round(price) });
+  }
+
+  return normalized;
+}
+
+export function getUnitPrice(product: Product, selectedSize?: string): number {
+  const options = normalizeSizeOptions(product.size_options);
+  if (!options.length) return product.price;
+
+  if (selectedSize) {
+    const matched = options.find(
+      (option) => option.size.toLowerCase() === selectedSize.toLowerCase(),
+    );
+    if (matched) return matched.price;
+  }
+
+  return options[0].price;
+}
+
+export function getDisplayPrice(product: Product): number {
+  const options = normalizeSizeOptions(product.size_options);
+  if (!options.length) return product.price;
+  return Math.min(...options.map((option) => option.price));
+}
 
 export const PRODUCTS: Product[] = [
   // Glucometers
@@ -2357,7 +2400,7 @@ CATEGORIES.forEach((c) => {
   c.count = c.id === "all" ? PRODUCTS.length : PRODUCTS.filter((p) => p.cat === c.id).length;
 });
 
-export type OrderItem = { id: string; qty: number };
+export type OrderItem = { id: string; qty: number; size?: string; unit_price?: number };
 export type OrderReview = { rating: number; comment: string };
 export type Order = {
   id: string;

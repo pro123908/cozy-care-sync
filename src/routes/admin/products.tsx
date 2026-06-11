@@ -12,6 +12,7 @@ import { useWcm } from "@/wcm/context";
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
 type HomepageBannerRow = Database["public"]["Tables"]["homepage_banners"]["Row"];
+type ProductSizeOptionDraft = { id: string; size: string; price: number };
 
 const EMPTY_DRAFT = {
   id: "",
@@ -27,6 +28,7 @@ const EMPTY_DRAFT = {
   sort_order: 0,
   active: true,
   tags: "",
+  size_options: [] as ProductSizeOptionDraft[],
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -70,6 +72,38 @@ function getFallbackCountFromStock(stock: string) {
   if (stock === "Low stock") return 3;
   if (stock === "Limited") return 12;
   return 25;
+}
+
+function normalizeSizeOptionsForDraft(
+  input?: Array<{ size?: string | null; price?: number | null }> | null,
+): ProductSizeOptionDraft[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const normalized: ProductSizeOptionDraft[] = [];
+
+  for (const option of input) {
+    const size = typeof option?.size === "string" ? option.size.trim() : "";
+    const price = Number(option?.price);
+    const key = size.toLowerCase();
+    if (!size || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({
+      id: `${key}-${normalized.length}`,
+      size,
+      price: Math.round(price),
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeSizeOptionsForSave(
+  input: ProductSizeOptionDraft[],
+): Array<{ size: string; price: number }> {
+  return normalizeSizeOptionsForDraft(input).map((option) => ({
+    size: option.size,
+    price: option.price,
+  }));
 }
 
 export const Route = createFileRoute("/admin/products")({
@@ -337,6 +371,14 @@ function AdminProductsPage() {
       sort_order: p.sort_order,
       active: p.active,
       tags: (p.tags || []).join(", "),
+      size_options: normalizeSizeOptionsForDraft(
+        Array.isArray((p as ProductRow & { size_options?: unknown }).size_options)
+          ? ((p as ProductRow & { size_options?: unknown }).size_options as Array<{
+              size?: string | null;
+              price?: number | null;
+            }>)
+          : [],
+      ),
     });
     setProductIdManuallyEdited(true);
     setSelectedId(p.id);
@@ -382,6 +424,7 @@ function AdminProductsPage() {
         .split(",")
         .map((x) => x.trim())
         .filter(Boolean),
+      size_options: normalizeSizeOptionsForSave(draft.size_options),
       updated_at: new Date().toISOString(),
     };
 
@@ -1636,7 +1679,20 @@ function AdminProductsPage() {
                               {isWhatsAppImportedProduct(p) ? "WhatsApp" : "Manual"}
                             </span>
                           </td>
-                          <td style={tdStyle}>Rs {p.price.toLocaleString()}</td>
+                          <td style={tdStyle}>
+                            <div style={{ display: "grid", gap: 3 }}>
+                              <span>Rs {p.price.toLocaleString()}</span>
+                              {Array.isArray(
+                                (p as ProductRow & { size_options?: unknown }).size_options,
+                              ) &&
+                              (p as ProductRow & { size_options?: Array<{ size?: string }> })
+                                .size_options?.length ? (
+                                <span style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                                  Size pricing enabled
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
                           <td style={tdStyle}>
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               <span
@@ -1870,6 +1926,113 @@ function AdminProductsPage() {
                     />
                   </Field>
                 </div>
+                <Field label="Optional size pricing">
+                  <div
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: 10,
+                      padding: 10,
+                      background: "var(--bg-elev)",
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    {draft.size_options.length === 0 ? (
+                      <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                        No size pricing configured. Product uses base price only.
+                      </div>
+                    ) : (
+                      draft.size_options.map((option) => (
+                        <div
+                          key={option.id}
+                          style={{ display: "grid", gridTemplateColumns: "1fr 150px auto", gap: 8 }}
+                        >
+                          <input
+                            value={option.size}
+                            onChange={(e) =>
+                              setDraft((current) => ({
+                                ...current,
+                                size_options: current.size_options.map((row) =>
+                                  row.id === option.id ? { ...row, size: e.target.value } : row,
+                                ),
+                              }))
+                            }
+                            placeholder="Size (e.g. S, M, L, XL, 2XL)"
+                            style={inputStyle}
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={option.price}
+                            onChange={(e) =>
+                              setDraft((current) => ({
+                                ...current,
+                                size_options: current.size_options.map((row) =>
+                                  row.id === option.id
+                                    ? {
+                                        ...row,
+                                        price: Math.max(0, Math.round(Number(e.target.value) || 0)),
+                                      }
+                                    : row,
+                                ),
+                              }))
+                            }
+                            placeholder="Price"
+                            style={inputStyle}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDraft((current) => ({
+                                ...current,
+                                size_options: current.size_options.filter(
+                                  (row) => row.id !== option.id,
+                                ),
+                              }))
+                            }
+                            style={miniDangerBtnStyle}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))
+                    )}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            size_options: [
+                              ...current.size_options,
+                              {
+                                id: `size-${Date.now()}-${current.size_options.length}`,
+                                size: "",
+                                price: current.price || 0,
+                              },
+                            ],
+                          }))
+                        }
+                        style={miniBtnStyle}
+                      >
+                        + Add size row
+                      </button>
+                      {draft.size_options.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setDraft((current) => ({ ...current, size_options: [] }))}
+                          style={miniDangerBtnStyle}
+                        >
+                          Clear size pricing
+                        </button>
+                      )}
+                    </div>
+                    <span style={fieldHintStyle}>
+                      Example: belts can use S/M/L/XL/2XL with different prices; first-aid kits can
+                      use S/M/L.
+                    </span>
+                  </div>
+                </Field>
                 <Field label="Product image">
                   <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <label

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { PRODUCTS, PKR, type Product } from "./data";
+import { PRODUCTS, PKR, getUnitPrice, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row } from "./ui";
 
@@ -49,12 +49,14 @@ export function CartDrawer({
   const items: CartItem[] = cart
     .map((c) => ({ ...c, p: catalog.find((p) => p.id === c.id) as Product }))
     .filter((x) => x.p);
-  const subtotal = items.reduce((s, x) => s + x.p.price * x.qty, 0);
+  const subtotal = items.reduce((s, x) => s + getUnitPrice(x.p, x.size) * x.qty, 0);
   const shipping = subtotal === 0 ? 0 : subtotal >= 2000 ? 0 : 250;
   const total = subtotal + shipping;
-  const update = (id: string, qty: number) =>
+  const update = (id: string, size: string | undefined, qty: number) =>
     setCart((c) =>
-      qty <= 0 ? c.filter((x) => x.id !== id) : c.map((x) => (x.id === id ? { ...x, qty } : x)),
+      qty <= 0
+        ? c.filter((x) => !(x.id === id && x.size === size))
+        : c.map((x) => (x.id === id && x.size === size ? { ...x, qty } : x)),
     );
 
   return (
@@ -171,9 +173,9 @@ export function CartDrawer({
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {items.map(({ p, qty }) => (
+              {items.map(({ p, qty, size }) => (
                 <div
-                  key={p.id}
+                  key={`${p.id}-${size || "default"}`}
                   style={{
                     display: "grid",
                     gridTemplateColumns: "68px 1fr auto",
@@ -192,6 +194,11 @@ export function CartDrawer({
                     <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 600 }}>
                       {p.brand}
                     </div>
+                    {size && (
+                      <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>
+                        Size: {size}
+                      </div>
+                    )}
                     <div
                       style={{
                         fontSize: 14,
@@ -211,7 +218,7 @@ export function CartDrawer({
                           overflow: "hidden",
                         }}
                       >
-                        <button onClick={() => update(p.id, qty - 1)} style={miniBtn}>
+                        <button onClick={() => update(p.id, size, qty - 1)} style={miniBtn}>
                           {Icons.minus}
                         </button>
                         <div
@@ -225,12 +232,12 @@ export function CartDrawer({
                         >
                           {qty}
                         </div>
-                        <button onClick={() => update(p.id, qty + 1)} style={miniBtn}>
+                        <button onClick={() => update(p.id, size, qty + 1)} style={miniBtn}>
                           {Icons.plus}
                         </button>
                       </div>
                       <button
-                        onClick={() => update(p.id, 0)}
+                        onClick={() => update(p.id, size, 0)}
                         aria-label="Remove"
                         style={{
                           width: 30,
@@ -250,7 +257,7 @@ export function CartDrawer({
                     </div>
                   </div>
                   <div style={{ textAlign: "right", fontWeight: 800, fontSize: 14 }}>
-                    {PKR(p.price * qty)}
+                    {PKR(getUnitPrice(p, size) * qty)}
                   </div>
                 </div>
               ))}
@@ -762,9 +769,9 @@ export function CheckoutContent({
                   Items ({items.length})
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {items.map(({ p, qty }) => (
+                  {items.map(({ p, qty, size }) => (
                     <div
-                      key={p.id}
+                      key={`${p.id}-${size || "default"}`}
                       style={{
                         display: "grid",
                         gridTemplateColumns: "44px 1fr auto",
@@ -780,10 +787,14 @@ export function CheckoutContent({
                           {p.name}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
-                          Qty {qty} · {p.brand}
+                          Qty {qty}
+                          {size ? ` · Size ${size}` : ""}
+                          {p.brand ? ` · ${p.brand}` : ""}
                         </div>
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: 13 }}>{PKR(p.price * qty)}</div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>
+                        {PKR(getUnitPrice(p, size) * qty)}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -815,9 +826,9 @@ export function CheckoutContent({
             Order summary
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-            {items.map(({ p, qty }) => (
+            {items.map(({ p, qty, size }) => (
               <div
-                key={p.id}
+                key={`${p.id}-${size || "default"}`}
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
@@ -826,9 +837,11 @@ export function CheckoutContent({
                 }}
               >
                 <span style={{ color: "var(--ink-2)", flex: 1 }}>
-                  {p.name} <span style={{ color: "var(--ink-4)" }}>× {qty}</span>
+                  {p.name}
+                  {size ? <span style={{ color: "var(--ink-4)" }}>{` (${size})`}</span> : null}
+                  <span style={{ color: "var(--ink-4)" }}> × {qty}</span>
                 </span>
-                <span style={{ fontWeight: 700 }}>{PKR(p.price * qty)}</span>
+                <span style={{ fontWeight: 700 }}>{PKR(getUnitPrice(p, size) * qty)}</span>
               </div>
             ))}
           </div>

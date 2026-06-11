@@ -18,6 +18,7 @@ import {
   type Product,
   type Order,
   type OrderReview,
+  normalizeSizeOptions,
 } from "./data";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
@@ -264,7 +265,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         progress: r.progress,
         address: r.address,
         payment: r.payment,
-        items: (r.items as Array<{ id: string; qty: number }>) || [],
+        items:
+          (r.items as Array<{ id: string; qty: number; size?: string; unit_price?: number }>) || [],
         subtotal: r.subtotal,
         shipping: r.shipping,
         total: r.total,
@@ -394,10 +396,12 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const [cartOpen, setCartOpen] = useState(false);
 
   const addToCart = (p: Product, qty = 1, size?: string) => {
+    const normalizedSize =
+      size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
     setCart((c) => {
-      const i = c.findIndex((x) => x.id === p.id && x.size === size);
+      const i = c.findIndex((x) => x.id === p.id && x.size === normalizedSize);
       if (i >= 0) return c.map((x, idx) => (idx === i ? { ...x, qty: x.qty + qty } : x));
-      return [...c, { id: p.id, qty, ...(size ? { size } : {}) }];
+      return [...c, { id: p.id, qty, ...(normalizedSize ? { size: normalizedSize } : {}) }];
     });
     push(`Added ${p.name} to cart`);
   };
@@ -445,6 +449,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             blurb: r.blurb,
             swatch: r.swatch,
             image_url: r.image_url ?? undefined,
+            size_options: normalizeSizeOptions(
+              Array.isArray(r.size_options)
+                ? (r.size_options as Array<{ size?: string; price?: number }>)
+                : [],
+            ),
           })),
         );
       }

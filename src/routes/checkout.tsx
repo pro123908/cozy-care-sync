@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
 import { useWcm } from "@/wcm/context";
-import { type Order } from "@/wcm/data";
+import { getUnitPrice, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 
@@ -27,10 +27,14 @@ function CheckoutPage() {
 
   const fallbackItems = cart
     .map((line) => ({ ...line, p: products.find((product) => product.id === line.id) }))
-    .filter((item): item is { id: string; qty: number; p: (typeof products)[number] } =>
-      Boolean(item.p),
+    .filter(
+      (item): item is { id: string; qty: number; size?: string; p: (typeof products)[number] } =>
+        Boolean(item.p),
     );
-  const fallbackSubtotal = fallbackItems.reduce((sum, item) => sum + item.p.price * item.qty, 0);
+  const fallbackSubtotal = fallbackItems.reduce(
+    (sum, item) => sum + getUnitPrice(item.p, item.size) * item.qty,
+    0,
+  );
   const fallbackShipping = fallbackSubtotal === 0 ? 0 : fallbackSubtotal >= 2000 ? 0 : 250;
   const fallbackTotal = fallbackSubtotal + fallbackShipping;
 

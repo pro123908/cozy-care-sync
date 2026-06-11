@@ -136,7 +136,7 @@ function AdminOrdersPage() {
   const clearOrderView = () => {
     navigate({
       to: "/admin/orders",
-      search: (prev) => ({ ...prev, orderId: undefined }),
+      search: {},
     });
   };
 
@@ -473,7 +473,7 @@ function AdminOrdersPage() {
                               onClick={() =>
                                 navigate({
                                   to: "/admin/orders",
-                                  search: (prev) => ({ ...prev, orderId: o.id }),
+                                  search: { orderId: o.id },
                                 })
                               }
                               style={miniBtnStyle}
@@ -811,6 +811,13 @@ function OrderDetailsPanel({
                 const prod = productMap.get(item.id);
                 const imgUrl = prod?.image_url || item.image_url;
                 const productName = prod?.name || item.name || item.id || "Item";
+                const itemQty = Number(item.qty) || 1;
+                const unitPrice =
+                  item.unit_price != null
+                    ? Number(item.unit_price)
+                    : item.price != null
+                      ? Number(item.price)
+                      : null;
                 return (
                   <div
                     key={`${item.id || "item"}-${idx}`}
@@ -873,6 +880,14 @@ function OrderDetailsPanel({
                           <div style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 2 }}>
                             {item.id}
                           </div>
+                          {item.size ? (
+                            <div style={{ color: "var(--ink-4)", fontSize: 11, marginTop: 2 }}>
+                              Size:{" "}
+                              <span style={{ fontWeight: 700, color: "var(--ink-3)" }}>
+                                {item.size}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
                       ) : (
                         <span style={{ color: "var(--ink)", fontWeight: 600, minWidth: 0 }}>
@@ -881,12 +896,12 @@ function OrderDetailsPanel({
                       )}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                      {item.price != null && (
+                      {unitPrice != null && (
                         <span style={{ color: "var(--ink-3)", fontWeight: 600 }}>
-                          Rs {Number(item.price).toLocaleString()}
+                          Rs {unitPrice.toLocaleString()}
                         </span>
                       )}
-                      <span style={{ color: "var(--ink-4)" }}>× {item.qty || 1}</span>
+                      <span style={{ color: "var(--ink-4)" }}>× {itemQty}</span>
                     </div>
                   </div>
                 );

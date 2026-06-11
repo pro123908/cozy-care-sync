@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CATEGORIES, PKR, type Product } from "./data";
+import { CATEGORIES, PKR, getUnitPrice, normalizeSizeOptions, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -141,7 +141,13 @@ export function ProductsPage({
     productsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [active, productsLoaded]);
 
-  const cartQtyById = useMemo(() => new Map(cart.map((c) => [c.id, c.qty])), [cart]);
+  const cartQtyById = useMemo(() => {
+    const qtyById = new Map<string, number>();
+    for (const line of cart) {
+      qtyById.set(line.id, (qtyById.get(line.id) || 0) + line.qty);
+    }
+    return qtyById;
+  }, [cart]);
   const storefrontCategories = useMemo(() => {
     const source = categoriesLoaded && categories.length > 0 ? categories : CATEGORIES;
     const counts = products.reduce<Record<string, number>>((acc, product) => {
@@ -709,8 +715,11 @@ export function ProductDetail({
   const isPolysling = product.id === "belt-004";
   const isAbdominalBelt = product.id === "belt-003";
 
+  const sizeOptions = normalizeSizeOptions(product.size_options);
+  const hasDynamicSizeOptions = sizeOptions.length > 0;
   const variantKey =
     [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
+  const resolvedUnitPrice = getUnitPrice(product, selectedSize || undefined);
 
   // Track this product as recently viewed
   useEffect(() => {
@@ -718,7 +727,7 @@ export function ProductDetail({
   }, [product.id, trackView]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const inCart = cart.find((c) => c.id === product.id);
+  const inCart = cart.find((c) => c.id === product.id && (!variantKey || c.size === variantKey));
   const isSaved = wishlist.includes(product.id);
   const cat =
     (categoriesLoaded ? categories : CATEGORIES).find((c) => c.id === product.cat)?.name ||
@@ -743,6 +752,16 @@ export function ProductDetail({
   useEffect(() => {
     setActiveView(0);
   }, [product.id, detailImages.length]);
+
+  useEffect(() => {
+    if (!hasDynamicSizeOptions) {
+      if (!isOrthoBelt) setSelectedSize(null);
+      return;
+    }
+    if (!selectedSize || !sizeOptions.some((option) => option.size === selectedSize)) {
+      setSelectedSize(sizeOptions[0].size);
+    }
+  }, [hasDynamicSizeOptions, isOrthoBelt, selectedSize, sizeOptions]);
 
   const cycleView = (dir: 1 | -1) => {
     if (detailImages.length <= 1) return;
@@ -967,7 +986,7 @@ export function ProductDetail({
                     letterSpacing: -0.4,
                   }}
                 >
-                  {PKR(product.price)}
+                  {PKR(resolvedUnitPrice)}
                 </div>
                 {product.was && (
                   <div
@@ -976,7 +995,9 @@ export function ProductDetail({
                     {PKR(product.was)}
                   </div>
                 )}
-                {product.was && <Pill tone="rose">Save {PKR(product.was - product.price)}</Pill>}
+                {product.was && product.was > resolvedUnitPrice && (
+                  <Pill tone="rose">Save {PKR(product.was - resolvedUnitPrice)}</Pill>
+                )}
               </div>
               <div
                 className="wcm-detail-tax-note"
@@ -1068,32 +1089,120 @@ export function ProductDetail({
               </div>
             </div>
           )}
-          {isOrthoBelt && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
-                Size{selectedSize ? `: ${selectedSize}` : ""}
+          {hasDynamicSizeOptions && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                border: "1px solid var(--line)",
+                borderRadius: 12,
+                background: "var(--bg-elev)",
+                padding: "10px 12px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-2)" }}>
+                  Size{selectedSize ? `: ${selectedSize}` : ""}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                  Select one option
+                </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {(["S", "M", "L", "XL", "XXL", "XXXL"] as const).map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size === selectedSize ? null : size)}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 8,
-                      fontSize: 13,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      border:
-                        selectedSize === size ? "2px solid #0d9488" : "1.5px solid var(--line)",
-                      background: selectedSize === size ? "#f0fdfa" : "var(--card)",
-                      color: selectedSize === size ? "#0f766e" : "var(--ink-3)",
-                      transition: "border-color .12s, background .12s, color .12s",
-                    }}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {sizeOptions.map((option) => {
+                  const isSelected = selectedSize === option.size;
+                  return (
+                    <button
+                      key={option.size}
+                      onClick={() => setSelectedSize(option.size)}
+                      style={{
+                        padding: "7px 12px",
+                        borderRadius: 10,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
+                        background: isSelected ? "#ecfeff" : "var(--card)",
+                        color: isSelected ? "#0f766e" : "var(--ink-3)",
+                        transition: "all .14s ease",
+                        boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      <span>{option.size}</span>
+                      <span style={{ opacity: 0.85, fontWeight: 600 }}>{PKR(option.price)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {!hasDynamicSizeOptions && isOrthoBelt && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                border: "1px solid var(--line)",
+                borderRadius: 12,
+                background: "var(--bg-elev)",
+                padding: "10px 12px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-2)" }}>
+                  Size{selectedSize ? `: ${selectedSize}` : ""}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                  Select one option
+                </div>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(["S", "M", "L", "XL", "XXL", "XXXL"] as const).map((size) => {
+                  const isSelected = selectedSize === size;
+                  return (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size === selectedSize ? null : size)}
+                      style={{
+                        padding: "7px 12px",
+                        borderRadius: 10,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
+                        background: isSelected ? "#ecfeff" : "var(--card)",
+                        color: isSelected ? "#0f766e" : "var(--ink-3)",
+                        transition: "all .14s ease",
+                        boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
+                        minWidth: 52,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1140,7 +1249,7 @@ export function ProductDetail({
               onClick={() => addToCart(product, qty, variantKey)}
               style={{ minHeight: 50 }}
             >
-              {inCart ? "Update cart" : "Add to cart"} · {PKR(product.price * qty)}
+              {inCart ? "Update cart" : "Add to cart"} · {PKR(resolvedUnitPrice * qty)}
             </Btn>
             <Btn
               variant="outline"
@@ -1230,7 +1339,7 @@ export function ProductDetail({
                 minHeight: 44,
               }}
             >
-              {(inCart ? "Update cart" : "Add to cart") + " · " + PKR(product.price * qty)}
+              {(inCart ? "Update cart" : "Add to cart") + " · " + PKR(resolvedUnitPrice * qty)}
             </button>
           </div>
           {hasMultipleImages && (
