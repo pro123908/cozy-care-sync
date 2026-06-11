@@ -5,6 +5,25 @@ import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 
+function getSeoSuffix(cat?: string) {
+  switch (cat) {
+    case "glucometers":
+      return "Blood Glucose Meter";
+    case "bp-digital":
+      return "Digital Blood Pressure Monitor";
+    case "bp-manual":
+      return "Manual BP Apparatus";
+    case "weight-scale":
+      return "Weight Scale";
+    case "nebulizer":
+      return "Nebulizer";
+    case "orthobelts-supports":
+      return "Orthobelt";
+    default:
+      return "Medical Product";
+  }
+}
+
 const ProductDetail = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductDetail })),
 );
@@ -20,17 +39,25 @@ export const Route = createFileRoute("/products/$productId")({
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
     const productName = p?.name || readableFallbackName || "Product";
-    const description = p?.blurb?.trim() || `${productName} at Wellcare Mart.`;
+    const seoSuffix = getSeoSuffix(p?.cat);
+    const seoTitle = `${productName} ${seoSuffix} — Wellcare Mart`;
+    const description =
+      p?.blurb?.trim() ||
+      `${productName} ${seoSuffix} available at Wellcare Mart with trusted delivery across Pakistan.`;
+    const canonical = `https://wellcaremart.pk/products/${params.productId}`;
 
     return {
-      title: `${productName} — Wellcare Mart`,
+      title: seoTitle,
       meta: [
-        { title: `${productName} — Wellcare Mart` },
+        { title: seoTitle },
         { name: "description", content: description },
-        { property: "og:title", content: `${productName} — Wellcare Mart` },
+        { property: "og:title", content: seoTitle },
         { property: "og:description", content: description },
+        { property: "og:url", content: canonical },
         { name: "twitter:title", content: `${productName} — Wellcare Mart` },
         { name: "twitter:description", content: description },
+        { name: "keywords", content: `${productName}, ${seoSuffix}, Wellcare Mart, Pakistan` },
+        { name: "robots", content: "index, follow" },
       ],
     };
   },
@@ -79,6 +106,34 @@ function ProductPage() {
 
   return (
     <Suspense fallback={<WellcareLoader label="Loading product" compact />}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: `${product.name} ${getSeoSuffix(product.cat)}`,
+            alternateName: product.name,
+            description:
+              product.blurb || `${product.name} ${getSeoSuffix(product.cat)} at Wellcare Mart.`,
+            brand: product.brand || undefined,
+            sku: product.id,
+            category: product.category_name || product.cat,
+            url: `https://wellcaremart.pk/products/${product.id}`,
+            image: product.image_url ? [product.image_url] : undefined,
+            offers: {
+              "@type": "Offer",
+              url: `https://wellcaremart.pk/products/${product.id}`,
+              priceCurrency: "PKR",
+              price: product.price,
+              availability:
+                product.stock === "Out of stock"
+                  ? "https://schema.org/OutOfStock"
+                  : "https://schema.org/InStock",
+            },
+          }),
+        }}
+      />
       <ProductDetail
         product={product}
         cart={cart}
