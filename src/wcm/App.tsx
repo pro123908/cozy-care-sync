@@ -339,10 +339,16 @@ function Header({
   onSignIn: () => void;
   onSignOut: () => Promise<void>;
 }) {
+  const announcementSlides = [
+    { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
+    { icon: "🚚", text: "Free delivery in Karachi", chip: "KHI" },
+    { icon: "🏷", text: "Flat 20% off on all items", chip: "SALE" },
+  ];
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { wishlist, products } = useWcm();
@@ -368,6 +374,13 @@ function Header({
     const t = setTimeout(() => setDebouncedSearch(search), 200);
     return () => clearTimeout(t);
   }, [search]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setAnnouncementIndex((current) => (current + 1) % announcementSlides.length);
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, [announcementSlides.length]);
 
   const results = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
@@ -431,12 +444,104 @@ function Header({
           background: "var(--grad)",
           color: "#fff",
           fontSize: 12.5,
-          padding: "7px 14px",
+          padding: "8px 14px",
           textAlign: "center",
           letterSpacing: 0.2,
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        🚚 Free delivery in Karachi on orders above Rs 5,000
+        <style>{`@keyframes wcmTopBarSlide{0%{opacity:0;transform:translateY(8px) scale(.985)}14%{opacity:1;transform:translateY(0) scale(1)}86%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(.99)}}`}</style>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "radial-gradient(220px 56px at 15% 0%, rgba(255,255,255,.22), transparent), radial-gradient(260px 70px at 90% 100%, rgba(255,255,255,.14), transparent)",
+            pointerEvents: "none",
+          }}
+        />
+        <div
+          key={`announcement-${announcementIndex}`}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            maxWidth: "100%",
+            animation: "wcmTopBarSlide 2.6s ease",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minWidth: 22,
+              height: 22,
+              borderRadius: 999,
+              background: "rgba(255,255,255,.2)",
+              border: "1px solid rgba(255,255,255,.45)",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,.25)",
+            }}
+            aria-hidden="true"
+          >
+            {announcementSlides[announcementIndex].icon}
+          </span>
+          <span
+            style={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.55,
+            }}
+          >
+            {announcementSlides[announcementIndex].text}
+          </span>
+          <span
+            style={{
+              padding: "2px 7px",
+              borderRadius: 999,
+              background: "rgba(15,23,42,.28)",
+              border: "1px solid rgba(255,255,255,.45)",
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: 0.6,
+              lineHeight: 1.2,
+            }}
+          >
+            {announcementSlides[announcementIndex].chip}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "inline-flex",
+            gap: 5,
+            alignItems: "center",
+            marginLeft: 10,
+            position: "relative",
+            zIndex: 1,
+            verticalAlign: "middle",
+          }}
+          aria-hidden="true"
+        >
+          {announcementSlides.map((slide, idx) => (
+            <span
+              key={slide.chip}
+              style={{
+                width: idx === announcementIndex ? 18 : 6,
+                height: 6,
+                borderRadius: 999,
+                background: idx === announcementIndex ? "#fff" : "rgba(255,255,255,.45)",
+                transition: "all .25s ease",
+              }}
+            />
+          ))}
+        </div>
       </div>
       <header
         style={{

@@ -355,6 +355,20 @@ export function ProductCard({
   const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
+  const resolvedReviewCount = reviewCount || p.reviews;
+  const resolvedRating = Number(userRating || p.rating || 0);
+  const showReviewSummary = resolvedReviewCount > 0;
+  const curatedTag = p.tags.find((tag) => ["Best seller", "Top rated", "Deal"].includes(tag));
+  const primaryTag =
+    (p.sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? "🔥 Hot" : curatedTag || "";
+  const primaryTagTone =
+    primaryTag === "Best seller" || primaryTag === "🔥 Hot"
+      ? "green"
+      : primaryTag === "Top rated"
+        ? "blue"
+        : primaryTag === "Deal"
+          ? "rose"
+          : "slate";
   const removeOneFromCart = () => {
     setCart((current) => {
       const index = current.findIndex((line) => line.id === p.id);
@@ -488,30 +502,33 @@ export function ProductCard({
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 3, flex: 1 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          {(p.sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? (
-            <Pill tone="green">🔥 Hot</Pill>
-          ) : (
-            p.tags.slice(0, 1).map((t) => (
-              <Pill
-                key={t}
-                tone={
-                  t === "Best seller"
-                    ? "green"
-                    : t === "Top rated"
-                      ? "blue"
-                      : t === "Deal"
-                        ? "rose"
-                        : "slate"
-                }
-              >
-                {t}
-              </Pill>
-            ))
-          )}
-          <span style={{ fontSize: compact ? 10 : 11, color: "var(--ink-4)", fontWeight: 600 }}>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", minHeight: 24 }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: compact ? "2px 8px" : "3px 10px",
+              borderRadius: 999,
+              background: "var(--chip-2)",
+              border: "1px solid var(--line)",
+              fontSize: compact ? 10 : 11,
+              color: "var(--ink-3)",
+              fontWeight: 700,
+              letterSpacing: 0.15,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              minWidth: 0,
+              maxWidth: "100%",
+              textTransform: "capitalize",
+              lineHeight: 1.15,
+            }}
+          >
             {p.brand}
           </span>
+          {primaryTag ? <Pill tone={primaryTagTone}>{primaryTag}</Pill> : null}
         </div>
         <div
           style={{
@@ -527,19 +544,37 @@ export function ProductCard({
         >
           {p.name}
         </div>
-        <div
+        {showReviewSummary && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: compact ? 5 : 6,
+              fontSize: compact ? 11 : 11.5,
+              color: "var(--ink-4)",
+            }}
+          >
+            <Stars value={resolvedRating} size={12} />
+            <span style={{ fontWeight: 700 }}>{resolvedRating.toFixed(1)}</span>
+            <span>·</span>
+            <span>{resolvedReviewCount} reviews</span>
+          </div>
+        )}
+        <span
           style={{
-            display: "flex",
-            alignItems: "center",
-            gap: compact ? 5 : 6,
-            fontSize: compact ? 11 : 11.5,
-            color: "var(--ink-4)",
+            position: "absolute",
+            width: 1,
+            height: 1,
+            margin: -1,
+            padding: 0,
+            border: 0,
+            overflow: "hidden",
+            clip: "rect(0 0 0 0)",
+            whiteSpace: "nowrap",
           }}
         >
-          <Stars value={userRating || p.rating} size={12} />
-          <span>·</span>
-          <span>{reviewCount || p.reviews} reviews</span>
-        </div>
+          {`${p.name}. Brand ${p.brand}. Category ${p.category_name || p.cat}. Rated ${resolvedRating.toFixed(1)} out of 5 from ${resolvedReviewCount} reviews.`}
+        </span>
       </div>
       <div
         style={{
