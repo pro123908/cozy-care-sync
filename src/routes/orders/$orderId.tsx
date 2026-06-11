@@ -47,7 +47,14 @@ function OrderDetailPage() {
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>
           Sign in to view this order
         </div>
-        <Btn onClick={() => setAuthOpen(true)}>Sign in</Btn>
+        <div
+          style={{ display: "inline-flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}
+        >
+          <Btn onClick={() => setAuthOpen(true)}>Sign in</Btn>
+          <Btn variant="outline" onClick={() => navigate({ to: "/track-order" })}>
+            Track guest order
+          </Btn>
+        </div>
       </div>
     );
   }

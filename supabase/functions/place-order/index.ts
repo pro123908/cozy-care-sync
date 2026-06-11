@@ -91,24 +91,25 @@ Deno.serve(async (req: Request) => {
   }
 
   // ------------------------------------------------------------------
-  // 1. Verify caller is authenticated using their JWT
+  // 1. Optionally verify caller JWT (guest checkout is allowed)
   // ------------------------------------------------------------------
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return json({ error: "Unauthorised" }, 401, origin);
-  }
-  const jwt = authHeader.slice(7);
-
-  // Use the service-role client to verify the JWT
   const serviceClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const {
-    data: { user },
-    error: authErr,
-  } = await serviceClient.auth.getUser(jwt);
-  if (authErr || !user) {
-    return json({ error: "Unauthorised" }, 401, origin);
+
+  let userId: string | null = null;
+  const authHeader = req.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const jwt = authHeader.slice(7);
+    const {
+      data: { user },
+      error: authErr,
+    } = await serviceClient.auth.getUser(jwt);
+
+    // If token is invalid/expired, gracefully continue as guest checkout.
+    if (!authErr && user) {
+      userId = user.id;
+    }
   }
 
   // ------------------------------------------------------------------
@@ -200,7 +201,8 @@ Deno.serve(async (req: Request) => {
   }));
 
   const { error: insertErr } = await serviceClient.from("orders").insert({
-    user_id: user.id,
+    user_id: userId,
+    email: ship.email,
     order_code: orderId,
     placed: fmtDate(today),
     eta: fmtDate(eta),
@@ -241,6 +243,7 @@ Deno.serve(async (req: Request) => {
         progress: 0,
         address: `${ship.address}, ${ship.city}`,
         phone: ship.phone,
+        email: ship.email,
         payment: pay,
         items: orderItems,
         subtotal,

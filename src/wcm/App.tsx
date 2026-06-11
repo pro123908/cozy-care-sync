@@ -180,12 +180,6 @@ function AppLayout() {
   const navigate = useNavigate();
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
-    if (!user) {
-      setCartOpen(false);
-      push("Please sign in to continue checkout.", { tone: "orange" });
-      setAuthOpen(true);
-      return;
-    }
     setCartOpen(false);
     setCheckoutData({ items, subtotal, shipping, total });
     navigate({ to: "/checkout" });
@@ -275,14 +269,15 @@ function WhatsAppFloatingChat() {
       style={{
         position: "fixed",
         right: 16,
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 78px)",
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
         zIndex: 70,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 10,
+        gap: 0,
         minHeight: 52,
-        padding: "0 14px",
+        minWidth: 52,
+        padding: 0,
         borderRadius: 999,
         border: "none",
         background: "linear-gradient(135deg, #25d366 0%, #128c7e 100%)",
@@ -301,7 +296,6 @@ function WhatsAppFloatingChat() {
           style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
         />
       </span>
-      <span>WhatsApp</span>
     </button>
   );
 }

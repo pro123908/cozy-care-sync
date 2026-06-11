@@ -91,7 +91,7 @@ function AdminOrdersPage() {
       const queryMatch =
         !q ||
         o.order_code.toLowerCase().includes(q) ||
-        o.user_id.toLowerCase().includes(q) ||
+        (o.user_id || "").toLowerCase().includes(q) ||
         (o.phone || "").toLowerCase().includes(q) ||
         o.status.toLowerCase().includes(q);
 
@@ -457,7 +457,7 @@ function AdminOrdersPage() {
                           />
                         </td>
                         <td style={tdStyle}>{o.order_code}</td>
-                        <td style={tdStyle}>{o.user_id.slice(0, 8)}…</td>
+                        <td style={tdStyle}>{o.user_id ? `${o.user_id.slice(0, 8)}…` : "Guest"}</td>
                         <td style={tdStyle}>{o.phone || "-"}</td>
                         <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
                         <td style={tdStyle}>

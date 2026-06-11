@@ -2,3 +2,9 @@ project_id = "dkspvlpswpipltceptoa"
 
 [functions.whatsapp-product-import]
 verify_jwt = false
+
+[functions.place-order]
+verify_jwt = false
+
+[functions.guest-order-lookup]
+verify_jwt = false

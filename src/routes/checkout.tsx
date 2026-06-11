@@ -19,17 +19,8 @@ export const Route = createFileRoute("/checkout")({
 });
 
 function CheckoutPage() {
-  const {
-    checkoutData,
-    setCheckoutData,
-    user,
-    setAuthOpen,
-    setCart,
-    setOrders,
-    push,
-    cart,
-    products,
-  } = useWcm();
+  const { checkoutData, setCheckoutData, user, setCart, setOrders, push, cart, products } =
+    useWcm();
   const navigate = useNavigate();
 
   const [placing, setPlacing] = useState(false);
@@ -61,11 +52,6 @@ function CheckoutPage() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) {
-        push("Please sign in to continue checkout.", { tone: "orange" });
-        setAuthOpen(true);
-        return;
-      }
 
       // Prices are NOT trusted from the client — the edge function re-fetches
       // product prices from the DB and recomputes subtotal/shipping/total.
@@ -82,12 +68,16 @@ function CheckoutPage() {
         promo_code: data.promo_code,
       };
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (user && session?.access_token) {
+        headers.Authorization = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/place-order`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -112,10 +102,26 @@ function CheckoutPage() {
       }
 
       const newOrder: Order = payload.order;
-      setOrders((o) => [newOrder, ...o]);
       setCart([]);
       setCheckoutData(null);
-      navigate({ to: "/orders/$orderId", params: { orderId: newOrder.id } });
+
+      if (session?.user) {
+        setOrders((o) => [newOrder, ...o]);
+        navigate({ to: "/orders/$orderId", params: { orderId: newOrder.id } });
+      } else {
+        try {
+          const raw = localStorage.getItem("wcm-guest-orders");
+          const existing = raw ? (JSON.parse(raw) as Order[]) : [];
+          const nextOrders = [newOrder, ...existing.filter((order) => order.id !== newOrder.id)];
+          localStorage.setItem("wcm-guest-orders", JSON.stringify(nextOrders));
+          localStorage.setItem(
+            "wcm-guest-order",
+            JSON.stringify({ orderId: newOrder.id, phone: data.ship.phone }),
+          );
+        } catch {}
+        push(`Order placed successfully. Your order ID is ${newOrder.id}.`, { tone: "green" });
+        navigate({ to: "/orders" });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       push(`Could not place order. ${message}`);

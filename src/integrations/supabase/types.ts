@@ -106,6 +106,7 @@ export type Database = {
           id: string;
           items: Json;
           order_code: string;
+          email: string | null;
           phone: string | null;
           payment: string;
           placed: string;
@@ -115,7 +116,7 @@ export type Database = {
           status: string;
           subtotal: number;
           total: number;
-          user_id: string;
+          user_id: string | null;
         };
         Insert: {
           address: string;
@@ -124,6 +125,7 @@ export type Database = {
           id?: string;
           items?: Json;
           order_code: string;
+          email?: string | null;
           phone?: string | null;
           payment: string;
           placed: string;
@@ -133,7 +135,7 @@ export type Database = {
           status?: string;
           subtotal?: number;
           total?: number;
-          user_id: string;
+          user_id?: string | null;
         };
         Update: {
           address?: string;
@@ -142,6 +144,7 @@ export type Database = {
           id?: string;
           items?: Json;
           order_code?: string;
+          email?: string | null;
           phone?: string | null;
           payment?: string;
           placed?: string;
@@ -151,7 +154,7 @@ export type Database = {
           status?: string;
           subtotal?: number;
           total?: number;
-          user_id?: string;
+          user_id?: string | null;
         };
         Relationships: [];
       };

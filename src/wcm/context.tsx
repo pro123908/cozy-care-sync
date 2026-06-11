@@ -78,7 +78,7 @@ type WcmContextType = {
   orders: Order[];
   setOrders: Dispatch<SetStateAction<Order[]>>;
   ordersLoaded: boolean;
-  loadOrders: (userId: string) => Promise<void>;
+  loadOrders: (userId: string, email?: string) => Promise<void>;
   submitOrderReview: (
     orderId: string,
     productId: string,
@@ -194,14 +194,22 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
   const { push, Toaster } = useToasts();
 
-  const loadOrders = useCallback(async (userId: string) => {
+  const loadOrders = useCallback(async (userId: string, email?: string) => {
     const supabase = await getSupabase();
-    const [ordersRes, reviewsRes] = await Promise.all([
+    const [ordersRes, guestOrdersRes, reviewsRes] = await Promise.all([
       supabase
         .from("orders")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
+      email
+        ? supabase
+            .from("orders")
+            .select("*")
+            .eq("email", email)
+            .is("user_id", null)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: null, error: null }),
       supabase
         .from("order_reviews")
         .select("order_code, product_id, rating, comment")
@@ -209,6 +217,19 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     ]);
     setOrdersLoaded(true);
     if (ordersRes.error || !ordersRes.data) return;
+
+    const mergedOrders = [...ordersRes.data];
+    if (!guestOrdersRes.error && guestOrdersRes.data) {
+      const existingCodes = new Set(mergedOrders.map((order) => order.order_code));
+      for (const guestOrder of guestOrdersRes.data) {
+        if (!existingCodes.has(guestOrder.order_code)) {
+          mergedOrders.push(guestOrder);
+        }
+      }
+      mergedOrders.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
 
     let reviewsData = reviewsRes.data || [];
     if (reviewsRes.error) {
@@ -235,7 +256,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       reviewMap[r.order_code][r.product_id] = { rating: r.rating, comment: r.comment || "" };
     }
     setOrders(
-      ordersRes.data.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
+      mergedOrders.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
         id: r.order_code,
         placed: r.placed,
         eta: r.eta,
@@ -322,7 +343,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             const role =
               (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
             setUser({ firstName, lastName, email: sUser.email || "", initials, role });
-            loadOrders(sUser.id);
+            loadOrders(sUser.id, sUser.email || prof?.email || undefined);
           }, 0);
         },
       );
@@ -352,7 +373,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
         const role = (prof as { role?: "customer" | "staff" | "admin" } | null)?.role || "customer";
         setUser({ firstName, lastName, email: sUser.email || "", initials, role });
-        loadOrders(sUser.id);
+        loadOrders(sUser.id, sUser.email || prof?.email || undefined);
       } else {
         setOrdersLoaded(true);
       }

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WishlistRouteImport } from './routes/wishlist'
+import { Route as TrackOrderRouteImport } from './routes/track-order'
 import { Route as ProductsRouteImport } from './routes/products'
 import { Route as PrescriptionRouteImport } from './routes/prescription'
 import { Route as PoliciesRouteImport } from './routes/policies'
@@ -34,6 +35,11 @@ import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 const WishlistRoute = WishlistRouteImport.update({
   id: '/wishlist',
   path: '/wishlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackOrderRoute = TrackOrderRouteImport.update({
+  id: '/track-order',
+  path: '/track-order',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsRoute = ProductsRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
   '/products': typeof ProductsRouteWithChildren
+  '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
   '/products': typeof ProductsRouteWithChildren
+  '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
   '/products': typeof ProductsRouteWithChildren
+  '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/prescriptions': typeof AdminPrescriptionsRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/prescription'
     | '/products'
+    | '/track-order'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/prescription'
     | '/products'
+    | '/track-order'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/prescription'
     | '/products'
+    | '/track-order'
     | '/wishlist'
     | '/admin/orders'
     | '/admin/prescriptions'
@@ -290,6 +302,7 @@ export interface RootRouteChildren {
   PoliciesRoute: typeof PoliciesRoute
   PrescriptionRoute: typeof PrescriptionRoute
   ProductsRoute: typeof ProductsRouteWithChildren
+  TrackOrderRoute: typeof TrackOrderRoute
   WishlistRoute: typeof WishlistRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPrescriptionsRoute: typeof AdminPrescriptionsRoute
@@ -309,6 +322,13 @@ declare module '@tanstack/react-router' {
       path: '/wishlist'
       fullPath: '/wishlist'
       preLoaderRoute: typeof WishlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track-order': {
+      id: '/track-order'
+      path: '/track-order'
+      fullPath: '/track-order'
+      preLoaderRoute: typeof TrackOrderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products': {
@@ -477,6 +497,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoliciesRoute: PoliciesRoute,
   PrescriptionRoute: PrescriptionRoute,
   ProductsRoute: ProductsRouteWithChildren,
+  TrackOrderRoute: TrackOrderRoute,
   WishlistRoute: WishlistRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPrescriptionsRoute: AdminPrescriptionsRoute,
