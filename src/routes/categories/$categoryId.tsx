@@ -133,8 +133,8 @@ function CategoryProductsPage() {
               letterSpacing: 0.25,
               textTransform: "uppercase",
               color: "#fff",
-              background: "linear-gradient(135deg, #ef4444, #b91c1c)",
-              boxShadow: "0 8px 16px -10px rgba(127, 29, 29, 0.85)",
+              background: "var(--grad)",
+              boxShadow: "0 8px 16px -10px rgba(37, 99, 235, 0.45)",
             }}
           >
             Flat 20% off
