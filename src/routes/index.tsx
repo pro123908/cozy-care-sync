@@ -2,6 +2,7 @@ import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
+import { getProductSeoPathSegment } from "@/wcm/data";
 
 const ProductsPage = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductsPage })),
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/")({
 });
 
 function IndexPage() {
-  const { addToCart, cart } = useWcm();
+  const { addToCart, cart, products } = useWcm();
   const navigate = useNavigate();
   const { category } = useSearch({ from: "/" });
   return (
@@ -49,7 +50,12 @@ function IndexPage() {
             resetScroll: false,
           })
         }
-        openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
+        openProduct={(p) =>
+          navigate({
+            to: "/products/$productId",
+            params: { productId: getProductSeoPathSegment(p, products) },
+          })
+        }
         goTo={(pg: string) =>
           navigate({
             to: pg === "orders" ? "/orders" : "/",

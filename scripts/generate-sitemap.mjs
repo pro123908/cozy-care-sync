@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import { PRODUCTS } from "../src/wcm/data.ts";
+import { PRODUCTS, getProductSeoPathSegment } from "../src/wcm/data.ts";
 
 const baseUrl = "https://wellcaremart.pk";
 const today = new Date().toISOString().slice(0, 10);
@@ -17,7 +17,7 @@ const staticUrls = [
 ];
 
 const productUrls = PRODUCTS.map((product) => ({
-  loc: `${baseUrl}/products/${product.id}`,
+  loc: `${baseUrl}/products/${getProductSeoPathSegment(product, PRODUCTS)}`,
   priority: "0.9",
 }));
 

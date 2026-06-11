@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { PKR } from "@/wcm/data";
+import { PKR, getProductSeoPathSegment } from "@/wcm/data";
 import { Icons } from "@/wcm/icons";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
@@ -147,7 +147,10 @@ function DealsPage() {
               p={p}
               onAdd={addToCart}
               onOpen={(prod) =>
-                navigate({ to: "/products/$productId", params: { productId: prod.id } })
+                navigate({
+                  to: "/products/$productId",
+                  params: { productId: getProductSeoPathSegment(prod, products) },
+                })
               }
               cartQty={cartQtyById.get(p.id) ?? 0}
               compact={isMobile}

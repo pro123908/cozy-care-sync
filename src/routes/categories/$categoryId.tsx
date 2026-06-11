@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CATEGORIES } from "@/wcm/data";
+import { CATEGORIES, getProductSeoPathSegment } from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
@@ -195,7 +195,10 @@ function CategoryProductsPage() {
               p={product}
               onAdd={addToCart}
               onOpen={(prod) =>
-                navigate({ to: "/products/$productId", params: { productId: prod.id } })
+                navigate({
+                  to: "/products/$productId",
+                  params: { productId: getProductSeoPathSegment(prod, products) },
+                })
               }
               cartQty={cartQtyById.get(product.id) ?? 0}
               compact={isMobile}

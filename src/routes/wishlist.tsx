@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { PKR } from "@/wcm/data";
+import { PKR, getProductSeoPathSegment } from "@/wcm/data";
 import { ProductImage, Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 
@@ -106,7 +106,10 @@ function WishlistPage() {
               <button
                 key={`ws-suggest-${product.id}`}
                 onClick={() =>
-                  navigate({ to: "/products/$productId", params: { productId: product.id } })
+                  navigate({
+                    to: "/products/$productId",
+                    params: { productId: getProductSeoPathSegment(product, products) },
+                  })
                 }
                 style={{
                   border: "1px solid var(--line)",
@@ -148,7 +151,10 @@ function WishlistPage() {
               <div
                 style={{ position: "relative", cursor: "pointer" }}
                 onClick={() =>
-                  navigate({ to: "/products/$productId", params: { productId: p.id } })
+                  navigate({
+                    to: "/products/$productId",
+                    params: { productId: getProductSeoPathSegment(p, products) },
+                  })
                 }
               >
                 <ProductImage product={p} />

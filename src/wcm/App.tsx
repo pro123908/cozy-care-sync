@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
+import { getProductSeoPathSegment } from "./data";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
 const OrderSuccess = lazy(() => import("./orders").then((m) => ({ default: m.OrderSuccess })));
@@ -427,7 +428,11 @@ function Header({
   const goProduct = (id: string) => {
     if (search.trim()) persistRecentSearch(search);
     clearSearch();
-    navigate({ to: "/products/$productId", params: { productId: id } });
+    const matched = products.find((product) => product.id === id);
+    navigate({
+      to: "/products/$productId",
+      params: { productId: matched ? getProductSeoPathSegment(matched, products) : id },
+    });
   };
 
   const applySearchSuggestion = (term: string) => {

@@ -5,6 +5,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
+import { getProductSeoPathSegment } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -812,6 +813,7 @@ function OrderDetailsPanel({
                 const prod = productMap.get(item.id);
                 const imgUrl = prod?.image_url || item.image_url;
                 const productName = prod?.name || item.name || item.id || "Item";
+                const productRouteParam = prod ? getProductSeoPathSegment(prod, products) : item.id;
                 const itemQty = Number(item.qty) || 1;
                 const unitPrice =
                   item.unit_price != null
@@ -868,7 +870,7 @@ function OrderDetailsPanel({
                         <div style={{ minWidth: 0 }}>
                           <Link
                             to="/products/$productId"
-                            params={{ productId: item.id }}
+                            params={{ productId: productRouteParam }}
                             style={{
                               color: "var(--ink)",
                               fontWeight: 700,

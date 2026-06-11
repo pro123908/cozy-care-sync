@@ -132,6 +132,74 @@ export function getDisplayPrice(product: Product): number {
   return Math.min(...options.map((option) => option.price));
 }
 
+function slugifySegment(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
+export function getProductSeoPathSegment(product: Product, allProducts?: Product[]): string {
+  const nameSlug = slugifySegment(product.name);
+  const idSlug = slugifySegment(product.id);
+  const baseSlug = nameSlug || idSlug;
+  if (!baseSlug) return "product";
+
+  if (!allProducts || allProducts.length === 0) {
+    return baseSlug;
+  }
+
+  const sameBase = [...allProducts]
+    .filter((candidate) => {
+      const candidateBase = slugifySegment(candidate.name) || slugifySegment(candidate.id);
+      return candidateBase === baseSlug;
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  if (sameBase.length <= 1) {
+    return baseSlug;
+  }
+
+  const index = sameBase.findIndex((candidate) => candidate.id === product.id);
+  if (index < 0) {
+    return baseSlug;
+  }
+
+  if (index === 0) {
+    return baseSlug;
+  }
+
+  return `${baseSlug}-${index + 1}`;
+}
+
+export function resolveProductIdFromParam(
+  rawParam: string,
+  products: Product[],
+): string | undefined {
+  const normalized = rawParam.trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  const exact = products.find((product) => product.id.toLowerCase() === normalized);
+  if (exact) return exact.id;
+
+  const byNameSlug = [...products]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .find((product) => normalized === getProductSeoPathSegment(product, products));
+  if (byNameSlug) return byNameSlug.id;
+
+  // Backward compatibility for older id-slug and name-id-slug URLs.
+  const byLegacyIdSlug = products.find((product) => {
+    const idSlug = slugifySegment(product.id);
+    if (!idSlug) return false;
+    return normalized === idSlug || normalized.endsWith(`-${idSlug}`);
+  });
+
+  return byLegacyIdSlug?.id;
+}
+
 export const PRODUCTS: Product[] = [
   // Glucometers
   {

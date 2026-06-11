@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PRODUCTS } from "@/wcm/data";
+import { PRODUCTS, getProductSeoPathSegment, resolveProductIdFromParam } from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
@@ -31,8 +31,8 @@ const ProductDetail = lazy(() =>
 export const Route = createFileRoute("/products/$productId")({
   component: ProductPage,
   head: ({ params }: { params: { productId: string } }) => {
-    const normalizedId = params.productId.trim().toLowerCase();
-    const p = PRODUCTS.find((x) => x.id.toLowerCase() === normalizedId);
+    const resolvedId = resolveProductIdFromParam(params.productId, PRODUCTS);
+    const p = resolvedId ? PRODUCTS.find((x) => x.id === resolvedId) : undefined;
     const readableFallbackName = params.productId
       .split("-")
       .filter(Boolean)
@@ -44,7 +44,8 @@ export const Route = createFileRoute("/products/$productId")({
     const description =
       p?.blurb?.trim() ||
       `${productName} ${seoSuffix} available at Wellcare Mart with trusted delivery across Pakistan.`;
-    const canonical = `https://wellcaremart.pk/products/${params.productId}`;
+    const canonicalPath = p ? getProductSeoPathSegment(p, PRODUCTS) : params.productId;
+    const canonical = `https://wellcaremart.pk/products/${canonicalPath}`;
 
     return {
       title: seoTitle,
@@ -67,8 +68,12 @@ function ProductPage() {
   const { productId } = Route.useParams();
   const { addToCart, cart, products, productsLoaded } = useWcm();
   const navigate = useNavigate();
+  const resolvedProductId =
+    resolveProductIdFromParam(productId, products) ||
+    resolveProductIdFromParam(productId, PRODUCTS);
   const product =
-    products.find((p) => p.id === productId) || PRODUCTS.find((p) => p.id === productId);
+    (resolvedProductId ? products.find((p) => p.id === resolvedProductId) : undefined) ||
+    (resolvedProductId ? PRODUCTS.find((p) => p.id === resolvedProductId) : undefined);
 
   useEffect(() => {
     const readableFallbackName = productId
@@ -119,11 +124,11 @@ function ProductPage() {
             brand: product.brand || undefined,
             sku: product.id,
             category: product.category_name || product.cat,
-            url: `https://wellcaremart.pk/products/${product.id}`,
+            url: `https://wellcaremart.pk/products/${getProductSeoPathSegment(product, PRODUCTS)}`,
             image: product.image_url ? [product.image_url] : undefined,
             offers: {
               "@type": "Offer",
-              url: `https://wellcaremart.pk/products/${product.id}`,
+              url: `https://wellcaremart.pk/products/${getProductSeoPathSegment(product, PRODUCTS)}`,
               priceCurrency: "PKR",
               price: product.price,
               availability:
@@ -139,7 +144,12 @@ function ProductPage() {
         cart={cart}
         addToCart={addToCart}
         onClose={() => navigate({ to: "/" })}
-        openProduct={(p) => navigate({ to: "/products/$productId", params: { productId: p.id } })}
+        openProduct={(p) =>
+          navigate({
+            to: "/products/$productId",
+            params: { productId: getProductSeoPathSegment(p, PRODUCTS) },
+          })
+        }
       />
     </Suspense>
   );
