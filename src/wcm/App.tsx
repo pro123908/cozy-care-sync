@@ -252,8 +252,8 @@ function AppLayout() {
 }
 
 function WhatsAppFloatingChat() {
-  const phone = import.meta.env.VITE_WHATSAPP_NUMBER || "923001234567";
-  const message = "Hi, I need support with my order.";
+  const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
+  const message = "Hi, I'd like to inquire about your products.";
 
   const openWhatsApp = () => {
     const cleanPhone = phone.replace(/\D/g, "");
@@ -883,7 +883,7 @@ function Header({
             {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
             <button
               onClick={() => {
-                const phone = "923001234567"; // Replace with actual WhatsApp number
+                const phone = "923291557509"; // Replace with actual WhatsApp number
                 const message = "Hi, I'd like to inquire about your products.";
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
                 window.open(url, "_blank");
