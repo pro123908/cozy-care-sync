@@ -589,7 +589,11 @@ function Header({
               alignItems: "center",
             }}
           >
-            <WellcareWordmark height={24} />
+            <img
+              src="/logo_updated.png"
+              alt="Wellcare Mart"
+              style={{ height: 38, width: "auto", display: "block" }}
+            />
           </button>
 
           <div className="wcm-header-mid">

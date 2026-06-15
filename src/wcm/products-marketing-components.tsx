@@ -176,6 +176,14 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   }, [active, banners.length]);
 
   useEffect(() => {
+    if (banners.length < 2) return;
+    const timer = window.setInterval(() => {
+      setActive((current) => (current + 1) % banners.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, [banners.length]);
+
+  useEffect(() => {
     if (!imageOnlyBannerEnabled) return;
     setSlideTick((current) => current + 1);
   }, [active, imageOnlyBannerEnabled]);
