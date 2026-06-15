@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import { Icons, WellcareLogo } from "./icons";
 import { WellcareInlineLoader } from "./loader";
 import { Btn, TextField } from "./ui";
@@ -85,6 +86,12 @@ export function AuthModal({
           setErrs({ password: error.message });
           return;
         }
+
+        trackMetaEvent("CompleteRegistration", {
+          content_name: "Account Signup",
+          status: true,
+        });
+
         if (!data.session) {
           notify("Check your email to confirm your account.");
           onClose();

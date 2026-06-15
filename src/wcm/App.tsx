@@ -4,6 +4,7 @@ import { Icons, WellcareWordmark } from "./icons";
 import { ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
 import { getProductSeoPathSegment } from "./data";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
 const OrderSuccess = lazy(() => import("./orders").then((m) => ({ default: m.OrderSuccess })));
@@ -267,6 +268,7 @@ function WhatsAppFloatingChat() {
   const openWhatsApp = () => {
     const cleanPhone = phone.replace(/\D/g, "");
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    trackMetaEvent("Contact");
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -435,7 +437,10 @@ function Header({
   };
 
   const goProduct = (id: string) => {
-    if (search.trim()) persistRecentSearch(search);
+    if (search.trim()) {
+      persistRecentSearch(search);
+      trackMetaEvent("Search", { search_string: search.trim() });
+    }
     clearSearch();
     const matched = products.find((product) => product.id === id);
     navigate({
@@ -449,6 +454,7 @@ function Header({
     setDropOpen(true);
     inputRef.current?.focus();
     persistRecentSearch(term);
+    trackMetaEvent("Search", { search_string: term.trim() });
   };
 
   return (
@@ -899,6 +905,7 @@ function Header({
                 const phone = "923291557509"; // Replace with actual WhatsApp number
                 const message = "Hi, I'd like to inquire about your products.";
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+                trackMetaEvent("Contact");
                 window.open(url, "_blank");
               }}
               title="Contact via WhatsApp"

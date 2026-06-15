@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
@@ -7,6 +7,12 @@ import { getUnitPrice, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
+import {
+  trackMetaEvent,
+  trackMetaEventOnce,
+  toMetaValue,
+  uniqueContentIds,
+} from "@/lib/meta-pixel";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -26,6 +32,7 @@ function CheckoutPage() {
   const navigate = useNavigate();
 
   const [placing, setPlacing] = useState(false);
+  const checkoutTrackedRef = useRef(false);
 
   const fallbackItems = cart
     .map((line) => ({ ...line, p: products.find((product) => product.id === line.id) }))
@@ -51,6 +58,29 @@ function CheckoutPage() {
         }
       : null);
 
+  useEffect(() => {
+    if (!resolvedCheckoutData || checkoutTrackedRef.current) return;
+
+    const itemIds = uniqueContentIds(
+      resolvedCheckoutData.items.map(
+        (item: { p?: { id?: string }; id?: string }) => item.p?.id || item.id,
+      ),
+    );
+    const numItems = resolvedCheckoutData.items.reduce(
+      (sum: number, item: { qty?: number }) => sum + Math.max(1, Number(item.qty) || 1),
+      0,
+    );
+
+    trackMetaEvent("InitiateCheckout", {
+      content_ids: itemIds,
+      content_type: "product",
+      num_items: numItems,
+      value: toMetaValue(resolvedCheckoutData.total),
+      currency: "PKR",
+    });
+    checkoutTrackedRef.current = true;
+  }, [resolvedCheckoutData]);
+
   const placeOrder = async (data: PlacedOrderData) => {
     setPlacing(true);
     try {
@@ -73,6 +103,20 @@ function CheckoutPage() {
         // The discount amount from the client is ignored; the server recomputes it.
         promo_code: data.promo_code,
       };
+
+      const cartContentIds = uniqueContentIds(data.items.map((item) => item?.p?.id));
+      const numItems = data.items.reduce(
+        (sum, item) => sum + Math.max(1, Number(item.qty) || 1),
+        0,
+      );
+
+      trackMetaEvent("AddPaymentInfo", {
+        content_ids: cartContentIds,
+        content_type: "product",
+        num_items: numItems,
+        value: toMetaValue(data.total),
+        currency: "PKR",
+      });
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -108,6 +152,22 @@ function CheckoutPage() {
       }
 
       const newOrder: Order = payload.order;
+      const orderContentIds = uniqueContentIds(
+        (newOrder.items || []).map((item: { id?: string }) => item.id),
+      );
+      const orderNumItems = (newOrder.items || []).reduce(
+        (sum: number, item: { qty?: number }) => sum + Math.max(1, Number(item.qty) || 1),
+        0,
+      );
+
+      trackMetaEventOnce(`purchase:${newOrder.id}`, "Purchase", {
+        content_ids: orderContentIds,
+        content_type: "product",
+        num_items: orderNumItems,
+        value: toMetaValue(newOrder.total),
+        currency: "PKR",
+      });
+
       setCart([]);
       setCheckoutData(null);
 

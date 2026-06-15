@@ -1,10 +1,16 @@
 import { Suspense, lazy, useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { PRODUCTS, getProductSeoPathSegment, resolveProductIdFromParam } from "@/wcm/data";
+import {
+  PRODUCTS,
+  getProductSeoPathSegment,
+  getUnitPrice,
+  resolveProductIdFromParam,
+} from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
+import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
 
 function getSeoSuffix(cat?: string) {
   switch (cat) {
@@ -93,6 +99,17 @@ function ProductPage() {
       descriptionMeta.setAttribute("content", description);
     }
   }, [product, productId]);
+
+  useEffect(() => {
+    if (!product) return;
+    trackMetaEvent("ViewContent", {
+      content_ids: [product.id],
+      content_name: product.name,
+      content_type: "product",
+      value: toMetaValue(getUnitPrice(product)),
+      currency: "PKR",
+    });
+  }, [product?.id]);
 
   if (!product && !productsLoaded) {
     return <WellcareLoader label="Loading product" compact />;

@@ -18,9 +18,11 @@ import {
   type Product,
   type Order,
   type OrderReview,
+  getUnitPrice,
   normalizeSizeOptions,
   normalizeVariantOptions,
 } from "./data";
+import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
@@ -180,11 +182,22 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   }, [wishlist]);
 
   const toggleWishlist = (id: string) => {
+    const isCurrentlySaved = wishlist.includes(id);
+    if (!isCurrentlySaved) {
+      const product = products.find((p) => p.id === id);
+      trackMetaEvent("AddToWishlist", {
+        content_ids: [id],
+        content_name: product?.name || id,
+        content_type: "product",
+        value: toMetaValue(product ? getUnitPrice(product) : 0),
+        currency: "PKR",
+      });
+    }
+
     setWishlist((w) => {
       const isAdding = !w.includes(id);
       return isAdding ? [...w, id] : w.filter((x) => x !== id);
     });
-    const isCurrentlySaved = wishlist.includes(id);
     push(isCurrentlySaved ? "Removed from saved items" : "Added to saved items");
   };
   const [ordersLoaded, setOrdersLoaded] = useState(false);
@@ -400,6 +413,16 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const addToCart = (p: Product, qty = 1, size?: string) => {
     const normalizedSize =
       size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
+    const unitPrice = getUnitPrice(p, normalizedSize);
+
+    trackMetaEvent("AddToCart", {
+      content_ids: [p.id],
+      content_name: p.name,
+      content_type: "product",
+      value: toMetaValue(unitPrice * Math.max(1, qty)),
+      currency: "PKR",
+    });
+
     setCart((c) => {
       const i = c.findIndex((x) => x.id === p.id && x.size === normalizedSize);
       if (i >= 0) return c.map((x, idx) => (idx === i ? { ...x, qty: x.qty + qty } : x));
