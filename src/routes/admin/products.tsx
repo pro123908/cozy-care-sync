@@ -63,6 +63,15 @@ function getCategoryProductSequence(id: string, prefix: string) {
   return match ? Number(match[1]) : null;
 }
 
+function slugifyCategory(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
 function deriveStockStatusFromCount(stockCount: number) {
   if (stockCount <= 0) return "Out of stock";
   if (stockCount <= 5) return "Low stock";
@@ -193,6 +202,13 @@ function AdminProductsPage() {
   >({});
   const [savingCategoryNameId, setSavingCategoryNameId] = useState<string | null>(null);
   const [savingCategoryTopId, setSavingCategoryTopId] = useState<string | null>(null);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategorySlug, setNewCategorySlug] = useState("");
+  const [newCategorySortOrder, setNewCategorySortOrder] = useState(0);
+  const [newCategoryImageUrl, setNewCategoryImageUrl] = useState("");
+  const [newCategoryTopCategory, setNewCategoryTopCategory] = useState(false);
+  const [newCategorySlugManuallyEdited, setNewCategorySlugManuallyEdited] = useState(false);
   const [showCategoryImages, setShowCategoryImages] = useState(false);
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -290,6 +306,23 @@ function AdminProductsPage() {
   const categoryBySlug = useMemo(() => new Map(categories.map((c) => [c.slug, c])), [categories]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  const nextCategorySortOrder = useMemo(
+    () =>
+      categories.length > 0
+        ? Math.max(...categories.map((category) => category.sort_order || 0)) + 1
+        : 1,
+    [categories],
+  );
+
+  useEffect(() => {
+    if (newCategorySlugManuallyEdited) return;
+    setNewCategorySlug(slugifyCategory(newCategoryName));
+  }, [newCategoryName, newCategorySlugManuallyEdited]);
+
+  useEffect(() => {
+    setNewCategorySortOrder((current) => (current > 0 ? current : nextCategorySortOrder));
+  }, [nextCategorySortOrder]);
 
   const categoryOptions = useMemo(() => {
     const options = categories.map((c) => ({ id: c.slug, label: c.name }));
@@ -746,6 +779,62 @@ function AdminProductsPage() {
     await loadCategories();
   };
 
+  const createCategory = async () => {
+    const name = newCategoryName.trim();
+    const slug = slugifyCategory(newCategorySlug);
+
+    if (!name) {
+      push("Category name is required", { tone: "red" });
+      return;
+    }
+
+    if (!slug) {
+      push("Category slug is required", { tone: "red" });
+      return;
+    }
+
+    if (categories.some((category) => category.slug === slug)) {
+      push("A category with this slug already exists", { tone: "red" });
+      return;
+    }
+
+    const sortOrder = Math.max(0, Math.round(Number(newCategorySortOrder) || 0));
+    const imageUrl = newCategoryImageUrl.trim() || null;
+
+    let id = `cat-${slug}`;
+    let attempt = 2;
+    while (categories.some((category) => category.id === id)) {
+      id = `cat-${slug}-${attempt}`;
+      attempt += 1;
+    }
+
+    setCreatingCategory(true);
+    const supabase = await getSupabase();
+    const { error } = await supabase.from("categories").insert({
+      id,
+      name,
+      slug,
+      sort_order: sortOrder,
+      image_url: imageUrl,
+      top_category: newCategoryTopCategory,
+    });
+    setCreatingCategory(false);
+
+    if (error) {
+      push(error.message || "Failed to create category", { tone: "red" });
+      return;
+    }
+
+    push("Category created");
+    setNewCategoryName("");
+    setNewCategorySlug("");
+    setNewCategorySortOrder(sortOrder + 1);
+    setNewCategoryImageUrl("");
+    setNewCategoryTopCategory(false);
+    setNewCategorySlugManuallyEdited(false);
+    await loadCategories();
+  };
+
   const createHomepageBanner = async () => {
     setCreatingHomepageBanner(true);
     const nextSortOrder =
@@ -1117,6 +1206,100 @@ function AdminProductsPage() {
                       style={miniBtnStyle}
                     >
                       {showCategoryImages ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    padding: 10,
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>
+                    Add new category
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.2fr 1fr 120px",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      value={newCategoryName}
+                      placeholder="Category name"
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <input
+                      value={newCategorySlug}
+                      placeholder="category-slug"
+                      onChange={(e) => {
+                        setNewCategorySlugManuallyEdited(true);
+                        setNewCategorySlug(slugifyCategory(e.target.value));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={newCategorySortOrder}
+                      onChange={(e) =>
+                        setNewCategorySortOrder(Math.max(0, Number(e.target.value) || 0))
+                      }
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8 }}>
+                    <input
+                      value={newCategoryImageUrl}
+                      placeholder="Image URL (optional)"
+                      onChange={(e) => setNewCategoryImageUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        color: "var(--ink-3)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newCategoryTopCategory}
+                        onChange={(e) => setNewCategoryTopCategory(e.target.checked)}
+                        disabled={creatingCategory}
+                      />
+                      Top category
+                    </label>
+                    <button
+                      type="button"
+                      onClick={createCategory}
+                      disabled={creatingCategory}
+                      style={{ ...miniBtnStyle, opacity: creatingCategory ? 0.6 : 1 }}
+                    >
+                      {creatingCategory ? "Adding..." : "Add"}
                     </button>
                   </div>
                 </div>
