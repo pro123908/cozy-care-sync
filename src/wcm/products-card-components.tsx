@@ -730,7 +730,7 @@ export function RecentlyViewedRail({
   const viewed = ids.map((id) => products.find((p) => p.id === id)).filter(Boolean) as Product[];
   if (viewed.length === 0) return null;
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 10, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
       <div
         style={{
           fontSize: 11,
@@ -747,15 +747,23 @@ export function RecentlyViewedRail({
         className="wcm-rv-rail"
         style={{
           display: "flex",
+          contain: "layout paint",
           gap: 8,
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
           overflowX: "auto",
+          overflowY: "hidden",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+          touchAction: "pan-x",
           paddingBottom: 4,
           scrollbarWidth: "none",
         }}
       >
         <style>{`.wcm-rv-rail::-webkit-scrollbar{display:none}`}</style>
         {viewed.map((p) => (
-          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 110 : 130 }}>
+          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 110 : 130 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}
@@ -791,7 +799,7 @@ export function DealsRail({
   if (deals.length === 0) return null;
 
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 10, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
       <div
         style={{
           display: "flex",
@@ -848,15 +856,23 @@ export function DealsRail({
         className="wcm-deals-rail"
         style={{
           display: "flex",
+          contain: "layout paint",
           gap: 8,
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
           overflowX: "auto",
+          overflowY: "hidden",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+          touchAction: "pan-x",
           paddingBottom: 4,
           scrollbarWidth: "none",
         }}
       >
         <style>{`.wcm-deals-rail::-webkit-scrollbar{display:none}`}</style>
         {deals.map((p) => (
-          <div key={p.id} style={{ flexShrink: 0, width: isMobile ? 130 : 160 }}>
+          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 130 : 160 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}

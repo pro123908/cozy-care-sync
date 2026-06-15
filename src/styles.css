@@ -190,6 +190,14 @@
   body {
     background: var(--bg);
     color: var(--ink);
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
   }
   body {
     font-family:
@@ -291,6 +299,9 @@
 /* ============ Layout helpers ============ */
 .wcm-main {
   padding: 24px 20px 96px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 .wcm-header-pad {
   padding: 12px 20px;

@@ -4,11 +4,13 @@ import type { CSSProperties } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { AdminGate } from "@/wcm/admin-access";
 import { WellcareLoader } from "@/wcm/loader";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/admin/sales")({
   component: AdminSalesPage,
   head: () => ({
-    meta: [{ title: "Sales Report — Wellcare Mart Admin" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/admin/sales") }],
+    meta: [{ title: "Sales Report — Wellcare Mart Admin" }, NOINDEX_FOLLOW_META],
   }),
 });
 

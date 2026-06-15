@@ -3,8 +3,13 @@ import { useWcm } from "@/wcm/context";
 import { PKR, getProductSeoPathSegment } from "@/wcm/data";
 import { ProductImage, Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/wishlist")({
+  head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/wishlist") }],
+    meta: [{ title: "Saved Items — Wellcare Mart" }, NOINDEX_FOLLOW_META],
+  }),
   component: WishlistPage,
 });
 

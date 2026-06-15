@@ -5,6 +5,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 import type { Order } from "@/wcm/data";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 const OrdersList = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrdersList })));
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
@@ -12,7 +13,8 @@ const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.
 export const Route = createFileRoute("/orders/")({
   component: OrdersPage,
   head: () => ({
-    meta: [{ title: "My Orders — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/orders") }],
+    meta: [{ title: "My Orders — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

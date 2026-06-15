@@ -4,8 +4,13 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
 import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/account")({
+  head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/account") }],
+    meta: [{ title: "Account Settings — Wellcare Mart" }, NOINDEX_FOLLOW_META],
+  }),
   component: AccountPage,
 });
 

@@ -5,9 +5,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
 import { Btn } from "@/wcm/ui";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
+import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/categories/$categoryId")({
   head: ({ params }: { params: { categoryId: string } }) => ({
+    links: [{ rel: "canonical", href: canonicalUrl(`/categories/${params.categoryId}`) }],
     meta: [
       { title: `${startCase(params.categoryId)} — Category — Wellcare Mart` },
       {

@@ -6,9 +6,11 @@ import { Icons } from "@/wcm/icons";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
 import { Btn } from "@/wcm/ui";
+import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/deals")({
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/deals") }],
     meta: [
       { title: "Deals & Offers — Wellcare Mart" },
       {

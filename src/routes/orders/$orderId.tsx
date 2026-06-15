@@ -4,13 +4,15 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
 
 export const Route = createFileRoute("/orders/$orderId")({
   component: OrderDetailPage,
   head: ({ params }: { params: { orderId: string } }) => ({
-    meta: [{ title: `Order ${params.orderId} — Wellcare Mart` }],
+    links: [{ rel: "canonical", href: canonicalUrl(`/orders/${params.orderId}`) }],
+    meta: [{ title: `Order ${params.orderId} — Wellcare Mart` }, NOINDEX_FOLLOW_META],
   }),
 });
 

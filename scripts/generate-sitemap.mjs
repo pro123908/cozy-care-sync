@@ -7,13 +7,12 @@ const today = new Date().toISOString().slice(0, 10);
 const staticUrls = [
   { loc: `${baseUrl}/`, priority: "1.0" },
   { loc: `${baseUrl}/about`, priority: "0.7" },
+  { loc: `${baseUrl}/categories`, priority: "0.7" },
+  { loc: `${baseUrl}/prescription`, priority: "0.6" },
   { loc: `${baseUrl}/faqs`, priority: "0.7" },
   { loc: `${baseUrl}/policies`, priority: "0.6" },
-  { loc: `${baseUrl}/track-order`, priority: "0.6" },
-  { loc: `${baseUrl}/orders`, priority: "0.6" },
+  { loc: `${baseUrl}/map`, priority: "0.6" },
   { loc: `${baseUrl}/deals`, priority: "0.8" },
-  { loc: `${baseUrl}/wishlist`, priority: "0.5" },
-  { loc: `${baseUrl}/checkout`, priority: "0.4" },
 ];
 
 const productUrls = PRODUCTS.map((product) => ({

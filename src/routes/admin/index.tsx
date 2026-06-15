@@ -4,6 +4,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { AdminGate } from "@/wcm/admin-access";
 import { useEffect, useState, useMemo } from "react";
 import type { Database } from "@/integrations/supabase/types";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -11,7 +12,8 @@ type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 export const Route = createFileRoute("/admin/")({
   component: AdminHomePage,
   head: () => ({
-    meta: [{ title: "Admin Dashboard — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/admin") }],
+    meta: [{ title: "Admin Dashboard — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

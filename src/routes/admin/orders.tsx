@@ -7,6 +7,7 @@ import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
 import { getProductSeoPathSegment } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 
@@ -32,7 +33,8 @@ export const Route = createFileRoute("/admin/orders")({
   }),
   component: AdminOrdersPage,
   head: () => ({
-    meta: [{ title: "Admin Orders — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/admin/orders") }],
+    meta: [{ title: "Admin Orders — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

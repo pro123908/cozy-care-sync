@@ -8,6 +8,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn, ProductImageFallback } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 import { useWcm } from "@/wcm/context";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type CategoryRow = Database["public"]["Tables"]["categories"]["Row"];
@@ -143,7 +144,8 @@ function normalizeVariantOptionsForSave(
 export const Route = createFileRoute("/admin/products")({
   component: AdminProductsPage,
   head: () => ({
-    meta: [{ title: "Admin Products — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/admin/products") }],
+    meta: [{ title: "Admin Products — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

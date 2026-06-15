@@ -6,6 +6,7 @@ import { useWcm } from "@/wcm/context";
 import { getUnitPrice, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -14,7 +15,8 @@ const CheckoutContent = lazy(() =>
 export const Route = createFileRoute("/checkout")({
   component: CheckoutPage,
   head: () => ({
-    meta: [{ title: "Checkout — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/checkout") }],
+    meta: [{ title: "Checkout — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

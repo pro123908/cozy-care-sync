@@ -4,6 +4,7 @@ import { PRODUCTS, getProductSeoPathSegment, resolveProductIdFromParam } from "@
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
+import { canonicalUrl } from "@/lib/seo";
 
 function getSeoSuffix(cat?: string) {
   switch (cat) {
@@ -49,6 +50,7 @@ export const Route = createFileRoute("/products/$productId")({
 
     return {
       title: seoTitle,
+      links: [{ rel: "canonical", href: canonical }],
       meta: [
         { title: seoTitle },
         { name: "description", content: description },

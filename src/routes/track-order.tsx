@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import type { Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
 
@@ -13,7 +14,8 @@ export const Route = createFileRoute("/track-order")({
   }),
   component: TrackOrderPage,
   head: () => ({
-    meta: [{ title: "Track Order — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/track-order") }],
+    meta: [{ title: "Track Order — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 
@@ -40,14 +42,17 @@ function TrackOrderPage() {
     setOrder(null);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guest-order-lookup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order_id: cleanOrderId,
-          phone: cleanPhone,
-        }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guest-order-lookup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            order_id: cleanOrderId,
+            phone: cleanPhone,
+          }),
+        },
+      );
 
       const payload = await res.json().catch(() => null);
       if (!res.ok || !payload?.order) {

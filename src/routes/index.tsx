@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { getProductSeoPathSegment } from "@/wcm/data";
+import { canonicalUrl } from "@/lib/seo";
 
 const ProductsPage = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductsPage })),
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/")({
   }),
   component: IndexPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/") }],
     meta: [
       { title: "Wellcare Mart — Medical Supplies & Equipment" },
       {

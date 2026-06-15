@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
 import { Btn, Section } from "@/wcm/ui";
 import { useWcm } from "@/wcm/context";
+import { canonicalUrl } from "@/lib/seo";
 
 const PRESCRIPTION_BUCKET = "prescriptions";
 const MAX_FILES = 4;
@@ -13,6 +14,7 @@ const MAX_FILE_MB = 6;
 export const Route = createFileRoute("/prescription")({
   component: PrescriptionPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/prescription") }],
     meta: [
       { title: "Upload Prescription — Wellcare Mart" },
       {

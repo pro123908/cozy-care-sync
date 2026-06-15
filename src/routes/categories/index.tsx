@@ -4,9 +4,11 @@ import { useWcm } from "@/wcm/context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
 import { Btn } from "@/wcm/ui";
+import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/categories/")({
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/categories") }],
     meta: [
       { title: "Browse Categories — Wellcare Mart" },
       {

@@ -7,6 +7,7 @@ import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
 import { Icons } from "@/wcm/icons";
 import { WellcareLoader } from "@/wcm/loader";
+import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type PrescriptionRow = Database["public"]["Tables"]["prescription_requests"]["Row"];
 
@@ -16,7 +17,8 @@ const PRESCRIPTION_BUCKET = "prescriptions";
 export const Route = createFileRoute("/admin/prescriptions")({
   component: AdminPrescriptionsPage,
   head: () => ({
-    meta: [{ title: "Admin Prescriptions — Wellcare Mart" }],
+    links: [{ rel: "canonical", href: canonicalUrl("/admin/prescriptions") }],
+    meta: [{ title: "Admin Prescriptions — Wellcare Mart" }, NOINDEX_FOLLOW_META],
   }),
 });
 

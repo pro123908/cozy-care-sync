@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/map")({
   component: MapPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/map") }],
     meta: [
       { title: "Store Location - Wellcare Mart" },
       {

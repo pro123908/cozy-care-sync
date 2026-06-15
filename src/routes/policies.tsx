@@ -1,10 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Icons } from "@/wcm/icons";
+import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/policies")({
   component: PoliciesPage,
   head: () => ({
+    links: [{ rel: "canonical", href: canonicalUrl("/policies") }],
     meta: [
       { title: "Policies - Wellcare Mart" },
       {
