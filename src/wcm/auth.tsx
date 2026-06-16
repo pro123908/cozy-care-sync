@@ -87,10 +87,16 @@ export function AuthModal({
           return;
         }
 
-        trackMetaEvent("CompleteRegistration", {
-          content_name: "Account Signup",
-          status: true,
-        });
+        trackMetaEvent(
+          "CompleteRegistration",
+          {
+            content_name: "Account Signup",
+            status: true,
+          },
+          {
+            userData: { email: form.email },
+          },
+        );
 
         if (!data.session) {
           notify("Check your email to confirm your account.");

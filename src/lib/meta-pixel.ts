@@ -1,6 +1,13 @@
 type MetaEventPayload = Record<string, unknown>;
+type MetaEventUserData = { email?: string; phone?: string };
+type MetaTrackOptions = { eventId?: string; userData?: MetaEventUserData };
 
-const META_DEBUG = true;
+const META_DEBUG = false;
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLIC_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const META_TRACK_URL = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/meta-track` : "";
 
 function debugMeta(message: string, details?: Record<string, unknown>) {
   if (!META_DEBUG || typeof console === "undefined") return;
@@ -11,16 +18,58 @@ function debugMeta(message: string, details?: Record<string, unknown>) {
   console.info(`[meta] ${message}`);
 }
 
-declare global {
-  interface Window {
-    fbq?: (action: "track", eventName: string, payload?: MetaEventPayload) => void;
+async function forwardMetaEvent(
+  eventName: string,
+  payload?: MetaEventPayload,
+  options?: MetaTrackOptions,
+) {
+  if (!META_TRACK_URL || !SUPABASE_PUBLIC_KEY) {
+    debugMeta("meta-track endpoint not configured", { eventName });
+    return false;
   }
-}
 
-function getFbq() {
-  if (typeof window === "undefined") return null;
-  if (typeof window.fbq !== "function") return null;
-  return window.fbq;
+  const body: Record<string, unknown> = {
+    event_name: eventName,
+    custom_data: payload || {},
+    event_source_url: typeof window !== "undefined" ? window.location.href : "",
+  };
+
+  if (options?.eventId) {
+    body.event_id = options.eventId;
+  }
+
+  const email = options?.userData?.email?.trim();
+  const phone = options?.userData?.phone?.trim();
+  if (email || phone) {
+    body.user_data = {
+      ...(email ? { email } : {}),
+      ...(phone ? { phone } : {}),
+    };
+  }
+
+  const res = await fetch(META_TRACK_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: SUPABASE_PUBLIC_KEY,
+      Authorization: `Bearer ${SUPABASE_PUBLIC_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    debugMeta("meta-track request failed", { eventName, status: res.status, response: text });
+    return false;
+  }
+
+  debugMeta("event forwarded to server", {
+    eventName,
+    payload,
+    eventId: options?.eventId,
+    hasUserData: Boolean(email || phone),
+  });
+  return true;
 }
 
 export function toMetaValue(value: number | null | undefined) {
@@ -39,35 +88,20 @@ export function uniqueContentIds(ids: Array<string | null | undefined>) {
   );
 }
 
-export function trackMetaEvent(eventName: string, payload?: MetaEventPayload) {
-  const fbq = getFbq();
-  if (!fbq) {
-    debugMeta("fbq missing - event not sent", { eventName, payload });
-    return false;
-  }
-
-  try {
-    if (payload && Object.keys(payload).length > 0) {
-      fbq("track", eventName, payload);
-    } else {
-      fbq("track", eventName);
-    }
-    debugMeta("event sent", { eventName, payload });
-    return true;
-  } catch (error) {
-    debugMeta("fbq threw error", {
-      eventName,
-      payload,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return false;
-  }
+export function trackMetaEvent(
+  eventName: string,
+  payload?: MetaEventPayload,
+  options?: MetaTrackOptions,
+) {
+  void forwardMetaEvent(eventName, payload, options);
+  return true;
 }
 
 export function trackMetaEventOnce(
   storageKey: string,
   eventName: string,
   payload?: MetaEventPayload,
+  options?: MetaTrackOptions,
 ) {
   if (typeof window === "undefined") return false;
   const key = `meta_event_once:${storageKey}`;
@@ -81,8 +115,10 @@ export function trackMetaEventOnce(
     debugMeta("sessionStorage unavailable for one-time guard", { storageKey, eventName });
   }
 
-  const tracked = trackMetaEvent(eventName, payload);
-  if (!tracked) return false;
+  void forwardMetaEvent(eventName, payload, {
+    ...options,
+    eventId: options?.eventId || storageKey,
+  });
 
   try {
     window.sessionStorage.setItem(key, "1");

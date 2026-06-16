@@ -180,6 +180,15 @@ function AppLayout() {
   } = useWcm();
 
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const lastTrackedPathRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!pathname) return;
+    if (lastTrackedPathRef.current === pathname) return;
+    lastTrackedPathRef.current = pathname;
+    trackMetaEvent("PageView");
+  }, [pathname]);
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
     setCartOpen(false);

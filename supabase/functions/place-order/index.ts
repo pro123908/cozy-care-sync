@@ -51,6 +51,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREE_SHIPPING_THRESHOLD = 2000;
 const SHIPPING_COST = 250;
+const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
+const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
+const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,6 +83,127 @@ function json(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(origin) },
+  });
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+async function sha256Hex(value: string) {
+  const data = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function summarizeMetaResponse(metaResponse: unknown) {
+  if (!metaResponse || typeof metaResponse !== "object") return { raw: metaResponse };
+  const response = metaResponse as Record<string, unknown>;
+  return {
+    events_received: response.events_received,
+    messages: response.messages,
+    fbtrace_id: response.fbtrace_id,
+    raw: metaResponse,
+  };
+}
+
+async function sendMetaPurchaseEvent(input: {
+  orderId: string;
+  total: number;
+  numItems: number;
+  itemIds: string[];
+  email?: string;
+  phone?: string;
+  userAgent: string;
+  clientIp: string;
+  eventSourceUrl: string;
+}) {
+  console.info("[meta-capi] incoming event", {
+    eventName: "Purchase",
+    eventId: input.orderId,
+    contentIds: input.itemIds,
+    numItems: input.numItems,
+    value: Number(input.total.toFixed(2)),
+    currency: "PKR",
+    hasUserEmail: Boolean(input.email),
+    hasUserPhone: Boolean(input.phone),
+  });
+
+  if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
+    console.info(
+      "[meta-capi] missing META_ACCESS_TOKEN or META_PIXEL_ID - skipping Purchase event",
+    );
+    return;
+  }
+
+  const em = input.email ? normalizeEmail(input.email) : "";
+  const ph = input.phone ? normalizePhone(input.phone) : "";
+
+  const userData: Record<string, unknown> = {
+    client_user_agent: input.userAgent,
+    client_ip_address: input.clientIp,
+  };
+
+  if (em) userData.em = [await sha256Hex(em)];
+  if (ph) userData.ph = [await sha256Hex(ph)];
+
+  const payload = {
+    data: [
+      {
+        event_name: "Purchase",
+        event_time: Math.floor(Date.now() / 1000),
+        event_id: input.orderId,
+        action_source: "website",
+        event_source_url: input.eventSourceUrl,
+        user_data: userData,
+        custom_data: {
+          currency: "PKR",
+          value: Number(input.total.toFixed(2)),
+          content_type: "product",
+          content_ids: input.itemIds,
+          num_items: input.numItems,
+          order_id: input.orderId,
+        },
+      },
+    ],
+  };
+
+  const endpoint = `https://graph.facebook.com/${META_GRAPH_VERSION}/${META_PIXEL_ID}/events?access_token=${encodeURIComponent(META_ACCESS_TOKEN)}`;
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    console.error("[meta-capi] event failed", {
+      eventName: "Purchase",
+      eventId: input.orderId,
+      status: res.status,
+      response: txt,
+    });
+    return;
+  }
+
+  const metaResponse = await res.json().catch(() => null);
+  console.info("[meta-capi] meta response summary", {
+    eventName: "Purchase",
+    eventId: input.orderId,
+    summary: summarizeMetaResponse(metaResponse),
+  });
+  console.info("[meta-capi] event sent", {
+    eventName: "Purchase",
+    eventId: input.orderId,
+    value: Number(input.total.toFixed(2)),
+    numItems: input.numItems,
+    metaResponse,
   });
 }
 
@@ -318,7 +442,28 @@ Deno.serve(async (req: Request) => {
   );
 
   // ------------------------------------------------------------------
-  // 7. Return created order to client
+  // 7. Send server-side Purchase event via Meta Conversions API
+  // ------------------------------------------------------------------
+  const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
+  const userAgent = req.headers.get("user-agent") || "";
+  const eventSourceUrl = req.headers.get("origin") || req.url;
+  const numItems = orderItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty) || 1), 0);
+  const itemIds = [...new Set(orderItems.map((item) => item.id).filter(Boolean))];
+
+  await sendMetaPurchaseEvent({
+    orderId,
+    total,
+    numItems,
+    itemIds,
+    email: ship.email,
+    phone: ship.phone,
+    userAgent,
+    clientIp,
+    eventSourceUrl,
+  });
+
+  // ------------------------------------------------------------------
+  // 8. Return created order to client
   // ------------------------------------------------------------------
   return json(
     {

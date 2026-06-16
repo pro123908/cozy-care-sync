@@ -185,13 +185,24 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     const isCurrentlySaved = wishlist.includes(id);
     if (!isCurrentlySaved) {
       const product = products.find((p) => p.id === id);
-      trackMetaEvent("AddToWishlist", {
-        content_ids: [id],
-        content_name: product?.name || id,
-        content_type: "product",
-        value: toMetaValue(product ? getUnitPrice(product) : 0),
-        currency: "PKR",
-      });
+      const productUnitPrice = product ? getUnitPrice(product) : 0;
+      trackMetaEvent(
+        "AddToWishlist",
+        {
+          content_ids: [id],
+          content_name: product?.name || id,
+          content_type: "product",
+          content_category: product?.category_name || product?.cat,
+          brand: product?.brand,
+          num_items: 1,
+          contents: [{ id, quantity: 1, item_price: toMetaValue(productUnitPrice) }],
+          value: toMetaValue(productUnitPrice),
+          currency: "PKR",
+        },
+        {
+          userData: { email: user?.email },
+        },
+      );
     }
 
     setWishlist((w) => {
@@ -414,14 +425,25 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     const normalizedSize =
       size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
     const unitPrice = getUnitPrice(p, normalizedSize);
+    const safeQty = Math.max(1, Number(qty) || 1);
 
-    trackMetaEvent("AddToCart", {
-      content_ids: [p.id],
-      content_name: p.name,
-      content_type: "product",
-      value: toMetaValue(unitPrice * Math.max(1, qty)),
-      currency: "PKR",
-    });
+    trackMetaEvent(
+      "AddToCart",
+      {
+        content_ids: [p.id],
+        content_name: p.name,
+        content_type: "product",
+        content_category: p.category_name || p.cat,
+        brand: p.brand,
+        num_items: safeQty,
+        contents: [{ id: p.id, quantity: safeQty, item_price: toMetaValue(unitPrice) }],
+        value: toMetaValue(unitPrice * safeQty),
+        currency: "PKR",
+      },
+      {
+        userData: { email: user?.email },
+      },
+    );
 
     setCart((c) => {
       const i = c.findIndex((x) => x.id === p.id && x.size === normalizedSize);

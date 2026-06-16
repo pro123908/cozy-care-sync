@@ -74,7 +74,7 @@ export const Route = createFileRoute("/products/$productId")({
 
 function ProductPage() {
   const { productId } = Route.useParams();
-  const { addToCart, cart, products, productsLoaded } = useWcm();
+  const { addToCart, cart, products, productsLoaded, user } = useWcm();
   const navigate = useNavigate();
   const resolvedProductId =
     resolveProductIdFromParam(productId, products) ||
@@ -102,14 +102,22 @@ function ProductPage() {
 
   useEffect(() => {
     if (!product) return;
-    trackMetaEvent("ViewContent", {
-      content_ids: [product.id],
-      content_name: product.name,
-      content_type: "product",
-      value: toMetaValue(getUnitPrice(product)),
-      currency: "PKR",
-    });
-  }, [product?.id]);
+    trackMetaEvent(
+      "ViewContent",
+      {
+        content_ids: [product.id],
+        content_name: product.name,
+        content_type: "product",
+        content_category: product.category_name || product.cat,
+        brand: product.brand,
+        value: toMetaValue(getUnitPrice(product)),
+        currency: "PKR",
+      },
+      {
+        userData: { email: user?.email },
+      },
+    );
+  }, [product?.id, user?.email]);
 
   if (!product && !productsLoaded) {
     return <WellcareLoader label="Loading product" compact />;

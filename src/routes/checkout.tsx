@@ -7,12 +7,7 @@ import { getUnitPrice, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
-import {
-  trackMetaEvent,
-  trackMetaEventOnce,
-  toMetaValue,
-  uniqueContentIds,
-} from "@/lib/meta-pixel";
+import { trackMetaEvent, toMetaValue, uniqueContentIds } from "@/lib/meta-pixel";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -71,15 +66,34 @@ function CheckoutPage() {
       0,
     );
 
-    trackMetaEvent("InitiateCheckout", {
-      content_ids: itemIds,
-      content_type: "product",
-      num_items: numItems,
-      value: toMetaValue(resolvedCheckoutData.total),
-      currency: "PKR",
-    });
+    trackMetaEvent(
+      "InitiateCheckout",
+      {
+        content_ids: itemIds,
+        content_type: "product",
+        num_items: numItems,
+        contents: resolvedCheckoutData.items.map(
+          (item: {
+            p?: { id?: string; price?: number };
+            id?: string;
+            qty?: number;
+            unit_price?: number;
+          }) => {
+            const id = item.p?.id || item.id || "";
+            const quantity = Math.max(1, Number(item.qty) || 1);
+            const itemPrice = toMetaValue(Number(item.unit_price ?? item.p?.price ?? 0));
+            return { id, quantity, item_price: itemPrice };
+          },
+        ),
+        value: toMetaValue(resolvedCheckoutData.total),
+        currency: "PKR",
+      },
+      {
+        userData: { email: user?.email },
+      },
+    );
     checkoutTrackedRef.current = true;
-  }, [resolvedCheckoutData]);
+  }, [resolvedCheckoutData, user?.email]);
 
   const placeOrder = async (data: PlacedOrderData) => {
     setPlacing(true);
@@ -110,13 +124,24 @@ function CheckoutPage() {
         0,
       );
 
-      trackMetaEvent("AddPaymentInfo", {
-        content_ids: cartContentIds,
-        content_type: "product",
-        num_items: numItems,
-        value: toMetaValue(data.total),
-        currency: "PKR",
-      });
+      trackMetaEvent(
+        "AddPaymentInfo",
+        {
+          content_ids: cartContentIds,
+          content_type: "product",
+          num_items: numItems,
+          contents: data.items.map((item) => ({
+            id: item.p.id,
+            quantity: Math.max(1, Number(item.qty) || 1),
+            item_price: toMetaValue(getUnitPrice(item.p, item.size)),
+          })),
+          value: toMetaValue(data.total),
+          currency: "PKR",
+        },
+        {
+          userData: { email: data.ship.email || user?.email, phone: data.ship.phone },
+        },
+      );
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -152,21 +177,6 @@ function CheckoutPage() {
       }
 
       const newOrder: Order = payload.order;
-      const orderContentIds = uniqueContentIds(
-        (newOrder.items || []).map((item: { id?: string }) => item.id),
-      );
-      const orderNumItems = (newOrder.items || []).reduce(
-        (sum: number, item: { qty?: number }) => sum + Math.max(1, Number(item.qty) || 1),
-        0,
-      );
-
-      trackMetaEventOnce(`purchase:${newOrder.id}`, "Purchase", {
-        content_ids: orderContentIds,
-        content_type: "product",
-        num_items: orderNumItems,
-        value: toMetaValue(newOrder.total),
-        currency: "PKR",
-      });
 
       setCart([]);
       setCheckoutData(null);
