@@ -211,6 +211,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       <style>{`@keyframes wcmHeroSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
       {imageOnlyBannerEnabled && (
         <img
+          className="wcm-hero-image"
           key={`hero-slide-${slideTick}-${active}`}
           src={banner.imageUrl}
           alt={banner.imageAlt || "Homepage banner"}
@@ -221,7 +222,6 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             inset: 0,
             width: "100%",
             height: "100%",
-            objectFit: "cover",
             animation: "wcmHeroSlideIn .2s ease",
             zIndex: 1,
           }}
