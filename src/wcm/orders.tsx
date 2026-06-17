@@ -5,24 +5,18 @@ import { ProductImage, Pill, Btn, Section, Row } from "./ui";
 import { useWcm } from "./context";
 import { getSupabase } from "@/integrations/supabase/client";
 
-const STATUSES = [
-  "Order placed",
-  "Order confirmed",
-  "Packed",
-  "Shipped",
-  "Out for delivery",
-  "Delivered",
-];
+const STATUSES = ["Order placed", "Order confirmed", "Processing", "Out for delivery", "Delivered"];
 
 function statusToStep(status: string): number {
   const map: Record<string, number> = {
     "Order placed": 0,
     "Order confirmed": 1,
-    Processing: 1,
+    Processing: 2,
+    // Backward compatibility for old status values still present in historical orders.
     Packed: 2,
     Shipped: 3,
-    "Out for delivery": 4,
-    Delivered: 5,
+    "Out for delivery": 3,
+    Delivered: 4,
     Cancelled: -1,
   };
   return map[status] ?? 0;
@@ -148,14 +142,9 @@ export function OrdersList({
   const filteredOrders = orders.filter((o) => {
     if (filter === "all") return true;
     if (filter === "active")
-      return [
-        "Order placed",
-        "Order confirmed",
-        "Processing",
-        "Packed",
-        "Shipped",
-        "Out for delivery",
-      ].includes(o.status);
+      return ["Order placed", "Order confirmed", "Processing", "Out for delivery"].includes(
+        o.status,
+      );
     if (filter === "delivered") return o.status === "Delivered";
     if (filter === "cancelled") return o.status === "Cancelled";
     return true;
@@ -517,8 +506,7 @@ function trackingDate(order: Order, i: number) {
   if (i === 1) return order.placed + " · 12:00 PM";
   if (i === 2) return order.placed + " · 03:48 PM";
   if (i === 3) return "In transit · BlueEx courier";
-  if (i === 4) return order.eta + " · Today by 4 PM";
-  if (i === 5) return order.eta + " · 02:18 PM";
+  if (i === 4) return order.eta + " · 02:18 PM";
   return "";
 }
 
@@ -539,6 +527,7 @@ export function OrderDetail({
   const [reviewHover, setReviewHover] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
 
   const handleReorder = () => {
     items.forEach(({ p, qty, size }) => addToCart(p, qty, size));
@@ -567,6 +556,30 @@ export function OrderDetail({
     } finally {
       setSubmittingReview(false);
     }
+  };
+
+  const handleContactSupport = () => {
+    const cleanPhone = whatsappPhone.replace(/\D/g, "");
+    if (!cleanPhone) return;
+
+    const itemSummary = items
+      .map(({ p, qty, size }) => `- ${p.name} x${qty}${size ? ` (${size})` : ""}`)
+      .join("\n");
+
+    const message = [
+      "Hi support, I need help with my order.",
+      `Order ID: ${order.id}`,
+      `Status: ${order.status}`,
+      `Placed: ${order.placed}`,
+      `Payment: ${order.payment}`,
+      `Total: ${PKR(order.total)}`,
+      `Address: ${order.address}`,
+      "Items:",
+      itemSummary || "- No items",
+    ].join("\n");
+
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const items = order.items
@@ -1333,7 +1346,9 @@ export function OrderDetail({
                 Cancel order
               </Btn>
             ))}
-          <Btn icon={Icons.phone}>Contact support</Btn>
+          <Btn icon={Icons.phone} onClick={handleContactSupport}>
+            Contact support
+          </Btn>
         </div>
       </Section>
     </div>

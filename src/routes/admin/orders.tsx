@@ -93,6 +93,9 @@ function AdminOrdersPage() {
       const queryMatch =
         !q ||
         o.order_code.toLowerCase().includes(q) ||
+        (o.customer_name || "").toLowerCase().includes(q) ||
+        (o.email || "").toLowerCase().includes(q) ||
+        (o.landmark || "").toLowerCase().includes(q) ||
         (o.user_id || "").toLowerCase().includes(q) ||
         (o.phone || "").toLowerCase().includes(q) ||
         o.status.toLowerCase().includes(q);
@@ -330,7 +333,7 @@ function AdminOrdersPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by order code, status, user id"
+                placeholder="Search by order code, name, email, phone"
                 style={searchInputStyle}
               />
             </div>
@@ -443,7 +446,7 @@ function AdminOrdersPage() {
                         />
                       </th>
                       <th style={thStyle}>Order</th>
-                      <th style={thStyle}>User</th>
+                      <th style={thStyle}>Customer</th>
                       <th style={thStyle}>Phone</th>
                       <th style={thStyle}>Amount</th>
                       <th style={thStyle}>Status</th>
@@ -462,7 +465,9 @@ function AdminOrdersPage() {
                           />
                         </td>
                         <td style={tdStyle}>{o.order_code}</td>
-                        <td style={tdStyle}>{o.user_id ? `${o.user_id.slice(0, 8)}…` : "Guest"}</td>
+                        <td style={tdStyle}>
+                          {o.customer_name || (o.user_id ? `${o.user_id.slice(0, 8)}…` : "Guest")}
+                        </td>
                         <td style={tdStyle}>{o.phone || "-"}</td>
                         <td style={tdStyle}>Rs {o.total.toLocaleString()}</td>
                         <td style={tdStyle}>
@@ -793,11 +798,14 @@ function OrderDetailsPanel({
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <DetailRow label="Placed" value={new Date(order.created_at).toLocaleString()} />
           <DetailRow label="Payment" value={order.payment} />
+          <DetailRow label="Customer" value={order.customer_name || "-"} />
+          <DetailRow label="Email" value={order.email || "-"} />
           <DetailRow label="Phone" value={order.phone || "-"} />
           <DetailRow label="Subtotal" value={`Rs ${order.subtotal.toLocaleString()}`} />
           <DetailRow label="Shipping" value={`Rs ${order.shipping.toLocaleString()}`} />
           <DetailRow label="Total" value={`Rs ${order.total.toLocaleString()}`} />
           <DetailRow label="Address" value={order.address} />
+          <DetailRow label="Landmark" value={order.landmark || "-"} />
         </div>
 
         {/* Items */}

@@ -101,10 +101,12 @@ export type Database = {
       orders: {
         Row: {
           address: string;
+          customer_name: string | null;
           created_at: string;
           eta: string;
           id: string;
           items: Json;
+          landmark: string | null;
           order_code: string;
           email: string | null;
           phone: string | null;
@@ -120,10 +122,12 @@ export type Database = {
         };
         Insert: {
           address: string;
+          customer_name?: string | null;
           created_at?: string;
           eta: string;
           id?: string;
           items?: Json;
+          landmark?: string | null;
           order_code: string;
           email?: string | null;
           phone?: string | null;
@@ -139,10 +143,12 @@ export type Database = {
         };
         Update: {
           address?: string;
+          customer_name?: string | null;
           created_at?: string;
           eta?: string;
           id?: string;
           items?: Json;
+          landmark?: string | null;
           order_code?: string;
           email?: string | null;
           phone?: string | null;

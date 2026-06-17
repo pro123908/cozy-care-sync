@@ -5,6 +5,7 @@ import { ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
 import { getProductSeoPathSegment } from "./data";
 import { trackMetaEvent } from "@/lib/meta-pixel";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
 const OrderSuccess = lazy(() => import("./orders").then((m) => ({ default: m.OrderSuccess })));
@@ -273,6 +274,7 @@ function AppLayout() {
 function WhatsAppFloatingChat() {
   const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
   const message = "Hi, I'd like to inquire about your products.";
+  const isMobile = useIsMobile();
 
   const openWhatsApp = () => {
     const cleanPhone = phone.replace(/\D/g, "");
@@ -290,7 +292,7 @@ function WhatsAppFloatingChat() {
       style={{
         position: "fixed",
         right: 16,
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isMobile ? 64 : 16}px)`,
         zIndex: 70,
         display: "inline-flex",
         alignItems: "center",

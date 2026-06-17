@@ -478,6 +478,8 @@ Deno.serve(async (req: Request) => {
 
   const { error: insertErr } = await serviceClient.from("orders").insert({
     user_id: userId,
+    customer_name: ship.name.trim(),
+    landmark: ship.landmark?.trim() || null,
     email: ship.email,
     order_code: orderId,
     placed: fmtDate(today),
@@ -540,6 +542,8 @@ Deno.serve(async (req: Request) => {
         eta: fmtDate(eta),
         status: "Order placed",
         progress: 0,
+        customer_name: ship.name.trim(),
+        landmark: ship.landmark?.trim() || null,
         address: `${ship.address}, ${ship.city}`,
         phone: ship.phone,
         email: ship.email,
