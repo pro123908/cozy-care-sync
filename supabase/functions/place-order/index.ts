@@ -114,6 +114,25 @@ function summarizeMetaResponse(metaResponse: unknown) {
   };
 }
 
+// Track recent Purchase values to help detect if all events have identical values
+const recentPurchaseValues: number[] = [];
+const MAX_RECENT = 10;
+
+function logPurchaseValueTrend(value: number): void {
+  recentPurchaseValues.push(value);
+  if (recentPurchaseValues.length > MAX_RECENT) {
+    recentPurchaseValues.shift();
+  }
+  const uniqueValues = new Set(recentPurchaseValues).size;
+  if (recentPurchaseValues.length >= 3 && uniqueValues === 1) {
+    console.warn("[meta-capi] Purchase values suspiciously identical", {
+      recentValues: recentPurchaseValues,
+      uniqueCount: uniqueValues,
+      note: "All recent Purchase events have the same value. Vary test orders (different items, qty, or promos) to verify tracking.",
+    });
+  }
+}
+
 async function sendMetaPurchaseEvent(input: {
   orderId: string;
   total: number;
@@ -164,6 +183,8 @@ async function sendMetaPurchaseEvent(input: {
     hasUserEmail: Boolean(input.email),
     hasUserPhone: Boolean(input.phone),
   });
+
+  logPurchaseValueTrend(purchaseValue);
 
   if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
     console.info(
