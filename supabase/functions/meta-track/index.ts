@@ -25,6 +25,8 @@ type Body = {
   user_data?: {
     email?: string;
     phone?: string;
+    fbc?: string;
+    fbp?: string;
   };
 };
 
@@ -107,6 +109,8 @@ serve(async (req) => {
     currency: typeof customData.currency === "string" ? customData.currency : null,
     hasUserEmail: Boolean(body.user_data?.email),
     hasUserPhone: Boolean(body.user_data?.phone),
+    hasFbc: Boolean(body.user_data?.fbc),
+    hasFbp: Boolean(body.user_data?.fbp),
   });
 
   if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
@@ -127,9 +131,13 @@ serve(async (req) => {
 
   const email = body.user_data?.email ? normalizeEmail(body.user_data.email) : "";
   const phone = body.user_data?.phone ? normalizePhone(body.user_data.phone) : "";
+  const fbc = body.user_data?.fbc?.trim() || "";
+  const fbp = body.user_data?.fbp?.trim() || "";
 
   if (email) userData.em = [await sha256Hex(email)];
   if (phone) userData.ph = [await sha256Hex(phone)];
+  if (fbc) userData.fbc = fbc;
+  if (fbp) userData.fbp = fbp;
 
   const payload = {
     data: [

@@ -7,7 +7,7 @@ import { getUnitPrice, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
-import { trackMetaEvent, toMetaValue, uniqueContentIds } from "@/lib/meta-pixel";
+import { trackMetaEvent, toMetaValue, uniqueContentIds, getMetaBrowserIds } from "@/lib/meta-pixel";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -116,6 +116,8 @@ function CheckoutPage() {
         // Pass promo code so the edge function can validate and apply it server-side.
         // The discount amount from the client is ignored; the server recomputes it.
         promo_code: data.promo_code,
+        // Pass click/browser IDs for Meta CAPI attribution
+        meta: getMetaBrowserIds(),
       };
 
       const cartContentIds = uniqueContentIds(data.items.map((item) => item?.p?.id));

@@ -20,6 +20,7 @@ type RequestBody = {
   ship: ShipDetails;
   pay: string;
   promo_code?: string;
+  meta?: { fbc?: string; fbp?: string };
 };
 
 type SizeOption = { size: string; price: number };
@@ -120,6 +121,8 @@ async function sendMetaPurchaseEvent(input: {
   itemIds: string[];
   email?: string;
   phone?: string;
+  fbc?: string;
+  fbp?: string;
   userAgent: string;
   clientIp: string;
   eventSourceUrl: string;
@@ -152,6 +155,8 @@ async function sendMetaPurchaseEvent(input: {
 
   if (em) userData.em = [await sha256Hex(em)];
   if (ph) userData.ph = [await sha256Hex(ph)];
+  if (input.fbc) userData.fbc = input.fbc;
+  if (input.fbp) userData.fbp = input.fbp;
 
   const payload = {
     data: [
@@ -285,7 +290,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Invalid JSON body" }, 400, origin);
   }
 
-  const { items, ship, pay, promo_code } = body;
+  const { items, ship, pay, promo_code, meta } = body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return json({ error: "items must be a non-empty array" }, 400, origin);
@@ -457,6 +462,8 @@ Deno.serve(async (req: Request) => {
     itemIds,
     email: ship.email,
     phone: ship.phone,
+    fbc: meta?.fbc,
+    fbp: meta?.fbp,
     userAgent,
     clientIp,
     eventSourceUrl,

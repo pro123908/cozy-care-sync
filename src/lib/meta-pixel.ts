@@ -2,6 +2,62 @@ type MetaEventPayload = Record<string, unknown>;
 type MetaEventUserData = { email?: string; phone?: string };
 type MetaTrackOptions = { eventId?: string; userData?: MetaEventUserData };
 
+// ---------------------------------------------------------------------------
+// fbc / fbp helpers
+// ---------------------------------------------------------------------------
+
+const FBC_STORAGE_KEY = "meta_fbc";
+const FBP_STORAGE_KEY = "meta_fbp";
+
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function buildFbc(fbclid: string): string {
+  // Format required by Meta: fb.1.{unix_ms}.{fbclid}
+  return `fb.1.${Date.now()}.${fbclid}`;
+}
+
+function initMetaBrowserIds(): void {
+  if (typeof window === "undefined") return;
+  try {
+    // Capture fbclid from URL (present when user arrives via a Meta ad)
+    const params = new URLSearchParams(window.location.search);
+    const fbclid = params.get("fbclid") || "";
+    if (fbclid) {
+      sessionStorage.setItem(FBC_STORAGE_KEY, buildFbc(fbclid));
+    }
+    // Fall back to existing _fbc cookie (set by pixel on previous visits)
+    if (!sessionStorage.getItem(FBC_STORAGE_KEY)) {
+      const cookieFbc = getCookie("_fbc");
+      if (cookieFbc) sessionStorage.setItem(FBC_STORAGE_KEY, cookieFbc);
+    }
+    // Capture _fbp cookie (browser-level identifier set by Meta pixel)
+    if (!sessionStorage.getItem(FBP_STORAGE_KEY)) {
+      const cookieFbp = getCookie("_fbp");
+      if (cookieFbp) sessionStorage.setItem(FBP_STORAGE_KEY, cookieFbp);
+    }
+  } catch {
+    // storage unavailable — silently skip
+  }
+}
+
+export function getMetaBrowserIds(): { fbc?: string; fbp?: string } {
+  if (typeof window === "undefined") return {};
+  try {
+    const fbc = sessionStorage.getItem(FBC_STORAGE_KEY) || undefined;
+    const fbp = sessionStorage.getItem(FBP_STORAGE_KEY) || undefined;
+    return { fbc, fbp };
+  } catch {
+    return {};
+  }
+}
+
+// Run once at module load
+initMetaBrowserIds();
+
 const META_DEBUG = false;
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -40,10 +96,13 @@ async function forwardMetaEvent(
 
   const email = options?.userData?.email?.trim();
   const phone = options?.userData?.phone?.trim();
-  if (email || phone) {
+  const { fbc, fbp } = getMetaBrowserIds();
+  if (email || phone || fbc || fbp) {
     body.user_data = {
       ...(email ? { email } : {}),
       ...(phone ? { phone } : {}),
+      ...(fbc ? { fbc } : {}),
+      ...(fbp ? { fbp } : {}),
     };
   }
 
