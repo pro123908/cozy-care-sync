@@ -335,8 +335,12 @@
   margin-bottom: 22px;
 }
 .wcm-hero-image {
-  object-fit: cover;
-  object-position: center;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.wcm-hero-image-only {
+  min-height: 0 !important;
 }
 .wcm-hero-cols {
   display: grid;
@@ -1101,10 +1105,6 @@
     padding: 20px 16px 18px;
     border-radius: 18px;
     margin-bottom: 16px;
-  }
-  .wcm-hero-image {
-    object-fit: contain;
-    background: #fff;
   }
   .wcm-hero-sale {
     font-size: 11px;

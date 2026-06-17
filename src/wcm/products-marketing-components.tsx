@@ -202,11 +202,10 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             : "var(--grad-soft)",
         color: "#fff",
         padding: imageOnlyBannerEnabled ? 0 : bannersResolved ? "28px 32px" : 0,
-        minHeight:
-          imageOnlyBannerEnabled || !bannersResolved ? "clamp(180px, 34vw, 360px)" : undefined,
+        minHeight: !bannersResolved ? "clamp(180px, 34vw, 360px)" : undefined,
         marginBottom: 18,
       }}
-      className="wcm-hero"
+      className={`wcm-hero${imageOnlyBannerEnabled ? " wcm-hero-image-only" : ""}`}
     >
       <style>{`@keyframes wcmHeroSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
       {imageOnlyBannerEnabled && (
@@ -218,12 +217,8 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           loading="lazy"
           decoding="async"
           style={{
-            position: "absolute",
-            inset: 0,
             width: "100%",
-            height: "100%",
             animation: "wcmHeroSlideIn .2s ease",
-            zIndex: 1,
           }}
         />
       )}
