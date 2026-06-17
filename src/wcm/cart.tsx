@@ -636,7 +636,7 @@ export function CheckoutContent({
                 <DeliveryOption
                   selected
                   title="Standard delivery 2–3 days"
-                  sub={`Across Pakistan via TCS · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
+                  sub={`Across Pakistan via BlueEx · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
                   right={effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}
                 />
               </div>

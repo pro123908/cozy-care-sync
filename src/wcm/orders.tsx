@@ -516,7 +516,7 @@ function trackingDate(order: Order, i: number) {
   if (i === 0) return order.placed + " · 11:24 AM";
   if (i === 1) return order.placed + " · 12:00 PM";
   if (i === 2) return order.placed + " · 03:48 PM";
-  if (i === 3) return "In transit · TCS courier";
+  if (i === 3) return "In transit · BlueEx courier";
   if (i === 4) return order.eta + " · Today by 4 PM";
   if (i === 5) return order.eta + " · 02:18 PM";
   return "";
