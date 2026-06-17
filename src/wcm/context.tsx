@@ -30,6 +30,8 @@ type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   variant_options?: unknown;
 };
 
+const MAX_QTY_PER_PRODUCT = 5;
+
 type CategoryRecord = Database["public"]["Tables"]["categories"]["Row"];
 
 function scheduleIdleTask(task: () => void) {
@@ -425,32 +427,54 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     const normalizedSize =
       size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
     const unitPrice = getUnitPrice(p, normalizedSize);
-    const safeQty = Math.max(1, Number(qty) || 1);
-
-    trackMetaEvent(
-      "AddToCart",
-      {
-        content_ids: [p.id],
-        content_name: p.name,
-        content_type: "product",
-        content_category: p.category_name || p.cat,
-        brand: p.brand,
-        num_items: safeQty,
-        contents: [{ id: p.id, quantity: safeQty, item_price: toMetaValue(unitPrice) }],
-        value: toMetaValue(unitPrice * safeQty),
-        currency: "PKR",
-      },
-      {
-        userData: { email: user?.email },
-      },
-    );
+    const safeQty = Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, Number(qty) || 1));
+    let addedQty = 0;
+    let hitLimit = false;
 
     setCart((c) => {
       const i = c.findIndex((x) => x.id === p.id && x.size === normalizedSize);
-      if (i >= 0) return c.map((x, idx) => (idx === i ? { ...x, qty: x.qty + qty } : x));
-      return [...c, { id: p.id, qty, ...(normalizedSize ? { size: normalizedSize } : {}) }];
+      if (i >= 0) {
+        const currentQty = Math.max(1, Number(c[i].qty) || 1);
+        const nextQty = Math.min(MAX_QTY_PER_PRODUCT, currentQty + safeQty);
+        addedQty = Math.max(0, nextQty - currentQty);
+        hitLimit = nextQty >= MAX_QTY_PER_PRODUCT;
+        if (addedQty === 0) return c;
+        return c.map((x, idx) => (idx === i ? { ...x, qty: nextQty } : x));
+      }
+
+      const initialQty = Math.min(MAX_QTY_PER_PRODUCT, safeQty);
+      addedQty = initialQty;
+      hitLimit = initialQty >= MAX_QTY_PER_PRODUCT;
+      return [
+        ...c,
+        { id: p.id, qty: initialQty, ...(normalizedSize ? { size: normalizedSize } : {}) },
+      ];
     });
-    push(`Added ${p.name} to cart`);
+
+    if (addedQty > 0) {
+      trackMetaEvent(
+        "AddToCart",
+        {
+          content_ids: [p.id],
+          content_name: p.name,
+          content_type: "product",
+          content_category: p.category_name || p.cat,
+          brand: p.brand,
+          num_items: addedQty,
+          contents: [{ id: p.id, quantity: addedQty, item_price: toMetaValue(unitPrice) }],
+          value: toMetaValue(unitPrice * addedQty),
+          currency: "PKR",
+        },
+        {
+          userData: { email: user?.email },
+        },
+      );
+      push(`Added ${p.name} to cart`);
+    }
+
+    if (hitLimit) {
+      push(`Maximum ${MAX_QTY_PER_PRODUCT} units allowed per product.`);
+    }
   };
 
   const onSignOut = async () => {

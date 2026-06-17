@@ -52,6 +52,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREE_SHIPPING_THRESHOLD = 2000;
 const SHIPPING_COST = 250;
+const MAX_QTY_PER_PRODUCT = 5;
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
 const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
@@ -89,6 +90,10 @@ function json(body: unknown, status = 200, origin: string | null = null) {
 
 function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function normalizePhone(value: string) {
@@ -348,14 +353,21 @@ Deno.serve(async (req: Request) => {
       return json({ error: "Each item must have a string id" }, 400, origin);
     }
     const qty = Number(item.qty);
-    if (!Number.isInteger(qty) || qty < 1 || qty > 100) {
+    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY_PER_PRODUCT) {
       return json({ error: `Invalid qty for item ${item.id}` }, 400, origin);
     }
     item.qty = qty; // normalise
   }
-  if (!ship?.address || !ship?.city || !ship?.name || !ship?.phone) {
+  if (!ship?.address || !ship?.city || !ship?.name || !ship?.phone || !ship?.email) {
     return json({ error: "Missing required shipping fields" }, 400, origin);
   }
+
+  const normalizedEmail = normalizeEmail(ship.email);
+  if (!isValidEmail(normalizedEmail)) {
+    return json({ error: "Invalid email" }, 400, origin);
+  }
+  ship.email = normalizedEmail;
+
   if (typeof pay !== "string" || !pay) {
     return json({ error: "Missing payment method" }, 400, origin);
   }

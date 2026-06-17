@@ -678,6 +678,7 @@ export function ProductCard({
               }
               onAdd(p);
             }}
+            disabled={!hasSelectableOptions && cartQty >= 5}
             aria-label={
               hasSelectableOptions
                 ? "Choose options"
@@ -700,6 +701,7 @@ export function ProductCard({
               background: "var(--grad)",
               color: "#fff",
               boxShadow: "0 6px 14px -6px rgba(37,99,235,.4)",
+              opacity: !hasSelectableOptions && cartQty >= 5 ? 0.5 : 1,
               WebkitTapHighlightColor: "transparent",
               touchAction: "manipulation",
             }}

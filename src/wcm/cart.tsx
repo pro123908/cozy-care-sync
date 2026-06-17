@@ -5,6 +5,7 @@ import { ProductImage, Btn, TextField, Section, Row } from "./ui";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
+const MAX_QTY_PER_PRODUCT = 5;
 
 export type CheckoutData = {
   items: CartItem[];
@@ -56,7 +57,11 @@ export function CartDrawer({
     setCart((c) =>
       qty <= 0
         ? c.filter((x) => !(x.id === id && x.size === size))
-        : c.map((x) => (x.id === id && x.size === size ? { ...x, qty } : x)),
+        : c.map((x) =>
+            x.id === id && x.size === size
+              ? { ...x, qty: Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, qty)) }
+              : x,
+          ),
     );
 
   return (
@@ -232,7 +237,11 @@ export function CartDrawer({
                         >
                           {qty}
                         </div>
-                        <button onClick={() => update(p.id, size, qty + 1)} style={miniBtn}>
+                        <button
+                          onClick={() => update(p.id, size, qty + 1)}
+                          style={{ ...miniBtn, opacity: qty >= MAX_QTY_PER_PRODUCT ? 0.5 : 1 }}
+                          disabled={qty >= MAX_QTY_PER_PRODUCT}
+                        >
                           {Icons.plus}
                         </button>
                       </div>
@@ -405,6 +414,7 @@ export function CheckoutContent({
     const e: Record<string, string> = {};
     if (!ship.name.trim()) e.name = "Required";
     if (!/^\+?\d[\d\s]{8,}$/.test(ship.phone)) e.phone = "Enter a valid phone";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) e.email = "Enter a valid email";
     if (!ship.address.trim()) e.address = "Required";
     if (!ship.city.trim()) e.city = "Required";
     setErrs(e);
@@ -587,10 +597,11 @@ export function CheckoutContent({
                 />
               </div>
               <TextField
-                label="Email (for order updates)"
+                label="Email"
                 value={ship.email}
                 onChange={(e) => setShip({ ...ship, email: e.target.value })}
-                hint="We'll send tracking links here."
+                error={errs.email}
+                hint="Required for order confirmation and tracking updates."
               />
               <TextField
                 label="Street address"

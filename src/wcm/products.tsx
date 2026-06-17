@@ -1247,8 +1247,9 @@ export function ProductDetail({
               <button
                 onClick={() => setQty((q) => q + 1)}
                 className="wcm-add-qty-btn"
-                style={qtyBtn}
+                style={{ ...qtyBtn, opacity: qty >= 5 ? 0.5 : 1 }}
                 aria-label="Increase quantity"
+                disabled={qty >= 5}
               >
                 {Icons.plus}
               </button>
@@ -1327,8 +1328,9 @@ export function ProductDetail({
               <button
                 onClick={() => setQty((q) => q + 1)}
                 className="wcm-add-qty-btn"
-                style={qtyBtn}
+                style={{ ...qtyBtn, opacity: qty >= 5 ? 0.5 : 1 }}
                 aria-label="Increase quantity"
+                disabled={qty >= 5}
               >
                 {Icons.plus}
               </button>
