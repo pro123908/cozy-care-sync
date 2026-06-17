@@ -127,12 +127,39 @@ async function sendMetaPurchaseEvent(input: {
   clientIp: string;
   eventSourceUrl: string;
 }) {
+  const purchaseValue = Number(input.total.toFixed(2));
+  if (!Number.isFinite(purchaseValue) || purchaseValue <= 0) {
+    console.warn("[meta-capi] skipping Purchase with invalid value", {
+      eventName: "Purchase",
+      eventId: input.orderId,
+      value: purchaseValue,
+    });
+    return;
+  }
+
+  if (!Array.isArray(input.itemIds) || input.itemIds.length === 0) {
+    console.warn("[meta-capi] skipping Purchase with empty content_ids", {
+      eventName: "Purchase",
+      eventId: input.orderId,
+    });
+    return;
+  }
+
+  if (!Number.isFinite(input.numItems) || input.numItems < 1) {
+    console.warn("[meta-capi] skipping Purchase with invalid num_items", {
+      eventName: "Purchase",
+      eventId: input.orderId,
+      numItems: input.numItems,
+    });
+    return;
+  }
+
   console.info("[meta-capi] incoming event", {
     eventName: "Purchase",
     eventId: input.orderId,
     contentIds: input.itemIds,
     numItems: input.numItems,
-    value: Number(input.total.toFixed(2)),
+    value: purchaseValue,
     currency: "PKR",
     hasUserEmail: Boolean(input.email),
     hasUserPhone: Boolean(input.phone),
@@ -169,7 +196,7 @@ async function sendMetaPurchaseEvent(input: {
         user_data: userData,
         custom_data: {
           currency: "PKR",
-          value: Number(input.total.toFixed(2)),
+          value: purchaseValue,
           content_type: "product",
           content_ids: input.itemIds,
           num_items: input.numItems,
@@ -206,7 +233,7 @@ async function sendMetaPurchaseEvent(input: {
   console.info("[meta-capi] event sent", {
     eventName: "Purchase",
     eventId: input.orderId,
-    value: Number(input.total.toFixed(2)),
+    value: purchaseValue,
     numItems: input.numItems,
     metaResponse,
   });
