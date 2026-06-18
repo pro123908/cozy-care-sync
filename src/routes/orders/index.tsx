@@ -29,14 +29,13 @@ function OrdersPage() {
   useEffect(() => {
     if (user) return;
 
+    let cachedOrders: Order[] = [];
     const cachedOrdersRaw = localStorage.getItem("wcm-guest-orders");
     if (cachedOrdersRaw) {
       try {
-        const cachedOrders = JSON.parse(cachedOrdersRaw) as Order[];
+        cachedOrders = JSON.parse(cachedOrdersRaw) as Order[];
         if (Array.isArray(cachedOrders) && cachedOrders.length > 0) {
           setGuestOrders(cachedOrders);
-          setGuestLoaded(true);
-          return;
         }
       } catch {
         // Fall back to the legacy single-order lookup below.
@@ -79,8 +78,17 @@ function OrdersPage() {
         const payload = await res.json().catch(() => null);
         if (!cancelled && res.ok && payload?.order) {
           const order = payload.order as Order;
-          setGuestOrders([order]);
-          setActiveGuestOrder(order);
+          setGuestOrders((prev) => {
+            const base = cachedOrders.length > 0 ? cachedOrders : prev;
+            const next = [order, ...base.filter((item) => item.id !== order.id)];
+            try {
+              localStorage.setItem("wcm-guest-orders", JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+          if (cachedOrders.length === 0) {
+            setActiveGuestOrder(order);
+          }
           return;
         }
         if (!cancelled) {
