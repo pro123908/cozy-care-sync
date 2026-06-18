@@ -23,6 +23,7 @@ function OrdersPage() {
   const navigate = useNavigate();
   const [guestOrders, setGuestOrders] = useState<Order[]>([]);
   const [activeGuestOrder, setActiveGuestOrder] = useState<Order | null>(null);
+  const [guestOrderPhones, setGuestOrderPhones] = useState<Record<string, string>>({});
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestLoaded, setGuestLoaded] = useState(false);
 
@@ -30,7 +31,18 @@ function OrdersPage() {
     if (user) return;
 
     let cachedOrders: Order[] = [];
+    let cachedPhoneMap: Record<string, string> = {};
     const cachedOrdersRaw = localStorage.getItem("wcm-guest-orders");
+    const cachedPhoneMapRaw = localStorage.getItem("wcm-guest-order-phones");
+    if (cachedPhoneMapRaw) {
+      try {
+        cachedPhoneMap = JSON.parse(cachedPhoneMapRaw) as Record<string, string>;
+      } catch {
+        cachedPhoneMap = {};
+      }
+    }
+    setGuestOrderPhones(cachedPhoneMap);
+
     if (cachedOrdersRaw) {
       try {
         cachedOrders = JSON.parse(cachedOrdersRaw) as Order[];
@@ -86,6 +98,14 @@ function OrdersPage() {
             } catch {}
             return next;
           });
+          const nextPhoneMap = {
+            ...cachedPhoneMap,
+            [order.id]: phone,
+          };
+          setGuestOrderPhones(nextPhoneMap);
+          try {
+            localStorage.setItem("wcm-guest-order-phones", JSON.stringify(nextPhoneMap));
+          } catch {}
           if (cachedOrders.length === 0) {
             setActiveGuestOrder(order);
           }
@@ -111,7 +131,7 @@ function OrdersPage() {
     };
   }, [push, user]);
 
-  if (!user && guestLoading) {
+  if (!user && guestLoading && guestOrders.length === 0) {
     return <WellcareLoader label="Loading guest order" compact />;
   }
 
@@ -147,7 +167,11 @@ function OrdersPage() {
           />
 
           {activeGuestOrder && (
-            <OrderDetail order={activeGuestOrder} onClose={() => setActiveGuestOrder(null)} />
+            <OrderDetail
+              order={activeGuestOrder}
+              guestPhone={guestOrderPhones[activeGuestOrder.id]}
+              onClose={() => setActiveGuestOrder(null)}
+            />
           )}
         </div>
       </Suspense>

@@ -140,6 +140,7 @@ function TrackOrderPage() {
         <Suspense fallback={<WellcareLoader label="Loading order detail" compact />}>
           <OrderDetail
             order={order}
+            guestPhone={phone}
             onClose={() => {
               setOrder(null);
               setError("");

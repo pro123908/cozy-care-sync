@@ -74,9 +74,14 @@ function CheckoutPage() {
         num_items: numItems,
         contents: resolvedCheckoutData.items.map(
           (item: {
-            p?: { id?: string; price?: number };
-            id?: string;
-            qty?: number;
+          let phoneMap: Record<string, string> = {};
+          if (phoneMapRaw) {
+            try {
+              phoneMap = JSON.parse(phoneMapRaw) as Record<string, string>;
+            } catch {
+              phoneMap = {};
+            }
+          }
             unit_price?: number;
           }) => {
             const id = item.p?.id || item.id || "";
@@ -192,6 +197,10 @@ function CheckoutPage() {
           const existing = raw ? (JSON.parse(raw) as Order[]) : [];
           const nextOrders = [newOrder, ...existing.filter((order) => order.id !== newOrder.id)];
           localStorage.setItem("wcm-guest-orders", JSON.stringify(nextOrders));
+          const phoneMapRaw = localStorage.getItem("wcm-guest-order-phones");
+          const phoneMap = phoneMapRaw ? (JSON.parse(phoneMapRaw) as Record<string, string>) : {};
+          phoneMap[newOrder.id] = data.ship.phone;
+          localStorage.setItem("wcm-guest-order-phones", JSON.stringify(phoneMap));
           localStorage.setItem(
             "wcm-guest-order",
             JSON.stringify({ orderId: newOrder.id, phone: data.ship.phone }),

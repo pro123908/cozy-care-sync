@@ -76,6 +76,28 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Order not found" }, 404, origin);
   }
 
+  const { data: reviews, error: reviewsError } = await supabase
+    .from("order_reviews")
+    .select("product_id, rating, comment")
+    .eq("order_code", orderId)
+    .is("user_id", null);
+
+  if (reviewsError) {
+    return json({ error: "Could not fetch order reviews" }, 500, origin);
+  }
+
+  const productReviews = (reviews || []).reduce(
+    (acc: Record<string, { rating: number; comment: string }>, review) => {
+      if (!review.product_id || review.product_id === "__order__") return acc;
+      acc[review.product_id] = {
+        rating: Number(review.rating) || 0,
+        comment: review.comment || "",
+      };
+      return acc;
+    },
+    {},
+  );
+
   return json(
     {
       order: {
@@ -91,6 +113,7 @@ Deno.serve(async (req: Request) => {
         shipping: row.shipping,
         total: row.total,
         rider: row.rider,
+        product_reviews: productReviews,
       },
     },
     200,

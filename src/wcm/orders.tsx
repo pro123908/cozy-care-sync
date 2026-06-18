@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PKR, getUnitPrice, type Order, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Pill, Btn, Section, Row } from "./ui";
@@ -514,12 +514,14 @@ export function OrderDetail({
   order,
   onClose,
   onCancel,
+  guestPhone,
 }: {
   order: Order;
   onClose: () => void;
   onCancel?: () => Promise<void>;
+  guestPhone?: string;
 }) {
-  const { addToCart, products, submitOrderReview, push } = useWcm();
+  const { addToCart, products, submitOrderReview, push, user, setAuthOpen } = useWcm();
   const [cancelling, setCancelling] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [activeReviewProductId, setActiveReviewProductId] = useState<string | null>(null);
@@ -527,7 +529,12 @@ export function OrderDetail({
   const [reviewHover, setReviewHover] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
   const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
+
+  useEffect(() => {
+    setLocalProductReviews(order.product_reviews || {});
+  }, [order.id, order.product_reviews]);
 
   const handleReorder = () => {
     items.forEach(({ p, qty, size }) => addToCart(p, qty, size));
@@ -545,14 +552,48 @@ export function OrderDetail({
     if (reviewRating === 0) return;
     setSubmittingReview(true);
     try {
-      await submitOrderReview(order.id, productId, reviewRating, reviewComment.trim());
+      if (user) {
+        await submitOrderReview(order.id, productId, reviewRating, reviewComment.trim());
+      } else {
+        if (!guestPhone) {
+          push("Please track this order with phone to submit a guest review.", { tone: "orange" });
+          return;
+        }
+
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guest-order-review`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              order_id: order.id,
+              phone: guestPhone,
+              product_id: productId,
+              rating: reviewRating,
+              comment: reviewComment.trim(),
+            }),
+          },
+        );
+
+        const payload = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(payload?.error || "Could not submit guest review");
+        }
+      }
+
+      setLocalProductReviews((prev) => ({
+        ...prev,
+        [productId]: { rating: reviewRating, comment: reviewComment.trim() },
+      }));
       push("Thanks for your review!", { tone: "green" });
       setActiveReviewProductId(null);
       setReviewRating(0);
       setReviewHover(0);
       setReviewComment("");
-    } catch {
-      push("Couldn't submit review. Please try again.", { tone: "rose" });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Couldn't submit review. Please try again.";
+      push(message, { tone: "rose" });
     } finally {
       setSubmittingReview(false);
     }
@@ -585,7 +626,7 @@ export function OrderDetail({
   const items = order.items
     .map((it) => ({ ...it, p: products.find((p) => p.id === it.id) as Product }))
     .filter((x) => x.p);
-  const productReviews = order.product_reviews || {};
+  const productReviews = localProductReviews;
   const hasPendingProductReviews =
     order.status === "Delivered" && items.some(({ p }) => !productReviews[p.id]);
   return (
@@ -1303,6 +1344,11 @@ export function OrderDetail({
           <Btn variant="outline" icon={Icons.refresh} onClick={handleReorder}>
             Reorder
           </Btn>
+          {order.status === "Delivered" && !user && !guestPhone && (
+            <Btn variant="outline" icon={Icons.user} onClick={() => setAuthOpen(true)}>
+              Sign in to rate products
+            </Btn>
+          )}
           {hasPendingProductReviews && (
             <Btn
               variant="outline"

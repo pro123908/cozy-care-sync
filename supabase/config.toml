@@ -9,5 +9,8 @@ verify_jwt = false
 [functions.guest-order-lookup]
 verify_jwt = false
 
+[functions.guest-order-review]
+verify_jwt = false
+
 [functions.meta-track]
 verify_jwt = false
