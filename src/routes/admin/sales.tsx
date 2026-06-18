@@ -31,29 +31,37 @@ const PKR = (n: number) => "Rs. " + n.toLocaleString("en-PK", { maximumFractionD
 function AdminSalesPage() {
   const [rows, setRows] = useState<SalesRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<"sales_count" | "name" | "price">("sales_count");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const fetchSalesRows = async () => {
+    const supabase = await getSupabase();
+    let { data, error } = await supabase
+      .from("products")
+      .select("id, name, brand, cat, price, sales_count, active, image_url, stock")
+      .order("sales_count", { ascending: false });
+    if (error) {
+      const fallback = await supabase
+        .from("products")
+        .select("id, name, brand, cat, price, active, image_url, stock")
+        .order("name", { ascending: true });
+      data = fallback.data;
+    }
+
+    return ((data as SalesRow[]) ?? []).map((r) => ({ ...r, sales_count: r.sales_count ?? 0 }));
+  };
+
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const supabase = await getSupabase();
-      let { data, error } = await supabase
-        .from("products")
-        .select("id, name, brand, cat, price, sales_count, active, image_url, stock")
-        .order("sales_count", { ascending: false });
-      if (error) {
-        const fallback = await supabase
-          .from("products")
-          .select("id, name, brand, cat, price, active, image_url, stock")
-          .order("name", { ascending: true });
-        data = fallback.data;
-      }
+      const data = await fetchSalesRows();
       if (cancelled) return;
-      setRows(((data as SalesRow[]) ?? []).map((r) => ({ ...r, sales_count: r.sales_count ?? 0 })));
+      setRows(data);
       setLoading(false);
     };
     void load();
@@ -61,6 +69,26 @@ function AdminSalesPage() {
       cancelled = true;
     };
   }, []);
+
+  const handleRecalculateAnalytics = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    try {
+      const supabase = await getSupabase();
+      const { error } = await supabase.rpc("recalculate_product_sales_counts");
+      if (error) {
+        setSyncMessage(error.message || "Failed to recalculate analytics.");
+        return;
+      }
+      const data = await fetchSalesRows();
+      setRows(data);
+      setSyncMessage("Analytics recalculated successfully.");
+    } catch {
+      setSyncMessage("Failed to recalculate analytics.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const totalSales = useMemo(() => rows.reduce((s, r) => s + r.sales_count, 0), [rows]);
   const topProduct = useMemo(
@@ -231,7 +259,40 @@ function AdminSalesPage() {
             <p style={{ margin: "6px 0 0", color: "var(--ink-4)", fontSize: 14 }}>
               Units sold per product, tracked from orders.
             </p>
+            {syncMessage ? (
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: syncMessage.includes("success")
+                    ? "var(--pill-success-fg, #15803d)"
+                    : "var(--pill-rose-fg, #be123c)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {syncMessage}
+              </p>
+            ) : null}
           </div>
+          <button
+            type="button"
+            onClick={handleRecalculateAnalytics}
+            disabled={syncing}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 10,
+              border: "1px solid var(--line)",
+              background: "var(--card)",
+              color: "var(--ink)",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: syncing ? "default" : "pointer",
+              opacity: syncing ? 0.7 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {syncing ? "Recalculating..." : "Recalculate analytics"}
+          </button>
         </div>
 
         {/* Metric cards */}

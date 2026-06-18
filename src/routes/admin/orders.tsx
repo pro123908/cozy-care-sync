@@ -207,6 +207,13 @@ function AdminOrdersPage() {
     if (orderId === id) {
       clearOrderView();
     }
+
+    const { error: recalcError } = await supabase.rpc("recalculate_product_sales_counts");
+    if (recalcError) {
+      push("Order deleted, but sales analytics sync failed.");
+      return;
+    }
+
     push("Order deleted");
   };
 
@@ -228,6 +235,13 @@ function AdminOrdersPage() {
     if (orderId && ids.includes(orderId)) {
       clearOrderView();
     }
+
+    const { error: recalcError } = await supabase.rpc("recalculate_product_sales_counts");
+    if (recalcError) {
+      push("Orders deleted, but sales analytics sync failed.");
+      return;
+    }
+
     push(ids.length === 1 ? "Order deleted" : `${ids.length} orders deleted`);
   };
 
