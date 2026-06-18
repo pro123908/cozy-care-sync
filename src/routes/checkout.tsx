@@ -74,14 +74,9 @@ function CheckoutPage() {
         num_items: numItems,
         contents: resolvedCheckoutData.items.map(
           (item: {
-          let phoneMap: Record<string, string> = {};
-          if (phoneMapRaw) {
-            try {
-              phoneMap = JSON.parse(phoneMapRaw) as Record<string, string>;
-            } catch {
-              phoneMap = {};
-            }
-          }
+            p?: { id?: string; price?: number };
+            id?: string;
+            qty?: number;
             unit_price?: number;
           }) => {
             const id = item.p?.id || item.id || "";
