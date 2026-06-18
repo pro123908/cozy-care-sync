@@ -529,6 +529,7 @@ export function OrderDetail({
   const [reviewHover, setReviewHover] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
   const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
   const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
 
@@ -621,6 +622,19 @@ export function OrderDetail({
 
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const copyBankValue = async (field: "account" | "iban", value: string) => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(value);
+      setCopiedBankField(field);
+      window.setTimeout(() => {
+        setCopiedBankField((prev) => (prev === field ? null : prev));
+      }, 1200);
+    } catch {
+      // noop: payment details remain visible even if clipboard API is blocked
+    }
   };
 
   const items = order.items
@@ -932,7 +946,7 @@ export function OrderDetail({
                             style={{
                               display: "flex",
                               justifyContent: "space-between",
-                              alignItems: "baseline",
+                              alignItems: "center",
                               gap: 12,
                             }}
                           >
@@ -948,6 +962,9 @@ export function OrderDetail({
                             </span>
                             <span
                               style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
                                 fontSize: 13,
                                 fontWeight: 700,
                                 fontFamily:
@@ -958,6 +975,47 @@ export function OrderDetail({
                               }}
                             >
                               {value}
+                              {(label === "Account no." || label === "IBAN") && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    copyBankValue(label === "IBAN" ? "iban" : "account", value)
+                                  }
+                                  aria-label={`Copy ${label}`}
+                                  title={
+                                    copiedBankField === (label === "IBAN" ? "iban" : "account")
+                                      ? "Copied"
+                                      : `Copy ${label}`
+                                  }
+                                  style={{
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 6,
+                                    border: "1px solid var(--line)",
+                                    background: "var(--card)",
+                                    color:
+                                      copiedBankField === (label === "IBAN" ? "iban" : "account")
+                                        ? "var(--green-700)"
+                                        : "var(--ink-3)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    padding: 0,
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      transform: "scale(0.72)",
+                                      lineHeight: 0,
+                                    }}
+                                  >
+                                    {Icons.copy}
+                                  </span>
+                                </button>
+                              )}
                             </span>
                           </div>
                         ))}

@@ -381,6 +381,7 @@ export function CheckoutContent({
   const [promo, setPromo] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoErr, setPromoErr] = useState("");
+  const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
   const PROMOS: Record<string, number> = { WELLCARE10: 0.1, HEALTH20: 0.2, CARE15: 0.15 };
   const discountPct = promoApplied ? (PROMOS[promo.trim().toUpperCase()] ?? 0) : 0;
@@ -427,6 +428,19 @@ export function CheckoutContent({
   };
 
   const payLabel = pay === "cod" ? "Cash on delivery" : "Bank transfer";
+
+  const copyBankValue = async (field: "account" | "iban", value: string) => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(value);
+      setCopiedBankField(field);
+      window.setTimeout(() => {
+        setCopiedBankField((prev) => (prev === field ? null : prev));
+      }, 1200);
+    } catch {
+      // noop: failing to copy should not block checkout flow
+    }
+  };
 
   const place = () => {
     const compactAddress = `${ship.address}, ${ship.city}`.trim();
@@ -686,11 +700,61 @@ export function CheckoutContent({
                       ["Branch code", "269"],
                       ["IBAN", "PK92MCIB2691006549640001"],
                     ].map(([label, value]) => (
-                      <div key={label} style={{ display: "flex", gap: 8 }}>
+                      <div key={label} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <span style={{ color: "var(--ink-4)", fontWeight: 600, minWidth: 130 }}>
                           {label}
                         </span>
-                        <span style={{ fontWeight: 700, fontFamily: "monospace" }}>{value}</span>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontWeight: 700,
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {value}
+                          {(label === "Account number" || label === "IBAN") && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                copyBankValue(label === "IBAN" ? "iban" : "account", value)
+                              }
+                              aria-label={`Copy ${label}`}
+                              title={
+                                copiedBankField === (label === "IBAN" ? "iban" : "account")
+                                  ? "Copied"
+                                  : `Copy ${label}`
+                              }
+                              style={{
+                                width: 20,
+                                height: 20,
+                                borderRadius: 6,
+                                border: "1px solid var(--line)",
+                                background: "var(--card)",
+                                color:
+                                  copiedBankField === (label === "IBAN" ? "iban" : "account")
+                                    ? "var(--green-700)"
+                                    : "var(--ink-3)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                padding: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  transform: "scale(0.72)",
+                                  lineHeight: 0,
+                                }}
+                              >
+                                {Icons.copy}
+                              </span>
+                            </button>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>
