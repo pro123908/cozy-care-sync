@@ -1,9 +1,10 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
-import { getProductSeoPathSegment } from "./data";
+import { type Product, getProductSeoPathSegment } from "./data";
+import { getSupabase } from "@/integrations/supabase/client";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -392,11 +393,9 @@ function Header({
     }
   }, []);
 
-  const [debouncedSearch, setDebouncedSearch] = React.useState("");
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 200);
-    return () => clearTimeout(t);
-  }, [search]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [suggestTotal, setSuggestTotal] = useState(0);
+  const [suggestLoading, setSuggestLoading] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -405,29 +404,28 @@ function Header({
     return () => window.clearInterval(timer);
   }, [announcementSlides.length]);
 
-  const results = useMemo(() => {
-    const q = debouncedSearch.trim().toLowerCase();
-    if (!q) return [];
-    return products
-      .map((p) => {
-        const name = p.name.toLowerCase();
-        const brand = p.brand.toLowerCase();
-        const blurb = p.blurb.toLowerCase();
-        const category = (p.category_name || p.cat).toLowerCase();
-        let score = 0;
-        if (name.startsWith(q)) score += 8;
-        if (name.includes(q)) score += 5;
-        if (brand.startsWith(q)) score += 4;
-        if (brand.includes(q)) score += 2;
-        if (category.includes(q)) score += 2;
-        if (blurb.includes(q)) score += 1;
-        return { p, score };
-      })
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map((x) => x.p);
-  }, [products, debouncedSearch]);
+  const fetchSuggestions = useCallback(async (q: string) => {
+    if (!q.trim()) { setSuggestions([]); setSuggestTotal(0); return; }
+    setSuggestLoading(true);
+    const supabase = await getSupabase();
+    const { data } = await supabase.rpc("search_products", {
+      q: q.trim(),
+      cat_filter: "all",
+      sort_by: "relevance",
+      p_offset: 0,
+      p_limit: 6,
+    });
+    setSuggestLoading(false);
+    if (!data) return;
+    const rows = data as (Product & { total_count: number })[];
+    setSuggestions(rows.map(({ total_count: _t, ...p }) => p as Product));
+    setSuggestTotal(rows[0]?.total_count ?? 0);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchSuggestions(search), 220);
+    return () => clearTimeout(t);
+  }, [search, fetchSuggestions]);
 
   const persistRecentSearch = (term: string) => {
     const cleaned = term.trim();
@@ -447,16 +445,25 @@ function Header({
     setDropOpen(false);
   };
 
-  const goProduct = (id: string) => {
+  const goSearchPage = (q: string) => {
+    const term = q.trim();
+    if (term) {
+      persistRecentSearch(term);
+      trackMetaEvent("Search", { search_string: term });
+    }
+    clearSearch();
+    navigate({ to: "/search", search: { q: term, cat: "all", sort: "relevance", page: 1 } });
+  };
+
+  const goProduct = (p: Product) => {
     if (search.trim()) {
       persistRecentSearch(search);
       trackMetaEvent("Search", { search_string: search.trim() });
     }
     clearSearch();
-    const matched = products.find((product) => product.id === id);
     navigate({
       to: "/products/$productId",
-      params: { productId: matched ? getProductSeoPathSegment(matched, products) : id },
+      params: { productId: getProductSeoPathSegment(p, products) },
     });
   };
 
@@ -637,9 +644,9 @@ function Header({
                   setDropOpen(true);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && results[0]) {
+                  if (e.key === "Enter") {
                     e.preventDefault();
-                    goProduct(results[0].id);
+                    goSearchPage(search);
                   }
                 }}
                 onFocus={() => setDropOpen(true)}
@@ -648,7 +655,7 @@ function Header({
                   width: "100%",
                   padding: "11px 14px 11px 42px",
                   borderRadius:
-                    dropOpen && (results.length > 0 || !search.trim()) ? "18px 18px 0 0" : 99,
+                    dropOpen && (suggestions.length > 0 || suggestLoading || !search.trim()) ? "18px 18px 0 0" : 99,
                   border: "1px solid var(--line)",
                   background: "var(--bg-elev)",
                   fontSize: 13.5,
@@ -668,7 +675,7 @@ function Header({
                   e.currentTarget.style.borderRadius = "99px";
                 }}
               />
-              {dropOpen && (results.length > 0 || !search.trim()) && (
+              {dropOpen && (suggestions.length > 0 || suggestLoading || !search.trim()) && (
                 <div
                   style={{
                     position: "absolute",
@@ -758,94 +765,82 @@ function Header({
                         </div>
                       </div>
                     </div>
-                  ) : results.length > 0 ? (
-                    results.map((p) => (
+                  ) : suggestLoading ? (
+                    <div style={{ padding: "14px 16px", color: "var(--ink-4)", fontSize: 13 }}>
+                      Searching…
+                    </div>
+                  ) : suggestions.length > 0 ? (
+                    <>
+                      {suggestions.map((p) => (
+                        <button
+                          key={p.id}
+                          onMouseDown={() => goProduct(p)}
+                          style={{
+                            width: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            padding: "10px 16px",
+                            background: "none",
+                            border: "none",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            borderBottom: "1px solid var(--line)",
+                            transition: "background .1s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        >
+                          <div
+                            style={{
+                              width: 38, height: 38, borderRadius: 9, overflow: "hidden",
+                              border: "1px solid var(--line)", background: "var(--bg-elev)",
+                              flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                            }}
+                          >
+                            {p.image_url ? (
+                              <img src={p.image_url} alt={p.name} loading="lazy" decoding="async"
+                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                            ) : (
+                              <ProductImageFallback cat={p.cat} name={p.name} brand={p.brand} swatch={p.swatch} compact />
+                            )}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {highlightText(p.name, search)}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
+                              {highlightText(p.brand, search)} &middot; {p.category_name || p.cat}
+                            </div>
+                          </div>
+                          <div style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, color: "var(--blue-600)", flexShrink: 0 }}>
+                            Rs {p.price.toLocaleString()}
+                          </div>
+                        </button>
+                      ))}
+                      {/* See all results row */}
                       <button
-                        key={p.id}
-                        onMouseDown={() => goProduct(p.id)}
+                        onMouseDown={() => goSearchPage(search)}
                         style={{
                           width: "100%",
                           display: "flex",
                           alignItems: "center",
-                          gap: 12,
-                          padding: "10px 16px",
-                          background: "none",
+                          justifyContent: "space-between",
+                          padding: "11px 16px",
+                          background: "var(--bg-elev)",
                           border: "none",
                           cursor: "pointer",
-                          textAlign: "left",
-                          borderBottom: "1px solid var(--line)",
-                          transition: "background .1s",
+                          fontFamily: "inherit",
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-elev)")}
                       >
-                        <div
-                          style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 9,
-                            overflow: "hidden",
-                            border: "1px solid var(--line)",
-                            background: "var(--bg-elev)",
-                            flexShrink: 0,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          {p.image_url ? (
-                            <img
-                              src={p.image_url}
-                              alt={p.name}
-                              loading="lazy"
-                              decoding="async"
-                              style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                display: "block",
-                              }}
-                            />
-                          ) : (
-                            <ProductImageFallback
-                              cat={p.cat}
-                              name={p.name}
-                              brand={p.brand}
-                              swatch={p.swatch}
-                              compact
-                            />
-                          )}
-                        </div>
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              fontSize: 13.5,
-                              fontWeight: 600,
-                              color: "var(--ink)",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {highlightText(p.name, search)}
-                          </div>
-                          <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
-                            {highlightText(p.brand, search)} &middot; {p.category_name || p.cat}
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            marginLeft: "auto",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: "var(--blue-600)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          Rs {p.price.toLocaleString()}
-                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-600)" }}>
+                          See all {suggestTotal > 6 ? `${suggestTotal.toLocaleString()} ` : ""}results for "{search}"
+                        </span>
+                        <span style={{ fontSize: 13, color: "var(--blue-500)" }}>→</span>
                       </button>
-                    ))
+                    </>
                   ) : (
                     <div style={{ padding: "12px 14px" }}>
                       <div style={{ color: "var(--ink-3)", fontSize: 13, fontWeight: 700 }}>
@@ -860,15 +855,9 @@ function Header({
                             key={`empty-${term}`}
                             onMouseDown={() => applySearchSuggestion(term)}
                             style={{
-                              border: "1px solid var(--line)",
-                              background: "var(--bg-elev)",
-                              borderRadius: 99,
-                              padding: "6px 9px",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: "var(--ink-3)",
-                              cursor: "pointer",
-                              fontFamily: "inherit",
+                              border: "1px solid var(--line)", background: "var(--bg-elev)",
+                              borderRadius: 99, padding: "6px 9px", fontSize: 12, fontWeight: 700,
+                              color: "var(--ink-3)", cursor: "pointer", fontFamily: "inherit",
                             }}
                           >
                             {term}
