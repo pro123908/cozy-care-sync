@@ -5,7 +5,9 @@ import { Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 
 export function AdminGate({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, setAuthOpen } = useWcm();
+  const { user, isAdmin, authReady, setAuthOpen } = useWcm();
+
+  if (!authReady) return null;
 
   if (!user) {
     return (

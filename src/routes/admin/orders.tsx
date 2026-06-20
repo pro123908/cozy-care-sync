@@ -7,6 +7,7 @@ import { AdminGate } from "@/wcm/admin-access";
 import { useWcm } from "@/wcm/context";
 import { getProductSeoPathSegment } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -40,6 +41,7 @@ export const Route = createFileRoute("/admin/orders")({
 
 function AdminOrdersPage() {
   const { push } = useWcm();
+  const isMobile = useIsMobile();
   const { orderId } = useSearch({ from: "/admin/orders" });
   const [rows, setRows] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -281,17 +283,18 @@ function AdminOrdersPage() {
 
   return (
     <AdminGate>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 90px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0" : "30px 20px 90px" }}>
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-start" : "center",
             justifyContent: "space-between",
             gap: 12,
+            flexWrap: "wrap",
           }}
         >
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.4, color: "var(--ink)" }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, letterSpacing: -0.4, color: "var(--ink)" }}>
               Orders
             </h1>
             <p style={{ marginTop: 6, marginBottom: 0, color: "var(--ink-4)", fontSize: 14 }}>
@@ -338,7 +341,8 @@ function AdminOrdersPage() {
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: isMobile ? "stretch" : "center",
+                flexDirection: isMobile ? "column" : "row",
                 justifyContent: "space-between",
                 gap: 10,
               }}
@@ -348,7 +352,7 @@ function AdminOrdersPage() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by order code, name, email, phone"
-                style={searchInputStyle}
+                style={{ ...searchInputStyle, width: isMobile ? "100%" : 280, boxSizing: "border-box" }}
               />
             </div>
 
@@ -440,6 +444,61 @@ function AdminOrdersPage() {
 
             {loading ? (
               <WellcareLoader label="Loading orders" compact />
+            ) : isMobile ? (
+              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                {pageRows.length === 0 ? (
+                  <div style={{ padding: "20px 0", textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>
+                    No orders found.
+                  </div>
+                ) : pageRows.map((o) => (
+                  <div
+                    key={o.id}
+                    style={{
+                      border: "1px solid var(--line)",
+                      borderRadius: 12,
+                      padding: 14,
+                      background: statusRowAccent(o.status).background,
+                      borderLeft: statusRowAccent(o.status).borderLeft,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(o.id)}
+                          onChange={() => toggleSelect(o.id)}
+                        />
+                        <span style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>{o.order_code}</span>
+                      </div>
+                      <StatusPill status={o.status} />
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 3 }}>
+                      {o.customer_name || (o.user_id ? `${o.user_id.slice(0, 8)}…` : "Guest")}
+                      {o.phone ? ` · ${o.phone}` : ""}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)", marginBottom: 3 }}>
+                      Rs {o.total.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 10 }}>
+                      {new Date(o.created_at).toLocaleString()}
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={() => window.location.assign(`/admin/orders?orderId=${encodeURIComponent(o.id)}`)}
+                        style={miniBtnStyle}
+                      >
+                        View details
+                      </button>
+                      <button
+                        onClick={() => setPendingDeleteOrder({ id: o.id, orderCode: o.order_code })}
+                        style={miniDangerBtnStyle}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div
                 style={{
@@ -470,8 +529,8 @@ function AdminOrdersPage() {
                   </thead>
                   <tbody>
                     {pageRows.map((o) => (
-                      <tr key={o.id} style={{ borderTop: "1px solid var(--line)" }}>
-                        <td style={tdStyle}>
+                      <tr key={o.id} style={{ borderTop: "1px solid var(--line)", background: statusRowAccent(o.status).background }}>
+                        <td style={{ ...tdStyle, borderLeft: statusRowAccent(o.status).borderLeft }}>
                           <input
                             type="checkbox"
                             checked={selectedIds.includes(o.id)}
@@ -700,6 +759,18 @@ function BulkStatusMenu({
   );
 }
 
+function statusRowAccent(status: string): { background: string; borderLeft: string } {
+  const map: Record<string, { background: string; borderLeft: string }> = {
+    "Order placed":     { background: "rgba(59,130,246,0.05)",  borderLeft: "3px solid #3b82f6" },
+    "Order confirmed":  { background: "rgba(16,185,129,0.05)",  borderLeft: "3px solid #10b981" },
+    Processing:         { background: "rgba(245,158,11,0.06)",  borderLeft: "3px solid #d97706" },
+    "Out for delivery": { background: "rgba(109,40,217,0.05)",  borderLeft: "3px solid #7c3aed" },
+    Delivered:          { background: "rgba(16,185,129,0.08)",  borderLeft: "3px solid #10b981" },
+    Cancelled:          { background: "rgba(244,63,94,0.05)",   borderLeft: "3px solid #f43f5e" },
+  };
+  return map[status] ?? { background: "transparent", borderLeft: "3px solid transparent" };
+}
+
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, { bg: string; color: string }> = {
     "Order placed": { bg: "var(--pill-info-bg)", color: "var(--pill-info-fg)" },
@@ -744,7 +815,290 @@ function OrderDetailsPanel({
   const items = Array.isArray(order.items) ? order.items : [];
   const isSaving = savingId === order.id;
   const { products } = useWcm();
+  const isMobile = useIsMobile();
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+
+  const accent = statusRowAccent(order.status);
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+        {/* Back nav */}
+        <button
+          onClick={onBack}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "none",
+            border: "none",
+            padding: 0,
+            fontSize: 14,
+            fontWeight: 700,
+            color: "var(--ink-4)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          ← All orders
+        </button>
+
+        {/* Hero card */}
+        <div
+          style={{
+            ...cardStyle,
+            borderLeft: accent.borderLeft,
+            background: accent.background,
+            padding: 18,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 }}>
+                Order
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "var(--ink)", letterSpacing: -0.4 }}>
+                {order.order_code}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
+                {new Date(order.created_at).toLocaleString()}
+              </div>
+            </div>
+            <StatusPill status={order.status} />
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ height: 6, borderRadius: 99, background: "rgba(0,0,0,0.08)" }}>
+              <div
+                style={{
+                  height: "100%",
+                  borderRadius: 99,
+                  background: order.status === "Cancelled" ? "#f43f5e" : "#3b82f6",
+                  width: `${order.progress}%`,
+                  transition: "width 0.4s ease",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 5, fontWeight: 600 }}>
+              {order.progress}% complete
+            </div>
+          </div>
+
+          {/* Total + payment */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Total</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "var(--ink)", letterSpacing: -0.5, marginTop: 2 }}>
+                Rs {order.total.toLocaleString()}
+              </div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.5 }}>Payment</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginTop: 2 }}>{order.payment}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Customer */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Customer</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <MobileInfoRow label="Name" value={order.customer_name || "-"} />
+            <MobileInfoRow label="Email" value={order.email || "-"} />
+            <MobileInfoRow label="Phone" value={order.phone || "-"} />
+          </div>
+        </div>
+
+        {/* Delivery */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Delivery</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <MobileInfoRow label="Address" value={order.address} />
+            <MobileInfoRow label="Landmark" value={order.landmark || "-"} />
+          </div>
+        </div>
+
+        {/* Items */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Items ({items.length})</div>
+          {items.length === 0 ? (
+            <div style={{ color: "var(--ink-4)", fontSize: 13 }}>No items recorded.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {items.map((item: any, idx: number) => {
+                const prod = productMap.get(item.id);
+                const imgUrl = prod?.image_url || item.image_url;
+                const productName = prod?.name || item.name || item.id || "Item";
+                const productRouteParam = prod ? getProductSeoPathSegment(prod, products) : item.id;
+                const itemQty = Number(item.qty) || 1;
+                const unitPrice =
+                  item.unit_price != null ? Number(item.unit_price)
+                  : item.price != null ? Number(item.price)
+                  : null;
+                return (
+                  <div
+                    key={`${item.id || "item"}-${idx}`}
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      alignItems: "center",
+                      paddingTop: idx === 0 ? 0 : 12,
+                      borderTop: idx === 0 ? "none" : "1px solid var(--line)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        background: "var(--bg-elev)",
+                        border: "1px solid var(--line)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {imgUrl ? (
+                        <img
+                          src={imgUrl}
+                          alt={item.name || item.id}
+                          loading="lazy"
+                          decoding="async"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 20 }}>📦</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {item.id ? (
+                        <Link
+                          to="/products/$productId"
+                          params={{ productId: productRouteParam }}
+                          style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", textDecoration: "underline", textUnderlineOffset: 2 }}
+                        >
+                          {productName}
+                        </Link>
+                      ) : (
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{productName}</div>
+                      )}
+                      {item.size && (
+                        <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>
+                          Size: <span style={{ fontWeight: 700, color: "var(--ink-3)" }}>{item.size}</span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
+                        {unitPrice != null
+                          ? `Rs ${unitPrice.toLocaleString()} × ${itemQty} = Rs ${(unitPrice * itemQty).toLocaleString()}`
+                          : `× ${itemQty}`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Payment summary */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Payment summary</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "var(--ink-4)" }}>Subtotal</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Rs {order.subtotal.toLocaleString()}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "var(--ink-4)" }}>Shipping</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Rs {order.shipping.toLocaleString()}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>Total</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: "var(--ink)" }}>Rs {order.total.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Update status */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Update status</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {STATUS_OPTIONS.map((s) => {
+              const isActive = s.status === order.status;
+              return (
+                <button
+                  key={s.status}
+                  disabled={isActive || isSaving}
+                  onClick={() => onChangeStatus(order.id, s.status)}
+                  style={{
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: 12,
+                    border: isActive ? "2px solid #3b82f6" : "1px solid var(--line)",
+                    background: isActive ? "#3b82f6" : "var(--card)",
+                    color: isActive ? "#fff" : "var(--ink)",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: isActive || isSaving ? "default" : "pointer",
+                    opacity: isSaving && !isActive ? 0.5 : 1,
+                    fontFamily: "inherit",
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <span>{s.status}</span>
+                  {isActive && <span style={{ fontSize: 12, opacity: 0.8 }}>Current</span>}
+                </button>
+              );
+            })}
+          </div>
+          {isSaving && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "var(--ink-4)" }}>Saving…</div>
+          )}
+        </div>
+
+        {/* Danger zone */}
+        <div
+          style={{
+            ...cardStyle,
+            border: "1px solid rgba(244,63,94,0.3)",
+            background: "rgba(244,63,94,0.03)",
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#f43f5e", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12 }}>
+            Danger zone
+          </div>
+          <button
+            onClick={() => onDelete(order.id, order.order_code)}
+            disabled={isSaving}
+            style={{
+              width: "100%",
+              padding: "13px 16px",
+              borderRadius: 12,
+              border: "1px solid #f43f5e",
+              background: "transparent",
+              color: "#f43f5e",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: isSaving ? "default" : "pointer",
+              fontFamily: "inherit",
+              opacity: isSaving ? 0.6 : 1,
+            }}
+          >
+            Delete this order
+          </button>
+        </div>
+
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1008,6 +1362,24 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+function MobileInfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+      <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
+
+const mobileSectionLabel: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: "var(--ink-4)",
+  textTransform: "uppercase",
+  letterSpacing: 0.8,
+  marginBottom: 14,
+};
 
 const cardStyle: CSSProperties = {
   background: "var(--card)",

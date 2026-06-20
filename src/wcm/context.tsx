@@ -62,6 +62,7 @@ type WcmContextType = {
   // User & Auth
   user: WcmUser | null;
   isAdmin: boolean;
+  authReady: boolean;
   setUser: (u: WcmUser | null) => void;
   authOpen: boolean;
   setAuthOpen: (v: boolean) => void;
@@ -154,6 +155,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
   const [user, setUser] = useState<WcmUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [cart, setCart] = useState<CartLine[]>(() => {
     try {
@@ -407,6 +409,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       } else {
         setOrdersLoaded(true);
       }
+      setAuthReady(true);
     };
 
     const cancelSchedule = scheduleIdleTask(() => {
@@ -603,6 +606,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         toggleTheme,
         user,
         isAdmin,
+        authReady,
         setUser,
         authOpen,
         setAuthOpen,

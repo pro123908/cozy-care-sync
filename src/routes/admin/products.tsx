@@ -8,6 +8,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn, ProductImageFallback } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 import { useWcm } from "@/wcm/context";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
@@ -160,6 +161,7 @@ export const Route = createFileRoute("/admin/products")({
 
 function AdminProductsPage() {
   const { push } = useWcm();
+  const isMobile = useIsMobile();
   const [rows, setRows] = useState<ProductRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -187,6 +189,9 @@ function AdminProductsPage() {
   const [categoryImageDrafts, setCategoryImageDrafts] = useState<Record<string, string>>({});
   const [categoryNameDrafts, setCategoryNameDrafts] = useState<Record<string, string>>({});
   const [categoryTopDrafts, setCategoryTopDrafts] = useState<Record<string, boolean>>({});
+  const [categorySlugDrafts, setCategorySlugDrafts] = useState<Record<string, string>>({});
+  const [categorySortDrafts, setCategorySortDrafts] = useState<Record<string, number>>({});
+  const [savingCategoryAllId, setSavingCategoryAllId] = useState<string | null>(null);
   const [homepageBanners, setHomepageBanners] = useState<HomepageBannerRow[]>([]);
   const [homepageBannerImageDrafts, setHomepageBannerImageDrafts] = useState<
     Record<string, string>
@@ -210,6 +215,9 @@ function AdminProductsPage() {
   const [newCategoryTopCategory, setNewCategoryTopCategory] = useState(false);
   const [newCategorySlugManuallyEdited, setNewCategorySlugManuallyEdited] = useState(false);
   const [showCategoryImages, setShowCategoryImages] = useState(false);
+  const [openSections, setOpenSections] = useState({ products: true, categories: true, banners: true });
+  const toggleSection = (key: keyof typeof openSections) =>
+    setOpenSections((p) => ({ ...p, [key]: !p[key] }));
   const [productIdManuallyEdited, setProductIdManuallyEdited] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -779,6 +787,28 @@ function AdminProductsPage() {
     await loadCategories();
   };
 
+  const saveCategoryAll = async (categoryId: string) => {
+    const category = categories.find((c) => c.id === categoryId);
+    if (!category) return;
+    const name = (categoryNameDrafts[categoryId] ?? category.name).trim();
+    const slug = slugifyCategory(categorySlugDrafts[categoryId] ?? category.slug);
+    const sort_order = categorySortDrafts[categoryId] ?? category.sort_order ?? 0;
+    const top_category = categoryTopDrafts[categoryId] ?? category.top_category;
+    const image_url = (categoryImageDrafts[categoryId] ?? category.image_url ?? "").trim() || null;
+    if (!name) { push("Category name cannot be empty", { tone: "red" }); return; }
+    if (!slug) { push("Category slug cannot be empty", { tone: "red" }); return; }
+    setSavingCategoryAllId(categoryId);
+    const supabase = await getSupabase();
+    const { error } = await supabase
+      .from("categories")
+      .update({ name, slug, sort_order, top_category, image_url })
+      .eq("id", categoryId);
+    setSavingCategoryAllId(null);
+    if (error) { push(error.message || "Failed to save category", { tone: "red" }); return; }
+    push("Category saved");
+    await loadCategories();
+  };
+
   const createCategory = async () => {
     const name = newCategoryName.trim();
     const slug = slugifyCategory(newCategorySlug);
@@ -957,17 +987,18 @@ function AdminProductsPage() {
 
   return (
     <AdminGate>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 90px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0" : "30px 20px 90px" }}>
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobile ? "flex-start" : "center",
             justifyContent: "space-between",
+            flexWrap: "wrap",
             gap: 12,
           }}
         >
           <div>
-            <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.4, color: "var(--ink)" }}>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, letterSpacing: -0.4, color: "var(--ink)" }}>
               Products
             </h1>
             <p style={{ marginTop: 6, marginBottom: 0, color: "var(--ink-4)", fontSize: 14 }}>
@@ -996,34 +1027,35 @@ function AdminProductsPage() {
 
         <div style={{ marginTop: 14 }}>
           {viewMode === "list" && (
-            <section style={cardStyle}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+            {/* ── All Products ── */}
+            <section style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+              <div style={{ height: 3, background: "linear-gradient(90deg, #6366f1, #06b6d4)" }} />
               <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
+                style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, cursor: "pointer", userSelect: "none" }}
+                onClick={() => toggleSection("products")}
               >
-                <h2 style={sectionTitleStyle}>All products</h2>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => {
-                      resetForm();
-                      setViewMode("editor");
-                      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                    style={miniBtnStyle}
-                  >
-                    + New product
-                  </button>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by id, name, brand, category"
-                    style={searchInputStyle}
-                  />
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, color: "var(--ink-4)", display: "inline-block", transform: openSections.products ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s", lineHeight: 1 }}>▼</span>
+                  <h2 style={sectionTitleStyle}>All products</h2>
                 </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); resetForm(); setViewMode("editor"); formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                  style={miniBtnStyle}
+                >
+                  + New product
+                </button>
+              </div>
+              {openSections.products && (<>
+              <div style={{ padding: 16 }}>
+              <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", justifyContent: "flex-end", gap: 10, marginBottom: 8 }}>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search by id, name, brand, category"
+                  style={{ ...searchInputStyle, flex: 1, width: isMobile ? "100%" : 260, boxSizing: "border-box" }}
+                />
               </div>
 
               <div
@@ -1050,17 +1082,17 @@ function AdminProductsPage() {
                   onClick={() => setStatusFilter("archived")}
                   label={`Archived (${rows.filter((r) => !r.active).length})`}
                 />
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Category</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: isMobile ? 1 : undefined }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12, whiteSpace: "nowrap" }}>Category</span>
                   <CustomSelect
                     value={categoryFilter}
                     onChange={setCategoryFilter}
                     options={listCategoryFilterOptions}
-                    style={filterSelectTriggerStyle}
+                    style={isMobile ? { ...filterSelectTriggerStyle, width: "auto", flex: 1 } : filterSelectTriggerStyle}
                   />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Source</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: isMobile ? 1 : undefined }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12, whiteSpace: "nowrap" }}>Source</span>
                   <CustomSelect
                     value={sourceFilter}
                     onChange={(value) => setSourceFilter(value as "all" | "whatsapp" | "manual")}
@@ -1072,11 +1104,11 @@ function AdminProductsPage() {
                         label: `Manual (${rows.length - whatsappImportedCount})`,
                       },
                     ]}
-                    style={filterSelectTriggerStyle}
+                    style={isMobile ? { ...filterSelectTriggerStyle, width: "auto", flex: 1 } : filterSelectTriggerStyle}
                   />
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Stock</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: isMobile ? 1 : undefined }}>
+                  <span style={{ color: "var(--ink-4)", fontSize: 12, whiteSpace: "nowrap" }}>Stock</span>
                   <CustomSelect
                     value={stockFilter}
                     onChange={(value) =>
@@ -1089,10 +1121,10 @@ function AdminProductsPage() {
                       { value: "low", label: `Low stock (${stockBuckets.low})` },
                       { value: "out", label: `Out of stock (${stockBuckets.out})` },
                     ]}
-                    style={filterSelectTriggerStyle}
+                    style={isMobile ? { ...filterSelectTriggerStyle, width: "auto", flex: 1 } : filterSelectTriggerStyle}
                   />
                 </div>
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ marginLeft: isMobile ? 0 : "auto", display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ color: "var(--ink-4)", fontSize: 12 }}>Rows</span>
                   <CustomSelect
                     value={String(pageSize)}
@@ -1184,617 +1216,143 @@ function AdminProductsPage() {
                   {Math.min(pageStart + pageSize, filtered.length)} of {filtered.length}
                 </span>
               </div>
-
-              <div
-                style={{
-                  marginTop: 14,
-                  border: "1px solid var(--line)",
-                  borderRadius: 12,
-                  padding: 12,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
-                    Category images
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowCategoryImages((prev) => !prev)}
-                      style={miniBtnStyle}
-                    >
-                      {showCategoryImages ? "Hide" : "Show"}
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    border: "1px solid var(--line)",
-                    borderRadius: 10,
-                    padding: 10,
-                    display: "grid",
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>
-                    Add new category
-                  </div>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1.2fr 1fr 120px",
-                      gap: 8,
-                    }}
-                  >
-                    <input
-                      value={newCategoryName}
-                      placeholder="Category name"
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") createCategory();
-                      }}
-                      disabled={creatingCategory}
-                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                    />
-                    <input
-                      value={newCategorySlug}
-                      placeholder="category-slug"
-                      onChange={(e) => {
-                        setNewCategorySlugManuallyEdited(true);
-                        setNewCategorySlug(slugifyCategory(e.target.value));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") createCategory();
-                      }}
-                      disabled={creatingCategory}
-                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                    />
-                    <input
-                      type="number"
-                      min={0}
-                      value={newCategorySortOrder}
-                      onChange={(e) =>
-                        setNewCategorySortOrder(Math.max(0, Number(e.target.value) || 0))
-                      }
-                      disabled={creatingCategory}
-                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                    />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8 }}>
-                    <input
-                      value={newCategoryImageUrl}
-                      placeholder="Image URL (optional)"
-                      onChange={(e) => setNewCategoryImageUrl(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") createCategory();
-                      }}
-                      disabled={creatingCategory}
-                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                    />
-                    <label
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        color: "var(--ink-3)",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={newCategoryTopCategory}
-                        onChange={(e) => setNewCategoryTopCategory(e.target.checked)}
-                        disabled={creatingCategory}
-                      />
-                      Top category
-                    </label>
-                    <button
-                      type="button"
-                      onClick={createCategory}
-                      disabled={creatingCategory}
-                      style={{ ...miniBtnStyle, opacity: creatingCategory ? 0.6 : 1 }}
-                    >
-                      {creatingCategory ? "Adding..." : "Add"}
-                    </button>
-                  </div>
-                </div>
-
-                {showCategoryImages && (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {categories.map((category) => {
-                      const draftImage = categoryImageDrafts[category.id] || "";
-                      const isSavingCategory = savingCategoryId === category.id;
-                      const isUploadingCategory = uploadingCategoryId === category.id;
-
-                      const draftName = categoryNameDrafts[category.id] ?? category.name;
-                      const isSavingCategoryName = savingCategoryNameId === category.id;
-                      const draftTopCategory =
-                        categoryTopDrafts[category.id] ?? category.top_category;
-                      const isSavingTopCategory = savingCategoryTopId === category.id;
-
-                      return (
-                        <div
-                          key={category.id}
-                          style={{
-                            border: "1px solid var(--line)",
-                            borderRadius: 10,
-                            padding: 10,
-                            display: "grid",
-                            gridTemplateColumns: "64px 1fr auto",
-                            gap: 10,
-                            alignItems: "center",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 64,
-                              height: 64,
-                              borderRadius: 10,
-                              overflow: "hidden",
-                              border: "1px solid var(--line)",
-                              background: "var(--bg-elev)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {draftImage ? (
-                              <img
-                                src={draftImage}
-                                alt={category.name}
-                                loading="lazy"
-                                decoding="async"
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              />
-                            ) : (
-                              <span style={{ fontSize: 18, color: "var(--ink-4)" }}>🏷️</span>
-                            )}
-                          </div>
-
-                          <div style={{ minWidth: 0 }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 4,
-                                alignItems: "center",
-                                marginBottom: 4,
-                              }}
-                            >
-                              <input
-                                value={draftName}
-                                onChange={(e) =>
-                                  setCategoryNameDrafts((prev) => ({
-                                    ...prev,
-                                    [category.id]: e.target.value,
-                                  }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveCategoryName(category.id);
-                                }}
-                                disabled={
-                                  isSavingCategoryName || isSavingCategory || isUploadingCategory
-                                }
-                                style={{
-                                  ...inputStyle,
-                                  height: 30,
-                                  fontSize: 13,
-                                  fontWeight: 700,
-                                  flex: 1,
-                                }}
-                              />
-                              <button
-                                type="button"
-                                onClick={() => saveCategoryName(category.id)}
-                                disabled={
-                                  isSavingCategoryName ||
-                                  isSavingCategory ||
-                                  isUploadingCategory ||
-                                  draftName === category.name
-                                }
-                                style={{
-                                  ...miniBtnStyle,
-                                  opacity:
-                                    isSavingCategoryName || draftName === category.name ? 0.5 : 1,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {isSavingCategoryName ? "Saving…" : "Rename"}
-                              </button>
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "var(--ink-4)",
-                                marginBottom: 6,
-                                fontFamily: "JetBrains Mono, monospace",
-                              }}
-                            >
-                              {category.slug}
-                            </div>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                marginBottom: 6,
-                              }}
-                            >
-                              <label
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  color: "var(--ink-3)",
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={draftTopCategory}
-                                  onChange={(e) =>
-                                    setCategoryTopDrafts((prev) => ({
-                                      ...prev,
-                                      [category.id]: e.target.checked,
-                                    }))
-                                  }
-                                  disabled={
-                                    isSavingTopCategory ||
-                                    isSavingCategoryName ||
-                                    isSavingCategory ||
-                                    isUploadingCategory
-                                  }
-                                />
-                                Top category
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => saveCategoryTopCategory(category.id)}
-                                disabled={
-                                  isSavingTopCategory ||
-                                  isSavingCategoryName ||
-                                  isSavingCategory ||
-                                  isUploadingCategory ||
-                                  draftTopCategory === category.top_category
-                                }
-                                style={{
-                                  ...miniBtnStyle,
-                                  opacity:
-                                    isSavingTopCategory ||
-                                    draftTopCategory === category.top_category
-                                      ? 0.5
-                                      : 1,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {isSavingTopCategory ? "Saving…" : "Save top"}
-                              </button>
-                            </div>
-                            <input
-                              value={draftImage}
-                              placeholder="https://..."
-                              onChange={(e) =>
-                                setCategoryImageDrafts((prev) => ({
-                                  ...prev,
-                                  [category.id]: e.target.value,
-                                }))
-                              }
-                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                            />
-                          </div>
-
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <label
-                              style={{
-                                ...miniBtnStyle,
-                                textAlign: "center",
-                                opacity: !isUploadingCategory && !isSavingCategory ? 1 : 0.6,
-                                cursor:
-                                  !isUploadingCategory && !isSavingCategory
-                                    ? "pointer"
-                                    : "not-allowed",
-                              }}
-                            >
-                              {isUploadingCategory ? "Uploading..." : "Upload"}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                disabled={isUploadingCategory || isSavingCategory}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) uploadCategoryImageToSupabase(category.id, file);
-                                  e.currentTarget.value = "";
-                                }}
-                                style={{ display: "none" }}
-                              />
-                            </label>
-
-                            <button
-                              type="button"
-                              onClick={() => saveCategoryImage(category.id)}
-                              disabled={isSavingCategory || isUploadingCategory}
-                              style={{
-                                ...miniBtnStyle,
-                                opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
-                              }}
-                            >
-                              {isSavingCategory ? "Saving..." : "Save"}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCategoryImageDrafts((prev) => ({ ...prev, [category.id]: "" }))
-                              }
-                              disabled={isSavingCategory || isUploadingCategory}
-                              style={{
-                                ...miniDangerBtnStyle,
-                                opacity: isSavingCategory || isUploadingCategory ? 0.6 : 1,
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 14,
-                  border: "1px solid var(--line)",
-                  borderRadius: 12,
-                  padding: 12,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
-                      Homepage banner carousel
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>
-                      Manage dynamic homepage images shown in the storefront hero.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={createHomepageBanner}
-                    disabled={creatingHomepageBanner}
-                    style={{ ...miniBtnStyle, opacity: creatingHomepageBanner ? 0.6 : 1 }}
-                  >
-                    {creatingHomepageBanner ? "Adding..." : "+ Add banner"}
-                  </button>
-                </div>
-
-                {homepageBanners.length === 0 ? (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "var(--ink-4)",
-                      border: "1px dashed var(--line)",
-                      borderRadius: 10,
-                      padding: "10px 12px",
-                      background: "var(--bg-elev)",
-                    }}
-                  >
-                    No homepage banners yet. Add a banner to enable dynamic carousel images.
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gap: 10 }}>
-                    {homepageBanners.map((banner) => {
-                      const draftImage = homepageBannerImageDrafts[banner.id] || "";
-                      const draftAlt = homepageBannerAltDrafts[banner.id] || "";
-                      const draftSortOrder = homepageBannerSortDrafts[banner.id] ?? 0;
-                      const draftActive = homepageBannerActiveDrafts[banner.id] ?? banner.active;
-                      const isSavingBanner = savingHomepageBannerId === banner.id;
-                      const isDeletingBanner = deletingHomepageBannerId === banner.id;
-                      const isUploadingBanner = uploadingHomepageBannerId === banner.id;
-
-                      return (
-                        <div
-                          key={banner.id}
-                          style={{
-                            border: "1px solid var(--line)",
-                            borderRadius: 10,
-                            padding: 10,
-                            display: "grid",
-                            gridTemplateColumns: "96px 1fr auto",
-                            gap: 10,
-                            alignItems: "center",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 96,
-                              height: 64,
-                              borderRadius: 10,
-                              overflow: "hidden",
-                              border: "1px solid var(--line)",
-                              background: "var(--bg-elev)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {draftImage ? (
-                              <img
-                                src={draftImage}
-                                alt={draftAlt || "Homepage banner preview"}
-                                loading="lazy"
-                                decoding="async"
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                              />
-                            ) : (
-                              <span style={{ fontSize: 11, color: "var(--ink-4)" }}>No image</span>
-                            )}
-                          </div>
-
-                          <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
-                            <input
-                              value={draftImage}
-                              placeholder="https://..."
-                              onChange={(e) =>
-                                setHomepageBannerImageDrafts((prev) => ({
-                                  ...prev,
-                                  [banner.id]: e.target.value,
-                                }))
-                              }
-                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                            />
-                            <input
-                              value={draftAlt}
-                              placeholder="Alt text"
-                              onChange={(e) =>
-                                setHomepageBannerAltDrafts((prev) => ({
-                                  ...prev,
-                                  [banner.id]: e.target.value,
-                                }))
-                              }
-                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
-                            />
-                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                              <label
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  fontSize: 12,
-                                  color: "var(--ink-3)",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Sort order
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={draftSortOrder}
-                                  onChange={(e) =>
-                                    setHomepageBannerSortDrafts((prev) => ({
-                                      ...prev,
-                                      [banner.id]: Math.max(0, Number(e.target.value) || 0),
-                                    }))
-                                  }
-                                  style={{
-                                    ...inputStyle,
-                                    width: 92,
-                                    height: 30,
-                                    padding: "0 8px",
-                                    fontSize: 12,
-                                  }}
-                                />
-                              </label>
-                              <label
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 6,
-                                  color: "var(--ink-3)",
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={draftActive}
-                                  onChange={(e) =>
-                                    setHomepageBannerActiveDrafts((prev) => ({
-                                      ...prev,
-                                      [banner.id]: e.target.checked,
-                                    }))
-                                  }
-                                />
-                                Active
-                              </label>
-                            </div>
-                          </div>
-
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <label
-                              style={{
-                                ...miniBtnStyle,
-                                textAlign: "center",
-                                opacity:
-                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
-                                    ? 1
-                                    : 0.6,
-                                cursor:
-                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
-                                    ? "pointer"
-                                    : "not-allowed",
-                              }}
-                            >
-                              {isUploadingBanner ? "Uploading..." : "Upload"}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                disabled={isUploadingBanner || isSavingBanner || isDeletingBanner}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) uploadHomepageBannerImageToSupabase(banner.id, file);
-                                  e.currentTarget.value = "";
-                                }}
-                                style={{ display: "none" }}
-                              />
-                            </label>
-
-                            <button
-                              type="button"
-                              onClick={() => saveHomepageBanner(banner.id)}
-                              disabled={isSavingBanner || isUploadingBanner || isDeletingBanner}
-                              style={{
-                                ...miniBtnStyle,
-                                opacity:
-                                  isSavingBanner || isUploadingBanner || isDeletingBanner ? 0.6 : 1,
-                              }}
-                            >
-                              {isSavingBanner ? "Saving..." : "Save"}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setConfirmAction({
-                                  title: "Delete homepage banner",
-                                  body: "This will remove the selected banner image from the homepage carousel.",
-                                  onConfirm: async () => deleteHomepageBanner(banner.id),
-                                })
-                              }
-                              disabled={isDeletingBanner || isSavingBanner || isUploadingBanner}
-                              style={{
-                                ...miniDangerBtnStyle,
-                                opacity:
-                                  isDeletingBanner || isSavingBanner || isUploadingBanner ? 0.6 : 1,
-                              }}
-                            >
-                              {isDeletingBanner ? "Deleting..." : "Delete"}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
+              </div>{/* end filter card inner */}
+              <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+              <div style={{ padding: "0 16px 16px" }}>
               {loading ? (
                 <WellcareLoader label="Loading products" compact />
+              ) : isMobile ? (
+                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pageRows.length === 0 ? (
+                    <div style={{ padding: "20px 0", textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>
+                      No products found.
+                    </div>
+                  ) : pageRows.map((p) => (
+                    <div
+                      key={p.id}
+                      style={{
+                        border: "1px solid var(--line)",
+                        borderRadius: 12,
+                        padding: 14,
+                        background: selectedId === p.id ? "var(--bg-elev)" : "var(--card)",
+                      }}
+                    >
+                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(p.id)}
+                          onChange={() => toggleSelect(p.id)}
+                          style={{ marginTop: 2, flexShrink: 0 }}
+                        />
+                        <div
+                          style={{
+                            width: 52,
+                            height: 52,
+                            borderRadius: 10,
+                            overflow: "hidden",
+                            flexShrink: 0,
+                            background: "var(--bg-elev)",
+                            border: "1px solid var(--line)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {p.image_url ? (
+                            <img
+                              src={p.image_url}
+                              alt={p.name}
+                              loading="lazy"
+                              decoding="async"
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          ) : (
+                            <ProductImageFallback cat={p.cat} name={p.name} brand={p.brand} compact />
+                          )}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", flex: 1, minWidth: 0 }}>{p.name}</div>
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                flexShrink: 0,
+                                background: p.active ? "var(--pill-success-bg)" : "var(--pill-rose-bg)",
+                                color: p.active ? "var(--pill-success-fg)" : "var(--pill-rose-fg)",
+                              }}
+                            >
+                              {p.active ? "Active" : "Archived"}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 4 }}>
+                            {p.brand || "-"} · {categoryBySlug.get(p.cat)?.name || p.cat}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
+                              Rs {p.price.toLocaleString()}
+                            </span>
+                            <span
+                              style={{
+                                padding: "2px 7px",
+                                borderRadius: 999,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background:
+                                  p.stock === "In stock" ? "var(--pill-success-bg)"
+                                  : p.stock === "Out of stock" ? "var(--pill-rose-bg)"
+                                  : p.stock === "Low stock" ? "var(--pill-warn-bg)"
+                                  : "var(--pill-info-bg)",
+                                color:
+                                  p.stock === "In stock" ? "var(--pill-success-fg)"
+                                  : p.stock === "Out of stock" ? "var(--pill-rose-fg)"
+                                  : p.stock === "Low stock" ? "var(--pill-warn-fg)"
+                                  : "var(--pill-info-fg)",
+                              }}
+                            >
+                              {p.stock}
+                            </span>
+                            <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{p.stock_count} units</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                        <button onClick={() => loadDraftFromProduct(p)} style={{ ...miniBtnStyle, flex: 1 }}>
+                          Edit
+                        </button>
+                        {p.active ? (
+                          <button
+                            onClick={() =>
+                              setConfirmAction({
+                                title: "Archive product",
+                                body: `Archive ${p.name}? It will be hidden from storefront users.`,
+                                onConfirm: async () => archiveProduct(p.id),
+                              })
+                            }
+                            style={{ ...miniDangerBtnStyle, flex: 1 }}
+                          >
+                            Archive
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() =>
+                              setConfirmAction({
+                                title: "Activate product",
+                                body: `Activate ${p.name}? It will be visible in storefront.`,
+                                onConfirm: async () => setProductActive([p.id], true),
+                              })
+                            }
+                            style={{ ...miniBtnStyle, flex: 1 }}
+                          >
+                            Activate
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div
                   style={{
@@ -2040,7 +1598,561 @@ function AdminProductsPage() {
                   </button>
                 </div>
               )}
+              </div>
+              </>)}
             </section>
+
+
+            {/* ── Category Management ── */}
+            <section style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+              <div style={{ height: 3, background: "linear-gradient(90deg, #10b981, #059669)" }} />
+              <div
+                style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, cursor: "pointer", userSelect: "none" }}
+                onClick={() => toggleSection("categories")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, color: "var(--ink-4)", display: "inline-block", transform: openSections.categories ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s", lineHeight: 1 }}>▼</span>
+                  <div>
+                    <h2 style={sectionTitleStyle}>🏷️ Category Management</h2>
+                    {openSections.categories && <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>Edit categories — name, slug, sort order, image and visibility</div>}
+                  </div>
+                </div>
+              </div>
+              {openSections.categories && (
+              <div style={{ padding: "0 16px 16px", display: "grid", gap: 10 }}>
+
+                <div
+                  style={{
+                    border: "1px solid var(--line)",
+                    borderRadius: 10,
+                    padding: 10,
+                    display: "grid",
+                    gap: 8,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>
+                    Add new category
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "1.2fr 1fr 120px",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      value={newCategoryName}
+                      placeholder="Category name"
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <input
+                      value={newCategorySlug}
+                      placeholder="category-slug"
+                      onChange={(e) => {
+                        setNewCategorySlugManuallyEdited(true);
+                        setNewCategorySlug(slugifyCategory(e.target.value));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={newCategorySortOrder}
+                      onChange={(e) =>
+                        setNewCategorySortOrder(Math.max(0, Number(e.target.value) || 0))
+                      }
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto auto", gap: 8 }}>
+                    <input
+                      value={newCategoryImageUrl}
+                      placeholder="Image URL (optional)"
+                      onChange={(e) => setNewCategoryImageUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") createCategory();
+                      }}
+                      disabled={creatingCategory}
+                      style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                    />
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        color: "var(--ink-3)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newCategoryTopCategory}
+                        onChange={(e) => setNewCategoryTopCategory(e.target.checked)}
+                        disabled={creatingCategory}
+                      />
+                      Top category
+                    </label>
+                    <button
+                      type="button"
+                      onClick={createCategory}
+                      disabled={creatingCategory}
+                      style={{ ...miniBtnStyle, opacity: creatingCategory ? 0.6 : 1 }}
+                    >
+                      {creatingCategory ? "Adding..." : "Add"}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 10 }}>
+                    {categories.map((category) => {
+                      const draftImage = categoryImageDrafts[category.id] ?? (category.image_url || "");
+                      const draftName = categoryNameDrafts[category.id] ?? category.name;
+                      const draftSlug = categorySlugDrafts[category.id] ?? category.slug;
+                      const draftSort = categorySortDrafts[category.id] ?? (category.sort_order ?? 0);
+                      const draftTopCategory = categoryTopDrafts[category.id] ?? category.top_category;
+                      const isSavingAll = savingCategoryAllId === category.id;
+                      const isUploadingCategory = uploadingCategoryId === category.id;
+                      const isBusy = isSavingAll || isUploadingCategory;
+
+                      return (
+                        <div
+                          key={category.id}
+                          style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12 }}
+                        >
+                          <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                            {/* Image preview */}
+                            <div
+                              style={{
+                                width: 64, height: 64, borderRadius: 10, overflow: "hidden",
+                                border: "1px solid var(--line)", background: "var(--bg-elev)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {draftImage ? (
+                                <img src={draftImage} alt={category.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                <span style={{ fontSize: 22, color: "var(--ink-4)" }}>🏷️</span>
+                              )}
+                            </div>
+
+                            {/* Fields */}
+                            <div style={{ flex: 1, display: "grid", gap: 7, minWidth: 0 }}>
+                              {/* Name + Sort order */}
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 72px", gap: 7 }}>
+                                <input
+                                  value={draftName}
+                                  placeholder="Category name"
+                                  disabled={isBusy}
+                                  onChange={(e) => setCategoryNameDrafts((p) => ({ ...p, [category.id]: e.target.value }))}
+                                  style={{ ...inputStyle, height: 32, fontSize: 13, fontWeight: 700, boxSizing: "border-box" }}
+                                />
+                                <input
+                                  type="number" min={0}
+                                  value={draftSort}
+                                  placeholder="Order"
+                                  disabled={isBusy}
+                                  onChange={(e) => setCategorySortDrafts((p) => ({ ...p, [category.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                                  style={{ ...inputStyle, height: 32, fontSize: 12, boxSizing: "border-box" }}
+                                />
+                              </div>
+
+                              {/* Slug */}
+                              <input
+                                value={draftSlug}
+                                placeholder="category-slug"
+                                disabled={isBusy}
+                                onChange={(e) => setCategorySlugDrafts((p) => ({ ...p, [category.id]: slugifyCategory(e.target.value) }))}
+                                style={{ ...inputStyle, height: 32, fontSize: 11, fontFamily: "JetBrains Mono, monospace", boxSizing: "border-box" }}
+                              />
+
+                              {/* Image URL */}
+                              <input
+                                value={draftImage}
+                                placeholder="https://... (image URL)"
+                                disabled={isBusy}
+                                onChange={(e) => setCategoryImageDrafts((p) => ({ ...p, [category.id]: e.target.value }))}
+                                style={{ ...inputStyle, height: 32, fontSize: 12, boxSizing: "border-box" }}
+                              />
+
+                              {/* Top category + actions */}
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--ink-3)", cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={draftTopCategory}
+                                    disabled={isBusy}
+                                    onChange={(e) => setCategoryTopDrafts((p) => ({ ...p, [category.id]: e.target.checked }))}
+                                  />
+                                  Top category
+                                </label>
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <label
+                                    style={{ ...miniBtnStyle, cursor: isBusy ? "not-allowed" : "pointer", opacity: isBusy ? 0.6 : 1, textAlign: "center" }}
+                                  >
+                                    {isUploadingCategory ? "Uploading..." : "Upload image"}
+                                    <input
+                                      type="file" accept="image/*" disabled={isBusy}
+                                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadCategoryImageToSupabase(category.id, f); e.currentTarget.value = ""; }}
+                                      style={{ display: "none" }}
+                                    />
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => saveCategoryAll(category.id)}
+                                    disabled={isBusy}
+                                    style={{ ...miniBtnStyle, opacity: isBusy ? 0.6 : 1 }}
+                                  >
+                                    {isSavingAll ? "Saving..." : "Save"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+              </div>
+              )}
+            </section>{/* end Category Management */}
+
+            {/* ── Banner Management ── */}
+            <section style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+              <div style={{ height: 3, background: "linear-gradient(90deg, #f59e0b, #f97316)" }} />
+              <div
+                style={{ padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, cursor: "pointer", userSelect: "none" }}
+                onClick={() => toggleSection("banners")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, color: "var(--ink-4)", display: "inline-block", transform: openSections.banners ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s", lineHeight: 1 }}>▼</span>
+                  <div>
+                    <h2 style={sectionTitleStyle}>🖼️ Homepage Banners</h2>
+                    {openSections.banners && <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>Manage dynamic homepage images shown in the storefront hero.</div>}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); createHomepageBanner(); }}
+                  disabled={creatingHomepageBanner}
+                  style={{ ...miniBtnStyle, opacity: creatingHomepageBanner ? 0.6 : 1 }}
+                >
+                  {creatingHomepageBanner ? "Adding..." : "+ Add banner"}
+                </button>
+              </div>
+              {openSections.banners && (
+              <div style={{ padding: "0 16px 16px", display: "grid", gap: 10 }}>
+
+                {homepageBanners.length === 0 ? (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "var(--ink-4)",
+                      border: "1px dashed var(--line)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      background: "var(--bg-elev)",
+                    }}
+                  >
+                    No homepage banners yet. Add a banner to enable dynamic carousel images.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {homepageBanners.map((banner) => {
+                      const draftImage = homepageBannerImageDrafts[banner.id] || "";
+                      const draftAlt = homepageBannerAltDrafts[banner.id] || "";
+                      const draftSortOrder = homepageBannerSortDrafts[banner.id] ?? 0;
+                      const draftActive = homepageBannerActiveDrafts[banner.id] ?? banner.active;
+                      const isSavingBanner = savingHomepageBannerId === banner.id;
+                      const isDeletingBanner = deletingHomepageBannerId === banner.id;
+                      const isUploadingBanner = uploadingHomepageBannerId === banner.id;
+
+                      return isMobile ? (
+                        <div
+                          key={banner.id}
+                          style={{
+                            border: "1px solid var(--line)",
+                            borderRadius: 10,
+                            padding: 12,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 10,
+                          }}
+                        >
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <div
+                              style={{
+                                width: 72,
+                                height: 52,
+                                borderRadius: 8,
+                                overflow: "hidden",
+                                flexShrink: 0,
+                                border: "1px solid var(--line)",
+                                background: "var(--bg-elev)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {draftImage ? (
+                                <img
+                                  src={draftImage}
+                                  alt={draftAlt || "Homepage banner preview"}
+                                  loading="lazy"
+                                  decoding="async"
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                <span style={{ fontSize: 10, color: "var(--ink-4)" }}>No image</span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--ink-3)", fontWeight: 700 }}>
+                                Sort order
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={draftSortOrder}
+                                  onChange={(e) => setHomepageBannerSortDrafts((prev) => ({ ...prev, [banner.id]: Math.max(0, Number(e.target.value) || 0) }))}
+                                  style={{ ...inputStyle, width: 64, height: 30, padding: "0 8px", fontSize: 12, boxSizing: "border-box" }}
+                                />
+                              </label>
+                              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--ink-3)", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                                <input
+                                  type="checkbox"
+                                  checked={draftActive}
+                                  onChange={(e) => setHomepageBannerActiveDrafts((prev) => ({ ...prev, [banner.id]: e.target.checked }))}
+                                />
+                                Active
+                              </label>
+                            </div>
+                          </div>
+                          <input
+                            value={draftImage}
+                            placeholder="Image URL (https://...)"
+                            onChange={(e) => setHomepageBannerImageDrafts((prev) => ({ ...prev, [banner.id]: e.target.value }))}
+                            style={{ ...inputStyle, height: 34, fontSize: 12, boxSizing: "border-box" }}
+                          />
+                          <input
+                            value={draftAlt}
+                            placeholder="Alt text"
+                            onChange={(e) => setHomepageBannerAltDrafts((prev) => ({ ...prev, [banner.id]: e.target.value }))}
+                            style={{ ...inputStyle, height: 34, fontSize: 12, boxSizing: "border-box" }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <label style={{ ...miniBtnStyle, textAlign: "center", flex: 1, opacity: !isUploadingBanner && !isSavingBanner && !isDeletingBanner ? 1 : 0.6, cursor: !isUploadingBanner && !isSavingBanner && !isDeletingBanner ? "pointer" : "not-allowed" }}>
+                              {isUploadingBanner ? "Uploading..." : "Upload"}
+                              <input type="file" accept="image/*" disabled={isUploadingBanner || isSavingBanner || isDeletingBanner} onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadHomepageBannerImageToSupabase(banner.id, file); e.currentTarget.value = ""; }} style={{ display: "none" }} />
+                            </label>
+                            <button type="button" onClick={() => saveHomepageBanner(banner.id)} disabled={isSavingBanner || isUploadingBanner || isDeletingBanner} style={{ ...miniBtnStyle, flex: 1, opacity: isSavingBanner || isUploadingBanner || isDeletingBanner ? 0.6 : 1 }}>
+                              {isSavingBanner ? "Saving..." : "Save"}
+                            </button>
+                            <button type="button" onClick={() => setConfirmAction({ title: "Delete homepage banner", body: "This will remove the selected banner image from the homepage carousel.", onConfirm: async () => deleteHomepageBanner(banner.id) })} disabled={isDeletingBanner || isSavingBanner || isUploadingBanner} style={{ ...miniDangerBtnStyle, flex: 1, opacity: isDeletingBanner || isSavingBanner || isUploadingBanner ? 0.6 : 1 }}>
+                              {isDeletingBanner ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          key={banner.id}
+                          style={{
+                            border: "1px solid var(--line)",
+                            borderRadius: 10,
+                            padding: 10,
+                            display: "grid",
+                            gridTemplateColumns: "96px 1fr auto",
+                            gap: 10,
+                            alignItems: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 96,
+                              height: 64,
+                              borderRadius: 10,
+                              overflow: "hidden",
+                              border: "1px solid var(--line)",
+                              background: "var(--bg-elev)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {draftImage ? (
+                              <img
+                                src={draftImage}
+                                alt={draftAlt || "Homepage banner preview"}
+                                loading="lazy"
+                                decoding="async"
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              <span style={{ fontSize: 11, color: "var(--ink-4)" }}>No image</span>
+                            )}
+                          </div>
+
+                          <div style={{ minWidth: 0, display: "grid", gap: 6 }}>
+                            <input
+                              value={draftImage}
+                              placeholder="https://..."
+                              onChange={(e) =>
+                                setHomepageBannerImageDrafts((prev) => ({
+                                  ...prev,
+                                  [banner.id]: e.target.value,
+                                }))
+                              }
+                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                            />
+                            <input
+                              value={draftAlt}
+                              placeholder="Alt text"
+                              onChange={(e) =>
+                                setHomepageBannerAltDrafts((prev) => ({
+                                  ...prev,
+                                  [banner.id]: e.target.value,
+                                }))
+                              }
+                              style={{ ...inputStyle, height: 34, fontSize: 12 }}
+                            />
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: 12,
+                                  color: "var(--ink-3)",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Sort order
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={draftSortOrder}
+                                  onChange={(e) =>
+                                    setHomepageBannerSortDrafts((prev) => ({
+                                      ...prev,
+                                      [banner.id]: Math.max(0, Number(e.target.value) || 0),
+                                    }))
+                                  }
+                                  style={{
+                                    ...inputStyle,
+                                    width: 92,
+                                    height: 30,
+                                    padding: "0 8px",
+                                    fontSize: 12,
+                                  }}
+                                />
+                              </label>
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  color: "var(--ink-3)",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={draftActive}
+                                  onChange={(e) =>
+                                    setHomepageBannerActiveDrafts((prev) => ({
+                                      ...prev,
+                                      [banner.id]: e.target.checked,
+                                    }))
+                                  }
+                                />
+                                Active
+                              </label>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <label
+                              style={{
+                                ...miniBtnStyle,
+                                textAlign: "center",
+                                opacity:
+                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
+                                    ? 1
+                                    : 0.6,
+                                cursor:
+                                  !isUploadingBanner && !isSavingBanner && !isDeletingBanner
+                                    ? "pointer"
+                                    : "not-allowed",
+                              }}
+                            >
+                              {isUploadingBanner ? "Uploading..." : "Upload"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={isUploadingBanner || isSavingBanner || isDeletingBanner}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) uploadHomepageBannerImageToSupabase(banner.id, file);
+                                  e.currentTarget.value = "";
+                                }}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => saveHomepageBanner(banner.id)}
+                              disabled={isSavingBanner || isUploadingBanner || isDeletingBanner}
+                              style={{
+                                ...miniBtnStyle,
+                                opacity:
+                                  isSavingBanner || isUploadingBanner || isDeletingBanner ? 0.6 : 1,
+                              }}
+                            >
+                              {isSavingBanner ? "Saving..." : "Save"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmAction({
+                                  title: "Delete homepage banner",
+                                  body: "This will remove the selected banner image from the homepage carousel.",
+                                  onConfirm: async () => deleteHomepageBanner(banner.id),
+                                })
+                              }
+                              disabled={isDeletingBanner || isSavingBanner || isUploadingBanner}
+                              style={{
+                                ...miniDangerBtnStyle,
+                                opacity:
+                                  isDeletingBanner || isSavingBanner || isUploadingBanner ? 0.6 : 1,
+                              }}
+                            >
+                              {isDeletingBanner ? "Deleting..." : "Delete"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              )}
+            </section>
+
+            </div>
           )}
 
           {viewMode === "editor" && (
@@ -2086,7 +2198,7 @@ function AdminProductsPage() {
                     style={inputStyle}
                   />
                 </Field>
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr" }}>
                   <Field label="Category">
                     <CustomSelect
                       value={draft.cat}
@@ -2112,7 +2224,7 @@ function AdminProductsPage() {
                     />
                   </Field>
                 </div>
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr 1fr 1fr" }}>
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr" }}>
                   <Field label="Price">
                     <input
                       type="number"
@@ -2173,7 +2285,7 @@ function AdminProductsPage() {
                       draft.size_options.map((option) => (
                         <div
                           key={option.id}
-                          style={{ display: "grid", gridTemplateColumns: "1fr 150px auto", gap: 8 }}
+                          style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr auto" : "1fr 150px auto", gap: 8 }}
                         >
                           <input
                             value={option.size}
@@ -2280,7 +2392,7 @@ function AdminProductsPage() {
                       draft.variant_options.map((option) => (
                         <div
                           key={option.id}
-                          style={{ display: "grid", gridTemplateColumns: "1fr 150px auto", gap: 8 }}
+                          style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr auto" : "1fr 150px auto", gap: 8 }}
                         >
                           <input
                             value={option.name}

@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  Cell,
+} from "recharts";
 import { getSupabase } from "@/integrations/supabase/client";
 import { AdminGate } from "@/wcm/admin-access";
 import { WellcareLoader } from "@/wcm/loader";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/admin/sales")({
   component: AdminSalesPage,
@@ -28,6 +40,20 @@ type SalesRow = {
 
 const PKR = (n: number) => "Rs. " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
 
+const TIER_COLORS = {
+  hot: { bg: "rgba(16,185,129,0.08)", border: "#10b981", text: "#065f46", label: "Hot", dot: "#10b981" },
+  warm: { bg: "rgba(245,158,11,0.08)", border: "#f59e0b", text: "#92400e", label: "Warm", dot: "#f59e0b" },
+  cold: { bg: "rgba(148,163,184,0.08)", border: "#94a3b8", text: "#475569", label: "Cold", dot: "#94a3b8" },
+};
+
+function getTier(count: number, max: number) {
+  if (count >= max * 0.6) return "hot";
+  if (count >= max * 0.2) return "warm";
+  return "cold";
+}
+
+const RANK_MEDAL = ["🥇", "🥈", "🥉"];
+
 function AdminSalesPage() {
   const [rows, setRows] = useState<SalesRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +64,9 @@ function AdminSalesPage() {
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [activeChartBar, setActiveChartBar] = useState<string | null>(null);
+
+  const isMobile = useIsMobile();
 
   const fetchSalesRows = async () => {
     const supabase = await getSupabase();
@@ -52,7 +81,6 @@ function AdminSalesPage() {
         .order("name", { ascending: true });
       data = fallback.data;
     }
-
     return ((data as SalesRow[]) ?? []).map((r) => ({ ...r, sales_count: r.sales_count ?? 0 }));
   };
 
@@ -65,121 +93,75 @@ function AdminSalesPage() {
       setLoading(false);
     };
     void load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  const handleRecalculateAnalytics = async () => {
+  const handleRecalculate = async () => {
     setSyncing(true);
     setSyncMessage(null);
     try {
       const supabase = await getSupabase();
       const { error } = await supabase.rpc("recalculate_product_sales_counts");
-      if (error) {
-        setSyncMessage(error.message || "Failed to recalculate analytics.");
-        return;
-      }
+      if (error) { setSyncMessage(error.message || "Failed."); return; }
       const data = await fetchSalesRows();
       setRows(data);
-      setSyncMessage("Analytics recalculated successfully.");
+      setSyncMessage("Recalculated successfully.");
     } catch {
-      setSyncMessage("Failed to recalculate analytics.");
+      setSyncMessage("Failed to recalculate.");
     } finally {
       setSyncing(false);
     }
   };
 
   const totalSales = useMemo(() => rows.reduce((s, r) => s + r.sales_count, 0), [rows]);
-  const topProduct = useMemo(
-    () => rows.reduce((best, r) => (r.sales_count > (best?.sales_count ?? -1) ? r : best), rows[0]),
-    [rows],
-  );
 
   const stats = useMemo(() => {
     if (rows.length === 0) return null;
-
     const totalRevenue = rows.reduce((sum, r) => sum + r.price * r.sales_count, 0);
     const avgRevenue = totalRevenue / rows.length;
-    const bestRevenueProduct = rows.reduce((best, r) => {
-      const revA = best.price * best.sales_count;
-      const revB = r.price * r.sales_count;
-      return revB > revA ? r : best;
-    });
-
+    const bestRevenueProduct = rows.reduce((best, r) =>
+      r.price * r.sales_count > best.price * best.sales_count ? r : best
+    );
     const zeroSalesCount = rows.filter((r) => r.sales_count === 0).length;
     const meanSales = totalSales / rows.length;
-    const aboveAvgCount = rows.filter((r) => r.sales_count > meanSales).length;
-    const belowAvgCount = rows.filter((r) => r.sales_count < meanSales && r.sales_count > 0).length;
-
     const lowStockCount = rows.filter((r) => {
-      const stock = r.stock.trim().toLowerCase();
-      return stock === "low stock" || stock === "out of stock";
+      const s = r.stock.trim().toLowerCase();
+      return s === "low stock" || s === "out of stock";
     }).length;
-
     const sortedSales = [...rows.map((r) => r.sales_count)].sort((a, b) => a - b);
     const medianSales = sortedSales[Math.floor(sortedSales.length / 2)];
-
+    const topProducts = [...rows].sort((a, b) => b.sales_count - a.sales_count).slice(0, 5);
     const slowestProducts = [...rows].sort((a, b) => a.sales_count - b.sales_count).slice(0, 5);
 
-    const categoryMap = new Map<
-      string,
-      { volume: number; revenue: number; productCount: number }
-    >();
+    const categoryMap = new Map<string, { volume: number; revenue: number; productCount: number }>();
     rows.forEach((r) => {
-      if (!categoryMap.has(r.cat)) {
-        categoryMap.set(r.cat, { volume: 0, revenue: 0, productCount: 0 });
-      }
+      if (!categoryMap.has(r.cat)) categoryMap.set(r.cat, { volume: 0, revenue: 0, productCount: 0 });
       const cat = categoryMap.get(r.cat)!;
       cat.volume += r.sales_count;
       cat.revenue += r.price * r.sales_count;
       cat.productCount += 1;
     });
-
     const categoryStats = Array.from(categoryMap.entries())
-      .map(([name, stats]) => ({
-        name,
-        ...stats,
-        avgPerProduct: stats.volume / stats.productCount,
-      }))
+      .map(([name, s]) => ({ name, ...s, avgPerProduct: s.volume / s.productCount }))
       .sort((a, b) => b.volume - a.volume);
 
-    const topCategoryByVolume = categoryStats[0];
-    const topCategoryByRevenue = [...categoryStats].sort((a, b) => b.revenue - a.revenue)[0];
-
     return {
-      totalRevenue,
-      avgRevenue,
-      bestRevenueProduct,
-      zeroSalesCount,
-      meanSales,
-      aboveAvgCount,
-      belowAvgCount,
-      lowStockCount,
-      medianSales,
-      slowestProducts,
-      categoryStats,
-      topCategoryByVolume,
-      topCategoryByRevenue,
+      totalRevenue, avgRevenue, bestRevenueProduct,
+      zeroSalesCount, meanSales, lowStockCount, medianSales,
+      topProducts, slowestProducts, categoryStats,
+      topCategoryByVolume: categoryStats[0],
     };
   }, [rows, totalSales]);
 
   const toggleSort = (col: typeof sortBy) => {
-    if (sortBy === col) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortBy(col);
-      setSortDir("desc");
-    }
+    if (sortBy === col) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    else { setSortBy(col); setSortDir("desc"); }
   };
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     let arr = rows.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        r.brand.toLowerCase().includes(q) ||
-        r.cat.toLowerCase().includes(q),
+      (r) => r.name.toLowerCase().includes(q) || r.brand.toLowerCase().includes(q) || r.cat.toLowerCase().includes(q),
     );
     arr = [...arr].sort((a, b) => {
       let diff = 0;
@@ -198,15 +180,19 @@ function AdminSalesPage() {
 
   const totalPages = Math.ceil(filtered.length / pageSize);
 
-  const handlePageChange = (newPage: number) => {
-    setPage(Math.max(1, Math.min(newPage, totalPages)));
-  };
-
-  useEffect(() => {
-    setPage(1);
-  }, [query]);
+  useEffect(() => { setPage(1); }, [query]);
 
   const maxSales = useMemo(() => Math.max(1, ...rows.map((r) => r.sales_count)), [rows]);
+
+  const chartData = useMemo(() =>
+    (stats?.categoryStats ?? []).slice(0, 8).map((c) => ({
+      name: c.name.length > 14 ? c.name.slice(0, 13) + "…" : c.name,
+      fullName: c.name,
+      units: c.volume,
+      revenue: Math.round(c.revenue / 1000),
+    })),
+    [stats]
+  );
 
   const SortIcon = ({ col }: { col: typeof sortBy }) =>
     sortBy === col ? (
@@ -217,724 +203,416 @@ function AdminSalesPage() {
 
   return (
     <AdminGate>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "30px 20px 90px" }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: isMobile ? "0" : "30px 20px 90px" }}>
+
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 12,
-            marginBottom: 22,
-            flexWrap: "wrap",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
           <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <Link
-                to="/admin"
-                style={{
-                  color: "var(--ink-4)",
-                  textDecoration: "none",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                ← Admin
-              </Link>
-            </div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: -0.4,
-                color: "var(--ink)",
-              }}
-            >
-              Sales Report
+            <Link to="/admin" style={{ color: "var(--ink-4)", textDecoration: "none", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+              ← Admin
+            </Link>
+            <h1 style={{ margin: 0, fontSize: isMobile ? 22 : 28, fontWeight: 800, letterSpacing: -0.4, color: "var(--ink)" }}>
+              Sales Analytics
             </h1>
-            <p style={{ margin: "6px 0 0", color: "var(--ink-4)", fontSize: 14 }}>
-              Units sold per product, tracked from orders.
+            <p style={{ margin: "4px 0 0", color: "var(--ink-4)", fontSize: 13 }}>
+              Units sold, revenue, and performance by product & category.
             </p>
-            {syncMessage ? (
-              <p
-                style={{
-                  margin: "8px 0 0",
-                  color: syncMessage.includes("success")
-                    ? "var(--pill-success-fg, #15803d)"
-                    : "var(--pill-rose-fg, #be123c)",
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
+            {syncMessage && (
+              <p style={{ margin: "6px 0 0", fontSize: 12, fontWeight: 700, color: syncMessage.includes("success") ? "#059669" : "#e11d48" }}>
                 {syncMessage}
               </p>
-            ) : null}
+            )}
           </div>
           <button
             type="button"
-            onClick={handleRecalculateAnalytics}
+            onClick={handleRecalculate}
             disabled={syncing}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--line)",
-              background: "var(--card)",
-              color: "var(--ink)",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: syncing ? "default" : "pointer",
-              opacity: syncing ? 0.7 : 1,
-              fontFamily: "inherit",
-            }}
+            style={{ padding: "8px 14px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--card)", color: "var(--ink)", fontSize: 12, fontWeight: 700, cursor: syncing ? "default" : "pointer", opacity: syncing ? 0.7 : 1, fontFamily: "inherit", width: isMobile ? "100%" : undefined }}
           >
-            {syncing ? "Recalculating..." : "Recalculate analytics"}
+            {syncing ? "Recalculating…" : "↻ Recalculate"}
           </button>
         </div>
 
-        {/* Metric cards */}
-        <div style={{ marginBottom: 24 }}>
-          {/* Row 1: Key metrics */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              marginBottom: 12,
-            }}
-          >
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Total units sold</div>
-              <div style={{ ...metricValueStyle, fontSize: 24 }}>
-                {loading ? "…" : totalSales.toLocaleString()}
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Total revenue</div>
-              <div style={{ ...metricValueStyle, fontSize: 18, wordBreak: "break-word" }}>
-                {loading ? "…" : PKR(stats?.totalRevenue ?? 0)}
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Products tracked</div>
-              <div style={{ ...metricValueStyle, fontSize: 24 }}>{loading ? "…" : rows.length}</div>
-            </div>
-          </div>
-
-          {/* Row 2: Distribution stats */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              marginBottom: 12,
-            }}
-          >
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Avg revenue/product</div>
-              <div style={{ ...metricValueStyle, fontSize: 18, wordBreak: "break-word" }}>
-                {loading ? "…" : PKR(stats?.avgRevenue ?? 0)}
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Median sales</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : (stats?.medianSales ?? 0)}
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Mean sales</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : Math.round(stats?.meanSales ?? 0)}
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Zero sales count</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : (stats?.zeroSalesCount ?? 0)}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 3: Product analysis */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              marginBottom: 12,
-            }}
-          >
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Above average</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : (stats?.aboveAvgCount ?? 0)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>
-                performing better than mean
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Below average</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : (stats?.belowAvgCount ?? 0)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>
-                but still have sales
-              </div>
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Low/out of stock</div>
-              <div style={{ ...metricValueStyle, fontSize: 20 }}>
-                {loading ? "…" : (stats?.lowStockCount ?? 0)}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 6 }}>
-                needs restocking
-              </div>
-            </div>
-          </div>
-
-          {/* Row 4: Top performers */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            }}
-          >
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Top by revenue</div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                  marginTop: 4,
-                  lineHeight: 1.4,
-                  minHeight: 40,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-              >
-                {loading ? "…" : stats?.bestRevenueProduct?.name || "—"}
-              </div>
-              {!loading && stats?.bestRevenueProduct && (
-                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 8 }}>
-                  {PKR(stats.bestRevenueProduct.price * stats.bestRevenueProduct.sales_count)}
-                </div>
-              )}
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Top category (volume)</div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                  marginTop: 4,
-                  lineHeight: 1.4,
-                  minHeight: 40,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-              >
-                {loading ? "…" : stats?.topCategoryByVolume?.name || "—"}
-              </div>
-              {!loading && stats?.topCategoryByVolume && (
-                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 8 }}>
-                  {stats.topCategoryByVolume.volume} units sold
-                </div>
-              )}
-            </div>
-            <div style={metricCardStyle}>
-              <div style={metricLabelStyle}>Top category (revenue)</div>
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                  marginTop: 4,
-                  lineHeight: 1.4,
-                  minHeight: 40,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                }}
-              >
-                {loading ? "…" : stats?.topCategoryByRevenue?.name || "—"}
-              </div>
-              {!loading && stats?.topCategoryByRevenue && (
-                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 8 }}>
-                  {PKR(stats.topCategoryByRevenue.revenue)} earned
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Category breakdown */}
-        {!loading && stats && stats.categoryStats.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
-              Sales by category
-            </h3>
+        {loading ? (
+          <WellcareLoader label="Loading analytics" compact minHeight={200} />
+        ) : (
+          <>
+            {/* ── Hero revenue card ── */}
             <div
               style={{
                 background: "var(--card)",
                 border: "1px solid var(--line)",
-                borderRadius: 14,
+                borderRadius: 18,
                 overflow: "hidden",
+                marginBottom: 20,
               }}
             >
-              {/* Header row */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 100px 160px 100px",
-                  padding: "9px 16px",
-                  background: "var(--chip)",
-                  borderBottom: "1px solid var(--line)",
-                  gap: 12,
-                }}
-              >
-                {["Category", "Units", "Revenue", "Avg/prod"].map((h) => (
+              {/* Accent bar */}
+              <div style={{ height: 4, background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+
+              <div style={{ padding: isMobile ? "20px 18px" : "28px 32px" }}>
+                {/* Revenue */}
+                <div style={{ marginBottom: isMobile ? 18 : 24 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>
+                    Total Revenue
+                  </div>
+                  <div style={{ fontSize: isMobile ? 36 : 52, fontWeight: 900, letterSpacing: -1.5, color: "var(--ink)", lineHeight: 1 }}>
+                    {PKR(stats?.totalRevenue ?? 0)}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--ink-4)", marginTop: 8, fontWeight: 500 }}>
+                    from {rows.length} products
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: "var(--line)", marginBottom: isMobile ? 18 : 24 }} />
+
+                {/* Stats row */}
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 0 }}>
+                  {[
+                    { label: "Units sold", value: totalSales.toLocaleString(), color: "#6366f1" },
+                    { label: "Products tracked", value: String(rows.length), color: "#06b6d4" },
+                    { label: "Avg rev / product", value: PKR(stats?.avgRevenue ?? 0), color: "#8b5cf6" },
+                  ].map(({ label, value, color }, i) => (
+                    <div
+                      key={label}
+                      style={{
+                        paddingLeft: !isMobile && i > 0 ? 28 : 0,
+                        borderLeft: !isMobile && i > 0 ? "1px solid var(--line)" : "none",
+                        paddingRight: !isMobile && i < 2 ? 28 : 0,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
+                        {label}
+                      </div>
+                      <div style={{ fontSize: isMobile ? 20 : 24, fontWeight: 800, color, letterSpacing: -0.5 }}>
+                        {value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Insight chips ── */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+              <div style={insightCard("#f0fdf4", "#16a34a")}>
+                <div style={insightIcon("🏆")} />
+                <div style={insightLabel}>Top seller</div>
+                <div style={insightValue}>{stats?.topProducts[0]?.name ?? "—"}</div>
+                <div style={insightSub}>{stats?.topProducts[0]?.sales_count ?? 0} units</div>
+              </div>
+              <div style={insightCard("#fff7ed", "#ea580c")}>
+                <div style={insightIcon("📦")} />
+                <div style={insightLabel}>Zero sales</div>
+                <div style={{ ...insightValue, fontSize: 26 }}>{stats?.zeroSalesCount ?? 0}</div>
+                <div style={insightSub}>products need attention</div>
+              </div>
+              <div style={insightCard("#fef2f2", "#dc2626")}>
+                <div style={insightIcon("⚠️")} />
+                <div style={insightLabel}>Low / out of stock</div>
+                <div style={{ ...insightValue, fontSize: 26 }}>{stats?.lowStockCount ?? 0}</div>
+                <div style={insightSub}>need restocking</div>
+              </div>
+              <div style={insightCard("#f0f9ff", "#0284c7")}>
+                <div style={insightIcon("📊")} />
+                <div style={insightLabel}>Median sales</div>
+                <div style={{ ...insightValue, fontSize: 26 }}>{stats?.medianSales ?? 0}</div>
+                <div style={insightSub}>units per product</div>
+              </div>
+            </div>
+
+            {/* ── Category bar chart ── */}
+            {chartData.length > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: isMobile ? "16px 12px" : "20px 24px", marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 4 }}>Sales by category</div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 16 }}>Units sold and revenue (Rs. thousands) per category</div>
+                <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
+                  <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }} barGap={4}
+                    onMouseLeave={() => setActiveChartBar(null)}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                    <XAxis dataKey="name" tick={{ fontSize: isMobile ? 9 : 11, fill: "var(--ink-4)", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--ink-4)" }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+                            <div style={{ fontWeight: 800, marginBottom: 6, color: "var(--ink)" }}>{d.fullName}</div>
+                            <div style={{ color: "#6366f1" }}>Units: <strong>{d.units}</strong></div>
+                            <div style={{ color: "#10b981" }}>Revenue: <strong>Rs. {(d.revenue * 1000).toLocaleString()}</strong></div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: 8 }} />
+                    <Bar dataKey="units" name="Units sold" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={40}
+                      onMouseEnter={(d) => setActiveChartBar(d.fullName)}>
+                      {chartData.map((entry) => (
+                        <Cell key={entry.name} fill={activeChartBar === entry.fullName ? "#4f46e5" : "#6366f1"} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="revenue" name="Revenue (Rs k)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* ── Top 5 leaderboard ── */}
+            {stats && stats.topProducts.length > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, marginBottom: 20, overflow: "hidden" }}>
+                <div style={{ padding: isMobile ? "14px 14px 10px" : "18px 20px 12px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>🏆 Leaderboard</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>Top 5 products by units sold</div>
+                  </div>
+                </div>
+                {stats.topProducts.map((p, i) => {
+                  const pct = Math.round((p.sales_count / maxSales) * 100);
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        padding: isMobile ? "12px 14px" : "14px 20px",
+                        borderBottom: i < stats.topProducts.length - 1 ? "1px solid var(--line)" : "none",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: i === 0 ? "linear-gradient(90deg, rgba(253,224,71,0.08) 0%, transparent 60%)" : "transparent",
+                      }}
+                    >
+                      <div style={{ fontSize: i < 3 ? 22 : 14, fontWeight: 800, color: i < 3 ? "inherit" : "var(--ink-4)", minWidth: 28, textAlign: "center" }}>
+                        {i < 3 ? RANK_MEDAL[i] : `#${i + 1}`}
+                      </div>
+                      {p.image_url && (
+                        <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", flexShrink: 0, border: "1px solid var(--line)" }}>
+                          <img src={p.image_url} alt={p.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", marginBottom: 5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {p.name}
+                        </div>
+                        <div style={{ height: 6, borderRadius: 999, background: "var(--line)", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", width: `${pct}%`, borderRadius: 999,
+                            background: i === 0 ? "linear-gradient(90deg, #f59e0b, #f97316)" : i === 1 ? "#94a3b8" : i === 2 ? "#b45309" : "#6366f1",
+                            transition: "width 0.6s cubic-bezier(.4,0,.2,1)",
+                          }} />
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>{p.sales_count}</div>
+                        <div style={{ fontSize: 11, color: "var(--ink-4)" }}>units</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Slowest sellers ── */}
+            {stats && stats.slowestProducts.length > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 16, marginBottom: 20, overflow: "hidden" }}>
+                <div style={{ padding: isMobile ? "14px 14px 10px" : "18px 20px 12px", borderBottom: "1px solid rgba(239,68,68,0.15)", background: "rgba(254,242,242,0.5)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#dc2626" }}>🐢 Slowest sellers</div>
+                  <div style={{ fontSize: 12, color: "#ef4444", marginTop: 2, opacity: 0.8 }}>Products that need a push</div>
+                </div>
+                {stats.slowestProducts.map((p, i) => (
                   <div
-                    key={h}
+                    key={p.id}
                     style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "var(--ink-4)",
-                      textTransform: "uppercase",
-                      letterSpacing: 0.3,
+                      padding: isMobile ? "11px 14px" : "13px 20px",
+                      borderBottom: i < stats.slowestProducts.length - 1 ? "1px solid rgba(239,68,68,0.1)" : "none",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
                     }}
                   >
-                    {h}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>{p.brand} · {p.cat}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: p.sales_count === 0 ? "#dc2626" : "var(--ink)" }}>
+                        {p.sales_count} units
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>{PKR(p.price)}</div>
+                    </div>
                   </div>
                 ))}
               </div>
-              {stats.categoryStats.map((cat, i) => (
-                <div
-                  key={cat.name}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 100px 160px 100px",
-                    padding: "12px 16px",
-                    gap: 12,
-                    borderBottom:
-                      i < stats.categoryStats.length - 1 ? "1px solid var(--line)" : "none",
-                    alignItems: "center",
-                    background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)",
-                  }}
+            )}
+
+            {/* ── Search & controls ── */}
+            <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, marginBottom: 12, alignItems: isMobile ? "stretch" : "center" }}>
+              <input
+                placeholder="Search by product, brand or category…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{ flex: 1, padding: "9px 14px", borderRadius: 10, border: "1px solid var(--line)", background: "var(--card)", color: "var(--ink)", fontSize: 14, fontFamily: "inherit", outline: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-4)" }}>Per page:</label>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                  style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--card)", color: "var(--ink)", fontSize: 13, fontWeight: 600, cursor: "pointer", outline: "none" }}
                 >
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-                    {cat.name}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
-                    {cat.volume}
-                  </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-                    {PKR(cat.revenue)}
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink-3)" }}>
-                    {Math.round(cat.avgPerProduct)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Slowest sellers */}
-        {!loading && stats && stats.slowestProducts.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
-              Slowest sellers
-            </h3>
-            <div
-              style={{
-                background: "var(--card)",
-                border: "1px solid var(--line)",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              {stats.slowestProducts.map((p, i) => (
-                <div
-                  key={p.id}
-                  style={{
-                    padding: "12px 14px",
-                    borderBottom:
-                      i < stats.slowestProducts.length - 1 ? "1px solid var(--line)" : "none",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-                      {p.name}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
-                      {p.brand} • {p.cat}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)" }}>
-                      {p.sales_count} units
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
-                      {PKR(p.price * p.sales_count)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Search & pageSize */}
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            marginBottom: 14,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <input
-            placeholder="Search by product, brand or category…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{
-              flex: 1,
-              minWidth: 250,
-              padding: "9px 14px",
-              borderRadius: 10,
-              border: "1px solid var(--line)",
-              background: "var(--card)",
-              color: "var(--ink)",
-              fontSize: 14,
-              fontFamily: "inherit",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
-          />
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-4)" }}>
-              Per page:
-            </label>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              style={{
-                padding: "7px 12px",
-                borderRadius: 8,
-                border: "1px solid var(--line)",
-                background: "var(--card)",
-                color: "var(--ink)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div
-          style={{
-            background: "var(--card)",
-            border: "1px solid var(--line)",
-            borderRadius: 16,
-            overflow: "hidden",
-          }}
-        >
-          {loading ? (
-            <WellcareLoader label="Loading sales data" compact minHeight={120} />
-          ) : filtered.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 14 }}>
-              No products match your search.
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ background: "var(--bg-elev, var(--chip))" }}>
-                    <th style={thStyle}>#</th>
-                    <th style={thStyle}>
-                      <button style={sortBtnStyle} onClick={() => toggleSort("name")}>
-                        Product <SortIcon col="name" />
-                      </button>
-                    </th>
-                    <th style={thStyle}>Brand</th>
-                    <th style={thStyle}>Status</th>
-                    <th style={thStyle}>
-                      <button style={sortBtnStyle} onClick={() => toggleSort("price")}>
-                        Price <SortIcon col="price" />
-                      </button>
-                    </th>
-                    <th style={{ ...thStyle, minWidth: 180 }}>
-                      <button style={sortBtnStyle} onClick={() => toggleSort("sales_count")}>
-                        Units sold <SortIcon col="sales_count" />
-                      </button>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRows.map((row, i) => (
-                    <tr
-                      key={row.id}
-                      style={{
-                        borderTop: "1px solid var(--line)",
-                        background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)",
-                      }}
-                    >
-                      <td
-                        style={{
-                          ...tdStyle,
-                          width: 36,
-                          color: "var(--ink-4)",
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
-                        {(page - 1) * pageSize + i + 1}
-                      </td>
-                      <td style={{ ...tdStyle, minWidth: 220 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 10,
-                              background: "var(--chip)",
-                              border: "1px solid var(--line)",
-                              overflow: "hidden",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {row.image_url ? (
-                              <img
-                                src={row.image_url}
-                                alt={row.name}
-                                loading="lazy"
-                                decoding="async"
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  display: "block",
-                                }}
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                                }}
-                              />
-                            ) : null}
-                          </div>
-                          <div>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 700,
-                                color: "var(--ink)",
-                                lineHeight: 1.3,
-                              }}
-                            >
-                              {row.name}
-                            </div>
-                            <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
-                              {row.cat}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ ...tdStyle, fontSize: 13, color: "var(--ink-3)" }}>
-                        {row.brand}
-                      </td>
-                      <td style={tdStyle}>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "3px 10px",
-                            borderRadius: 999,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            background: row.active
-                              ? "var(--pill-success-bg)"
-                              : "var(--pill-rose-bg)",
-                            color: row.active ? "var(--pill-success-fg)" : "var(--pill-rose-fg)",
-                          }}
-                        >
-                          {row.active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td
-                        style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: "var(--ink)" }}
-                      >
-                        {PKR(row.price)}
-                      </td>
-                      <td style={tdStyle}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <div
-                            style={{
-                              flex: 1,
-                              height: 6,
-                              borderRadius: 999,
-                              background: "var(--line)",
-                              minWidth: 60,
-                            }}
-                          >
-                            <div
-                              style={{
-                                height: "100%",
-                                width: `${Math.round((row.sales_count / maxSales) * 100)}%`,
-                                borderRadius: 999,
-                                background:
-                                  row.sales_count >= maxSales * 0.7
-                                    ? "var(--green-700, #15803d)"
-                                    : row.sales_count >= maxSales * 0.3
-                                      ? "#f59e0b"
-                                      : "var(--ink-4)",
-                                transition: "width .3s ease",
-                              }}
-                            />
-                          </div>
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 800,
-                              color: "var(--ink)",
-                              minWidth: 28,
-                              textAlign: "right",
-                            }}
-                          >
-                            {row.sales_count}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Pagination */}
-        {!loading && filtered.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 16,
-              padding: "12px 0",
-              fontSize: 13,
-              color: "var(--ink-4)",
-              flexWrap: "wrap",
-              gap: 12,
-            }}
-          >
-            <div>
-              Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of{" "}
-              {filtered.length} products
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button
-                onClick={() => handlePageChange(page - 1)}
-                disabled={page === 1}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--line)",
-                  background: "var(--card)",
-                  color: page === 1 ? "var(--ink-4)" : "var(--ink)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: page === 1 ? "default" : "pointer",
-                  opacity: page === 1 ? 0.5 : 1,
-                }}
-              >
-                ← Prev
-              </button>
-              <div
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--line)",
-                  background: "var(--chip)",
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                {page} / {totalPages}
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
               </div>
-              <button
-                onClick={() => handlePageChange(page + 1)}
-                disabled={page === totalPages}
-                style={{
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid var(--line)",
-                  background: "var(--card)",
-                  color: page === totalPages ? "var(--ink-4)" : "var(--ink)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: page === totalPages ? "default" : "pointer",
-                  opacity: page === totalPages ? 0.5 : 1,
-                }}
-              >
-                Next →
-              </button>
             </div>
-          </div>
-        )}
 
-        {!loading && filtered.length === 0 && (
-          <div style={{ marginTop: 16, color: "var(--ink-4)", fontSize: 13, textAlign: "center" }}>
-            No products match your filters.
-          </div>
+            {/* ── Product list ── */}
+            {filtered.length === 0 ? (
+              <div style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 14 }}>No products match your search.</div>
+            ) : isMobile ? (
+              <>
+                {/* Mobile sort pills */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                  {(["sales_count", "name", "price"] as const).map((col) => (
+                    <button key={col} onClick={() => toggleSort(col)} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--line)", background: sortBy === col ? "var(--ink)" : "var(--card)", color: sortBy === col ? "var(--card)" : "var(--ink-4)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      {col === "sales_count" ? "Units" : col === "name" ? "Name" : "Price"}
+                      <SortIcon col={col} />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {paginatedRows.map((row, i) => {
+                    const tier = getTier(row.sales_count, maxSales);
+                    const tc = TIER_COLORS[tier];
+                    return (
+                      <div key={row.id} style={{ border: `1px solid var(--line)`, borderLeft: `3px solid ${tc.border}`, borderRadius: 12, padding: "12px 14px", background: "var(--card)" }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", minWidth: 20, paddingTop: 2 }}>{(page - 1) * pageSize + i + 1}</div>
+                          <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--chip)", border: "1px solid var(--line)", overflow: "hidden", flexShrink: 0 }}>
+                            {row.image_url ? <img src={row.image_url} alt={row.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : null}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", lineHeight: 1.3 }}>{row.name}</div>
+                              <span style={{ padding: "2px 7px", borderRadius: 999, fontSize: 10, fontWeight: 700, flexShrink: 0, background: tc.bg, color: tc.text }}>{tc.label}</span>
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>{row.brand} · {row.cat}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                              <div style={{ flex: 1, height: 5, borderRadius: 999, background: "var(--line)" }}>
+                                <div style={{ height: "100%", width: `${Math.round((row.sales_count / maxSales) * 100)}%`, borderRadius: 999, background: tc.dot, transition: "width .3s ease" }} />
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", minWidth: 24, textAlign: "right" }}>{row.sales_count}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>{PKR(row.price)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, overflow: "hidden" }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "var(--bg-elev, var(--chip))" }}>
+                        <th style={thStyle}>#</th>
+                        <th style={thStyle}><button style={sortBtnStyle} onClick={() => toggleSort("name")}>Product <SortIcon col="name" /></button></th>
+                        <th style={thStyle}>Brand</th>
+                        <th style={thStyle}>Tier</th>
+                        <th style={thStyle}><button style={sortBtnStyle} onClick={() => toggleSort("price")}>Price <SortIcon col="price" /></button></th>
+                        <th style={{ ...thStyle, minWidth: 200 }}><button style={sortBtnStyle} onClick={() => toggleSort("sales_count")}>Units sold <SortIcon col="sales_count" /></button></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedRows.map((row, i) => {
+                        const tier = getTier(row.sales_count, maxSales);
+                        const tc = TIER_COLORS[tier];
+                        return (
+                          <tr key={row.id} style={{ borderTop: "1px solid var(--line)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.012)" }}>
+                            <td style={{ ...tdStyle, width: 36, color: "var(--ink-4)", fontSize: 12, fontWeight: 700 }}>{(page - 1) * pageSize + i + 1}</td>
+                            <td style={{ ...tdStyle, minWidth: 220 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--chip)", border: "1px solid var(--line)", overflow: "hidden", flexShrink: 0 }}>
+                                  {row.image_url ? <img src={row.image_url} alt={row.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} /> : null}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", lineHeight: 1.3 }}>{row.name}</div>
+                                  <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>{row.cat}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ ...tdStyle, fontSize: 13, color: "var(--ink-3)" }}>{row.brand}</td>
+                            <td style={tdStyle}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 700, background: tc.bg, color: tc.text }}>
+                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: tc.dot, flexShrink: 0 }} />
+                                {tc.label}
+                              </span>
+                            </td>
+                            <td style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{PKR(row.price)}</td>
+                            <td style={tdStyle}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--line)", minWidth: 80 }}>
+                                  <div style={{ height: "100%", width: `${Math.round((row.sales_count / maxSales) * 100)}%`, borderRadius: 999, background: tc.dot, transition: "width .3s ease" }} />
+                                </div>
+                                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", minWidth: 28, textAlign: "right" }}>{row.sales_count}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Pagination ── */}
+            {filtered.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, padding: "12px 0", fontSize: 13, color: "var(--ink-4)", flexWrap: "wrap", gap: 12 }}>
+                <div>Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, filtered.length)} of {filtered.length}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} style={pageBtn(page === 1)}>← Prev</button>
+                  <div style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--chip)", fontWeight: 700, fontSize: 12 }}>{page} / {totalPages}</div>
+                  <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} style={pageBtn(page === totalPages)}>Next →</button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </AdminGate>
   );
 }
 
-const metricCardStyle: CSSProperties = {
-  background: "var(--card)",
+const pageBtn = (disabled: boolean): CSSProperties => ({
+  padding: "6px 12px",
+  borderRadius: 8,
   border: "1px solid var(--line)",
-  borderRadius: 14,
-  padding: 16,
-};
-
-const metricLabelStyle: CSSProperties = {
-  color: "var(--ink-4)",
-  fontSize: 12,
+  background: "var(--card)",
+  color: disabled ? "var(--ink-4)" : "var(--ink)",
+  fontSize: 13,
   fontWeight: 700,
-  marginBottom: 6,
-};
+  cursor: disabled ? "default" : "pointer",
+  opacity: disabled ? 0.5 : 1,
+  fontFamily: "inherit",
+});
 
-const metricValueStyle: CSSProperties = {
-  color: "var(--ink)",
-  fontSize: 26,
-  fontWeight: 800,
-  letterSpacing: -0.4,
-};
+const insightCard = (bg: string, accent: string): CSSProperties => ({
+  background: bg,
+  border: `1px solid ${accent}22`,
+  borderTop: `3px solid ${accent}`,
+  borderRadius: 14,
+  padding: "14px 14px 12px",
+});
+const insightIcon = (emoji: string) => ({ fontSize: 20, lineHeight: 1, marginBottom: 6, display: "block" as const, content: emoji });
+const insightLabel: CSSProperties = { fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 4 };
+const insightValue: CSSProperties = { fontSize: 16, fontWeight: 800, color: "var(--ink)", lineHeight: 1.2, marginBottom: 4 };
+const insightSub: CSSProperties = { fontSize: 11, color: "var(--ink-4)" };
 
 const thStyle: CSSProperties = {
   padding: "10px 14px",
@@ -947,10 +625,7 @@ const thStyle: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-const tdStyle: CSSProperties = {
-  padding: "11px 14px",
-  verticalAlign: "middle",
-};
+const tdStyle: CSSProperties = { padding: "11px 14px", verticalAlign: "middle" };
 
 const sortBtnStyle: CSSProperties = {
   background: "none",
