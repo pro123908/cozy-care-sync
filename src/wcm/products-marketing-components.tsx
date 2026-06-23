@@ -47,6 +47,8 @@ const HERO_BANNERS: HeroBanner[] = [
     secondaryLabel: "Track an order",
     secondaryTarget: "orders" as const,
     gradient: "linear-gradient(135deg, #2563eb 0%, #0891b2 52%, #22c55e 100%)",
+    imageUrl: "/hero-banner.webp",
+    imageAlt: "Wellcare Mart home-care products",
     artCard: {
       kicker: "HEART RATE",
       main: "72",
@@ -109,10 +111,30 @@ const HERO_BANNERS: HeroBanner[] = [
   },
 ];
 
+const BANNER_CACHE_KEY = "wcm_banner_cache_v1";
+
+function loadBannerCache(): HomepageBannerRow[] {
+  try {
+    const raw = localStorage.getItem(BANNER_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveBannerCache(rows: HomepageBannerRow[]) {
+  try {
+    localStorage.setItem(BANNER_CACHE_KEY, JSON.stringify(rows));
+  } catch {}
+}
+
 export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const [active, setActive] = useState(0);
-  const [dynamicImages, setDynamicImages] = useState<HomepageBannerRow[]>([]);
-  const [bannersResolved, setBannersResolved] = useState(false);
+  const [dynamicImages, setDynamicImages] = useState<HomepageBannerRow[]>(loadBannerCache);
+  const cachedOnLoad = dynamicImages.length > 0;
+  const [bannersResolved, setBannersResolved] = useState(cachedOnLoad);
   const [slideTick, setSlideTick] = useState(0);
 
   const hasDynamicBanners = dynamicImages.length > 0;
@@ -120,13 +142,14 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const banners: HeroBanner[] = hasDynamicBanners
     ? dynamicImages.map((row, index) => ({
         ...HERO_BANNERS[index % HERO_BANNERS.length],
-        imageUrl: row.image_url,
+        // Keep the local static image for slot 0 — prevents src change after Supabase returns
+        imageUrl: index === 0 ? "/hero-banner.webp" : row.image_url,
         imageAlt: row.alt_text || `Homepage banner ${index + 1}`,
       }))
     : HERO_BANNERS;
 
   const banner = banners[active] || HERO_BANNERS[0];
-  const imageOnlyBannerEnabled = hasDynamicBanners && !!banner.imageUrl;
+  const imageOnlyBannerEnabled = !!banner.imageUrl;
   const showImageCarouselArrows = imageOnlyBannerEnabled && dynamicImages.length > 1;
 
   const goToPreviousBanner = () => {
@@ -158,7 +181,8 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         const normalized = (data as HomepageBannerRow[]).filter(
           (row) => typeof row.image_url === "string" && row.image_url.trim().length > 0,
         );
-        // Preload all banner images so slide transitions don't flicker
+        saveBannerCache(normalized);
+        // Preload any images not already cached/shown
         normalized.forEach((row) => {
           const preload = new Image();
           preload.src = row.image_url;
@@ -182,11 +206,12 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
 
   useEffect(() => {
     if (banners.length < 2) return;
+    if (!hasDynamicBanners) return;
     const timer = window.setInterval(() => {
       setActive((current) => (current + 1) % banners.length);
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [banners.length]);
+  }, [banners.length, hasDynamicBanners]);
 
   useEffect(() => {
     if (!imageOnlyBannerEnabled) return;
@@ -220,8 +245,8 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           src={banner.imageUrl}
           alt={banner.imageAlt || "Homepage banner"}
           loading="eager"
-          fetchPriority={active === 0 ? "high" : "auto"}
           decoding="async"
+          fetchPriority={active === 0 ? "high" : "auto"}
           style={{
             width: "100%",
             height: "clamp(180px, 34vw, 360px)",

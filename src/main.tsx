@@ -7,12 +7,13 @@ import { getRouter } from "./router";
 import "./styles.css";
 
 const router = getRouter();
+const isVercelDeployment = !["localhost", "127.0.0.1"].includes(window.location.hostname);
 
 registerSW({ immediate: true });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <RouterProvider router={router} />
-    <Analytics />
+    {isVercelDeployment && <Analytics />}
   </React.StrictMode>,
 );

@@ -1,13 +1,8 @@
-import { Suspense, lazy } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { WellcareLoader } from "@/wcm/loader";
+import { ProductsPage } from "@/wcm/products";
 import { getProductSeoPathSegment } from "@/wcm/data";
 import { canonicalUrl } from "@/lib/seo";
-
-const ProductsPage = lazy(() =>
-  import("@/wcm/products").then((m) => ({ default: m.ProductsPage })),
-);
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -40,30 +35,28 @@ function IndexPage() {
   const navigate = useNavigate();
   const { category } = useSearch({ from: "/" });
   return (
-    <Suspense fallback={<WellcareLoader label="Loading products" hint="Preparing your catalog" />}>
-      <ProductsPage
-        addToCart={addToCart}
-        cart={cart}
-        category={category}
-        onCategoryChange={(cat) =>
-          navigate({
-            to: "/",
-            search: { category: cat === "all" ? undefined : cat },
-            resetScroll: false,
-          })
-        }
-        openProduct={(p) =>
-          navigate({
-            to: "/products/$productId",
-            params: { productId: getProductSeoPathSegment(p, products) },
-          })
-        }
-        goTo={(pg: string) =>
-          navigate({
-            to: pg === "orders" ? "/orders" : "/",
-          })
-        }
-      />
-    </Suspense>
+    <ProductsPage
+      addToCart={addToCart}
+      cart={cart}
+      category={category}
+      onCategoryChange={(cat) =>
+        navigate({
+          to: "/",
+          search: { category: cat === "all" ? undefined : cat },
+          resetScroll: false,
+        })
+      }
+      openProduct={(p) =>
+        navigate({
+          to: "/products/$productId",
+          params: { productId: getProductSeoPathSegment(p, products) },
+        })
+      }
+      goTo={(pg: string) =>
+        navigate({
+          to: pg === "orders" ? "/orders" : "/",
+        })
+      }
+    />
   );
 }

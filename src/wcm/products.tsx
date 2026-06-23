@@ -272,6 +272,9 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <TrustRibbon />
+      {!productsLoaded && (
+        <div style={{ height: isMobile ? 258 : 305, minWidth: 0 }} aria-hidden="true" />
+      )}
       <DealsRail
         products={products}
         cart={cart}
@@ -517,7 +520,7 @@ export function ProductsPage({
             gap: isMobile ? 8 : 12,
           }}
         >
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: PRODUCTS_PAGE_SIZE }).map((_, i) => (
             <ProductCardSkeleton key={i} isMobile={isMobile} />
           ))}
         </div>

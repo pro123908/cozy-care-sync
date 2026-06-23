@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c ' *)",
+      "Bash(pkill -f \"vite preview\" 2>/dev/null; sleep 1; npm run preview &>/tmp/preview.log & *)",
+      "Bash(cwebp -version)",
+      "Bash(ffmpeg -version)",
+      "Bash(convert -version)",
+      "Bash(sort -t'|' -k1 -rn)",
+      "Bash(python3 -c \"import requests; print\\('ok'\\)\")",
+      "Bash(pip3 install *)",
+      "Bash(python3 scripts/compress_images.py)",
+      "Bash(python3 scripts/compress_images_pass2.py)",
+      "Bash(curl -sL https://dkspvlpswpipltceptoa.supabase.co/storage/v1/object/public/product-images/homepage-banners/0f156408-6d9b-4aa3-9a29-ae1c2f07d4ed-1781466510834.webp -o /Users/bilalahmed/Work/Drox/cozy-care-sync/public/hero-banner.webp)",
+      "Bash(curl -sI http://localhost:4173)",
+      "Bash(curl -sI http://localhost:4173/hero-banner.webp)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
+  }
+}

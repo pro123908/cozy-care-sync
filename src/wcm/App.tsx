@@ -616,6 +616,8 @@ function Header({
             <img
               src="/logo_updated.png"
               alt="Wellcare Mart"
+              width={76}
+              height={38}
               style={{ height: 38, width: "auto", display: "block" }}
             />
           </button>
