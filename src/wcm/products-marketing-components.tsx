@@ -202,7 +202,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             : "var(--grad-soft)",
         color: "#fff",
         padding: imageOnlyBannerEnabled ? 0 : bannersResolved ? "28px 32px" : 0,
-        minHeight: !bannersResolved ? "clamp(180px, 34vw, 360px)" : undefined,
+        minHeight: "clamp(180px, 34vw, 360px)",
         marginBottom: 18,
       }}
       className={`wcm-hero${imageOnlyBannerEnabled ? " wcm-hero-image-only" : ""}`}
@@ -214,11 +214,16 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           key={`hero-slide-${slideTick}-${active}`}
           src={banner.imageUrl}
           alt={banner.imageAlt || "Homepage banner"}
-          loading="lazy"
+          loading="eager"
+          fetchPriority={active === 0 ? "high" : "auto"}
           decoding="async"
           style={{
             width: "100%",
-            animation: "wcmHeroSlideIn .2s ease",
+            height: "clamp(180px, 34vw, 360px)",
+            objectFit: "cover",
+            objectPosition: "center",
+            display: "block",
+            animation: slideTick > 1 ? "wcmHeroSlideIn .2s ease" : undefined,
           }}
         />
       )}

@@ -1466,6 +1466,8 @@ function Footer() {
                     textDecoration: "none",
                     fontSize: 13.5,
                     fontWeight: 600,
+                    padding: "10px 0",
+                    display: "block",
                   }}
                 >
                   {l.label}

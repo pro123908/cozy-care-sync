@@ -124,6 +124,8 @@ export function CategoryRail({
                       src={src}
                       alt=""
                       aria-hidden="true"
+                      width={52}
+                      height={52}
                       loading="eager"
                       decoding="async"
                       style={{
@@ -155,6 +157,8 @@ export function CategoryRail({
                     src={categoryImage}
                     alt=""
                     aria-hidden="true"
+                    width={104}
+                    height={104}
                     loading="eager"
                     decoding="async"
                     style={{

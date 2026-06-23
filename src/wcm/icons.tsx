@@ -315,7 +315,7 @@ export const WellcareWordmark = ({ height = 28 }: { height?: number }) => (
       <div style={{ fontSize: height * 0.72, fontWeight: 800, letterSpacing: -0.4, lineHeight: 1 }}>
         <span
           style={{
-            background: "linear-gradient(95deg,#16a34a 0%, #1a8a52 45%, #2563eb 100%)",
+            background: "linear-gradient(95deg,#15803d 0%, #0f766e 45%, #2563eb 100%)",
             WebkitBackgroundClip: "text",
             backgroundClip: "text",
             color: "transparent",
@@ -324,7 +324,7 @@ export const WellcareWordmark = ({ height = 28 }: { height?: number }) => (
           Well
         </span>
         <span style={{ color: "#1d4ed8" }}>Care</span>
-        <span style={{ color: "#16a34a" }}>mart</span>
+        <span style={{ color: "#15803d" }}>mart</span>
         <span
           style={{
             marginLeft: 4,
