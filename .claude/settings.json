@@ -13,7 +13,9 @@
       "Bash(python3 scripts/compress_images_pass2.py)",
       "Bash(curl -sL https://dkspvlpswpipltceptoa.supabase.co/storage/v1/object/public/product-images/homepage-banners/0f156408-6d9b-4aa3-9a29-ae1c2f07d4ed-1781466510834.webp -o /Users/bilalahmed/Work/Drox/cozy-care-sync/public/hero-banner.webp)",
       "Bash(curl -sI http://localhost:4173)",
-      "Bash(curl -sI http://localhost:4173/hero-banner.webp)"
+      "Bash(curl -sI http://localhost:4173/hero-banner.webp)",
+      "Bash(git commit *)",
+      "Bash(git grep *)"
     ],
     "additionalDirectories": [
       "/private/tmp"
