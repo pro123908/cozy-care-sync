@@ -507,7 +507,7 @@ function Header({
             justifyContent: "center",
             gap: 10,
             maxWidth: "100%",
-            animation: "wcmTopBarSlide 2.6s ease",
+            animation: "wcmTopBarSlide 2.6s ease forwards",
             position: "relative",
             zIndex: 1,
           }}
