@@ -762,7 +762,7 @@ export function RecentlyViewedRail({
           overflowY: "hidden",
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorX: "contain",
-          touchAction: "pan-x",
+          touchAction: "pan-x pan-y",
           paddingBottom: 4,
           scrollbarWidth: "none",
         }}
@@ -871,7 +871,7 @@ export function DealsRail({
           overflowY: "hidden",
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorX: "contain",
-          touchAction: "pan-x",
+          touchAction: "pan-x pan-y",
           paddingBottom: 4,
           scrollbarWidth: "none",
         }}

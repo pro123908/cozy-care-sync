@@ -158,6 +158,11 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         const normalized = (data as HomepageBannerRow[]).filter(
           (row) => typeof row.image_url === "string" && row.image_url.trim().length > 0,
         );
+        // Preload all banner images so slide transitions don't flicker
+        normalized.forEach((row) => {
+          const preload = new Image();
+          preload.src = row.image_url;
+        });
         setDynamicImages(normalized);
       }
       setBannersResolved(true);
@@ -207,7 +212,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       }}
       className={`wcm-hero${imageOnlyBannerEnabled ? " wcm-hero-image-only" : ""}`}
     >
-      <style>{`@keyframes wcmHeroSlideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <style>{`@keyframes wcmHeroFadeIn{from{opacity:0}to{opacity:1}}`}</style>
       {imageOnlyBannerEnabled && (
         <img
           className="wcm-hero-image"
@@ -223,7 +228,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             objectFit: "cover",
             objectPosition: "center",
             display: "block",
-            animation: slideTick > 1 ? "wcmHeroSlideIn .2s ease" : undefined,
+            animation: "wcmHeroFadeIn .35s ease",
           }}
         />
       )}
