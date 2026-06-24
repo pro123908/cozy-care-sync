@@ -1,0 +1,2 @@
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS purchase_price INTEGER NOT NULL DEFAULT 0;

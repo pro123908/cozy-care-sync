@@ -240,6 +240,7 @@ export type Database = {
           brand: string;
           cat: string;
           price: number;
+          purchase_price: number;
           was: number | null;
           rating: number;
           reviews: number;
@@ -263,6 +264,7 @@ export type Database = {
           brand?: string;
           cat?: string;
           price: number;
+          purchase_price?: number;
           was?: number | null;
           rating?: number;
           reviews?: number;
@@ -286,6 +288,7 @@ export type Database = {
           brand?: string;
           cat?: string;
           price?: number;
+          purchase_price?: number;
           was?: number | null;
           rating?: number;
           reviews?: number;

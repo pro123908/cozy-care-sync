@@ -15,7 +15,15 @@
       "Bash(curl -sI http://localhost:4173)",
       "Bash(curl -sI http://localhost:4173/hero-banner.webp)",
       "Bash(git commit *)",
-      "Bash(git grep *)"
+      "Bash(git grep *)",
+      "Bash(xargs ls -lh)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(curl -s ifconfig.me)",
+      "mcp__claude_ai_Google_Drive__read_file_content",
+      "Bash(grep -oP \"\\(?<=\\\\d',\\\\s{1,5}'\\)[^']{3,}\\(?=',\\\\s{1,5}'\\)\" /Users/bilalahmed/Work/Drox/cozy-care-sync/supabase/migrations/20260502150000_baseline_schema_seed.sql)",
+      "Bash(grep -oP \"\\(?<=\\\\d',\\\\s{1,6}'\\)\\([A-Z][^']+\\)\\(?='\\)\")",
+      "Bash(npx supabase *)",
+      "Bash(supabase db *)"
     ],
     "additionalDirectories": [
       "/private/tmp"

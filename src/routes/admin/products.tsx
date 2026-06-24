@@ -23,6 +23,7 @@ const EMPTY_DRAFT = {
   brand: "",
   cat: "glucometers",
   price: 0,
+  purchase_price: 0,
   was: "",
   stock: "In stock",
   stock_count: 25,
@@ -440,6 +441,7 @@ function AdminProductsPage() {
       brand: p.brand,
       cat: resolvedCatSlug,
       price: p.price,
+      purchase_price: p.purchase_price ?? 0,
       was: p.was === null ? "" : String(p.was),
       stock: p.stock,
       stock_count: p.stock_count ?? getFallbackCountFromStock(p.stock),
@@ -498,6 +500,7 @@ function AdminProductsPage() {
       cat: draft.cat.trim(),
       category_id: selectedCategory?.id ?? null,
       price: Number(draft.price) || 0,
+      purchase_price: Math.max(0, Number(draft.purchase_price) || 0),
       was: draft.was === "" ? null : Math.max(Number(draft.was), 0),
       stock: deriveStockStatusFromCount(Math.max(0, Number(draft.stock_count) || 0)),
       stock_count: Math.max(0, Number(draft.stock_count) || 0),
@@ -1294,6 +1297,15 @@ function AdminProductsPage() {
                             <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
                               Rs {p.price.toLocaleString()}
                             </span>
+                            {p.purchase_price > 0 && (
+                              <span style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                                Cost Rs {p.purchase_price.toLocaleString()} · Profit{" "}
+                                <span style={{ color: "var(--pill-success-fg)", fontWeight: 600 }}>
+                                  Rs {(p.price - p.purchase_price).toLocaleString()}
+                                </span>
+                                {" "}({Math.round(((p.price - p.purchase_price) / p.price) * 100)}%)
+                              </span>
+                            )}
                             <span
                               style={{
                                 padding: "2px 7px",
@@ -1362,7 +1374,8 @@ function AdminProductsPage() {
                     overflow: "hidden",
                   }}
                 >
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "var(--bg-elev)", color: "var(--ink-3)" }}>
                         <th style={thStyle}>
@@ -1376,7 +1389,10 @@ function AdminProductsPage() {
                         <th style={thStyle}>Name</th>
                         <th style={thStyle}>Category</th>
                         <th style={thStyle}>Source</th>
-                        <th style={thStyle}>Price</th>
+                        <th style={thStyle}>Purchase</th>
+                        <th style={thStyle}>Selling</th>
+                        <th style={thStyle}>Profit</th>
+                        <th style={thStyle}>Margin</th>
                         <th style={thStyle}>Stock</th>
                         <th style={thStyle}>Status</th>
                         <th style={thStyle}>Actions</th>
@@ -1466,6 +1482,11 @@ function AdminProductsPage() {
                             </span>
                           </td>
                           <td style={tdStyle}>
+                            <span style={{ color: "var(--ink-3)" }}>
+                              {p.purchase_price ? `Rs ${p.purchase_price.toLocaleString()}` : "—"}
+                            </span>
+                          </td>
+                          <td style={tdStyle}>
                             <div style={{ display: "grid", gap: 3 }}>
                               <span>Rs {p.price.toLocaleString()}</span>
                               {Array.isArray(
@@ -1480,6 +1501,20 @@ function AdminProductsPage() {
                             </div>
                           </td>
                           <td style={tdStyle}>
+                            {p.purchase_price > 0 ? (
+                              <span style={{ color: "var(--pill-success-fg)", fontWeight: 600 }}>
+                                Rs {(p.price - p.purchase_price).toLocaleString()}
+                              </span>
+                            ) : "—"}
+                          </td>
+                          <td style={tdStyle}>
+                            {p.purchase_price > 0 ? (
+                              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                                {Math.round(((p.price - p.purchase_price) / p.price) * 100)}%
+                              </span>
+                            ) : "—"}
+                          </td>
+                          <td style={tdStyle}>
                             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               <span
                                 style={{
@@ -1488,6 +1523,7 @@ function AdminProductsPage() {
                                   fontSize: 11,
                                   fontWeight: 700,
                                   width: "fit-content",
+                                  whiteSpace: "nowrap",
                                   background:
                                     p.stock === "In stock"
                                       ? "var(--pill-success-bg)"
@@ -1567,6 +1603,7 @@ function AdminProductsPage() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
@@ -2224,8 +2261,17 @@ function AdminProductsPage() {
                     />
                   </Field>
                 </div>
-                <div style={{ display: "grid", gap: 10, gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr" }}>
-                  <Field label="Price">
+                <div style={{ display: "grid", gap: 10, gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)" }}>
+                  <Field label="Purchase Price (Cost)">
+                    <input
+                      type="number"
+                      min={0}
+                      value={draft.purchase_price}
+                      onChange={(e) => setDraft((d) => ({ ...d, purchase_price: Math.max(0, Number(e.target.value)) }))}
+                      style={inputStyle}
+                    />
+                  </Field>
+                  <Field label="Selling Price">
                     <input
                       type="number"
                       value={draft.price}
@@ -2875,6 +2921,7 @@ const thStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 800,
   padding: "9px 12px",
+  whiteSpace: "nowrap",
 };
 
 const tdStyle: CSSProperties = {

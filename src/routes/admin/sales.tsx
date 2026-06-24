@@ -32,6 +32,7 @@ type SalesRow = {
   brand: string;
   cat: string;
   price: number;
+  purchase_price: number;
   sales_count: number;
   active: boolean;
   image_url: string | null;
@@ -60,7 +61,7 @@ function AdminSalesPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"sales_count" | "name" | "price">("sales_count");
+  const [sortBy, setSortBy] = useState<"sales_count" | "name" | "price" | "profit">("sales_count");
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -72,12 +73,12 @@ function AdminSalesPage() {
     const supabase = await getSupabase();
     let { data, error } = await supabase
       .from("products")
-      .select("id, name, brand, cat, price, sales_count, active, image_url, stock")
+      .select("id, name, brand, cat, price, purchase_price, sales_count, active, image_url, stock")
       .order("sales_count", { ascending: false });
     if (error) {
       const fallback = await supabase
         .from("products")
-        .select("id, name, brand, cat, price, active, image_url, stock")
+        .select("id, name, brand, cat, price, purchase_price, active, image_url, stock")
         .order("name", { ascending: true });
       data = fallback.data;
     }
@@ -122,6 +123,16 @@ function AdminSalesPage() {
     const bestRevenueProduct = rows.reduce((best, r) =>
       r.price * r.sales_count > best.price * best.sales_count ? r : best
     );
+    const totalProfit = rows.reduce((sum, r) => {
+      const margin = r.purchase_price > 0 ? r.price - r.purchase_price : 0;
+      return sum + margin * r.sales_count;
+    }, 0);
+    const bestProfitProduct = rows
+      .filter((r) => r.purchase_price > 0)
+      .reduce<SalesRow | null>((best, r) => {
+        const profit = (r.price - r.purchase_price) * r.sales_count;
+        return best === null || profit > (best.price - best.purchase_price) * best.sales_count ? r : best;
+      }, null);
     const zeroSalesCount = rows.filter((r) => r.sales_count === 0).length;
     const meanSales = totalSales / rows.length;
     const lowStockCount = rows.filter((r) => {
@@ -147,6 +158,7 @@ function AdminSalesPage() {
 
     return {
       totalRevenue, avgRevenue, bestRevenueProduct,
+      totalProfit, bestProfitProduct,
       zeroSalesCount, meanSales, lowStockCount, medianSales,
       topProducts, slowestProducts, categoryStats,
       topCategoryByVolume: categoryStats[0],
@@ -167,6 +179,7 @@ function AdminSalesPage() {
       let diff = 0;
       if (sortBy === "sales_count") diff = a.sales_count - b.sales_count;
       else if (sortBy === "price") diff = a.price - b.price;
+      else if (sortBy === "profit") diff = (a.price - a.purchase_price) * a.sales_count - (b.price - b.purchase_price) * b.sales_count;
       else diff = a.name.localeCompare(b.name);
       return sortDir === "desc" ? -diff : diff;
     });
@@ -268,18 +281,19 @@ function AdminSalesPage() {
                 <div style={{ height: 1, background: "var(--line)", marginBottom: isMobile ? 18 : 24 }} />
 
                 {/* Stats row */}
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 16 : 0 }}>
                   {[
                     { label: "Units sold", value: totalSales.toLocaleString(), color: "#6366f1" },
+                    { label: "Total profit", value: PKR(stats?.totalProfit ?? 0), color: "#10b981" },
                     { label: "Products tracked", value: String(rows.length), color: "#06b6d4" },
                     { label: "Avg rev / product", value: PKR(stats?.avgRevenue ?? 0), color: "#8b5cf6" },
-                  ].map(({ label, value, color }, i) => (
+                  ].map(({ label, value, color }, i, arr) => (
                     <div
                       key={label}
                       style={{
                         paddingLeft: !isMobile && i > 0 ? 28 : 0,
                         borderLeft: !isMobile && i > 0 ? "1px solid var(--line)" : "none",
-                        paddingRight: !isMobile && i < 2 ? 28 : 0,
+                        paddingRight: !isMobile && i < arr.length - 1 ? 28 : 0,
                       }}
                     >
                       <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>
@@ -295,12 +309,22 @@ function AdminSalesPage() {
             </div>
 
             {/* ── Insight chips ── */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 10, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
               <div style={insightCard("#f0fdf4", "#16a34a")}>
                 <div style={insightIcon("🏆")} />
                 <div style={insightLabel}>Top seller</div>
                 <div style={insightValue}>{stats?.topProducts[0]?.name ?? "—"}</div>
                 <div style={insightSub}>{stats?.topProducts[0]?.sales_count ?? 0} units</div>
+              </div>
+              <div style={insightCard("#ecfdf5", "#059669")}>
+                <div style={insightIcon("💰")} />
+                <div style={insightLabel}>Most profitable</div>
+                <div style={insightValue}>{stats?.bestProfitProduct?.name ?? "—"}</div>
+                <div style={insightSub}>
+                  {stats?.bestProfitProduct
+                    ? `${PKR((stats.bestProfitProduct.price - stats.bestProfitProduct.purchase_price) * stats.bestProfitProduct.sales_count)} profit`
+                    : "No data yet"}
+                </div>
               </div>
               <div style={insightCard("#fff7ed", "#ea580c")}>
                 <div style={insightIcon("📦")} />
@@ -476,9 +500,9 @@ function AdminSalesPage() {
               <>
                 {/* Mobile sort pills */}
                 <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                  {(["sales_count", "name", "price"] as const).map((col) => (
+                  {(["sales_count", "profit", "name", "price"] as const).map((col) => (
                     <button key={col} onClick={() => toggleSort(col)} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid var(--line)", background: sortBy === col ? "var(--ink)" : "var(--card)", color: sortBy === col ? "var(--card)" : "var(--ink-4)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 3 }}>
-                      {col === "sales_count" ? "Units" : col === "name" ? "Name" : "Price"}
+                      {col === "sales_count" ? "Units" : col === "profit" ? "Profit" : col === "name" ? "Name" : "Price"}
                       <SortIcon col={col} />
                     </button>
                   ))}
@@ -507,6 +531,11 @@ function AdminSalesPage() {
                               <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", minWidth: 24, textAlign: "right" }}>{row.sales_count}</span>
                               <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>{PKR(row.price)}</span>
                             </div>
+                            {row.purchase_price > 0 && (
+                              <div style={{ marginTop: 6, fontSize: 11, color: "#10b981", fontWeight: 700 }}>
+                                Profit/unit: {PKR(row.price - row.purchase_price)} · Total: {PKR((row.price - row.purchase_price) * row.sales_count)}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -525,6 +554,8 @@ function AdminSalesPage() {
                         <th style={thStyle}>Brand</th>
                         <th style={thStyle}>Tier</th>
                         <th style={thStyle}><button style={sortBtnStyle} onClick={() => toggleSort("price")}>Price <SortIcon col="price" /></button></th>
+                        <th style={thStyle}>Profit / unit</th>
+                        <th style={thStyle}><button style={sortBtnStyle} onClick={() => toggleSort("profit")}>Total profit <SortIcon col="profit" /></button></th>
                         <th style={{ ...thStyle, minWidth: 200 }}><button style={sortBtnStyle} onClick={() => toggleSort("sales_count")}>Units sold <SortIcon col="sales_count" /></button></th>
                       </tr>
                     </thead>
@@ -554,6 +585,25 @@ function AdminSalesPage() {
                               </span>
                             </td>
                             <td style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{PKR(row.price)}</td>
+                            <td style={tdStyle}>
+                              {row.purchase_price > 0 ? (
+                                <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
+                                  {PKR(row.price - row.purchase_price)}
+                                </span>
+                              ) : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>}
+                            </td>
+                            <td style={tdStyle}>
+                              {row.purchase_price > 0 ? (
+                                <div>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
+                                    {PKR((row.price - row.purchase_price) * row.sales_count)}
+                                  </span>
+                                  <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
+                                    {Math.round(((row.price - row.purchase_price) / row.price) * 100)}% margin
+                                  </div>
+                                </div>
+                              ) : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>}
+                            </td>
                             <td style={tdStyle}>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                 <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--line)", minWidth: 80 }}>
