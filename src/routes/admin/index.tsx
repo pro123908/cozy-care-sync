@@ -78,6 +78,7 @@ function AdminHomePage() {
   const [recentOrders, setRecentOrders] = useState<OrderRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [orderStatuses, setOrderStatuses] = useState<{ status: string }[]>([]);
+  const [salesStatsMap, setSalesStatsMap] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -92,12 +93,14 @@ function AdminHomePage() {
           { data: ordersData, count: orderCount },
           { count: deliveredCount },
           { data: statusData },
+          { data: salesStatsData },
         ] = await Promise.all([
           supabase.from("products").select("*", { count: "exact" }),
           supabase.from("products").select("id", { count: "exact", head: true }).eq("active", true),
           supabase.from("orders").select("*", { count: "exact" }).order("created_at", { ascending: false }).limit(8),
           supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "Delivered"),
           supabase.from("orders").select("status"),
+          supabase.rpc("product_sales_stats"),
         ]);
 
         if (cancelled) return;
@@ -105,9 +108,13 @@ function AdminHomePage() {
         const allProducts = (productsData as ProductRow[]) || [];
         const allOrders = (ordersData as OrderRow[]) || [];
 
-        const totalRevenue = allProducts.reduce(
-          (sum, p) => sum + ((p as any).sales_count || 0) * p.price, 0,
+        // product_id → total_revenue using historical unit_price from order items
+        const statsMap = new Map<string, number>(
+          ((salesStatsData ?? []) as { product_id: string; total_revenue: string }[]).map(
+            (s) => [s.product_id, Number(s.total_revenue)]
+          )
         );
+        const totalRevenue = [...statsMap.values()].reduce((sum, r) => sum + r, 0);
         const pendingOrderCount = allOrders.filter(
           (o) => !["Delivered", "Cancelled"].includes(o.status),
         ).length;
@@ -132,6 +139,7 @@ function AdminHomePage() {
         setRecentOrders(allOrders);
         setProducts(allProducts);
         setOrderStatuses(statusData || []);
+        setSalesStatsMap(statsMap);
         setLoading(false);
       } catch {
         setLoading(false);
@@ -153,12 +161,12 @@ function AdminHomePage() {
       .sort((a, b) => b.value - a.value);
   }, [orderStatuses]);
 
-  // Category bar chart data
+  // Category bar chart data — revenue uses historical unit_price from order items
   const categoryData = useMemo(() => {
     const map: Record<string, { revenue: number; count: number }> = {};
     products.forEach((p) => {
       if (!map[p.cat]) map[p.cat] = { revenue: 0, count: 0 };
-      map[p.cat].revenue += ((p as any).sales_count || 0) * p.price;
+      map[p.cat].revenue += salesStatsMap.get(p.id) ?? 0;
       map[p.cat].count += 1;
     });
     return Object.entries(map)
@@ -170,7 +178,7 @@ function AdminHomePage() {
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 7);
-  }, [products]);
+  }, [products, salesStatsMap]);
 
   const deliveryRate = metrics.totalOrders > 0
     ? Math.round((metrics.deliveredOrders / metrics.totalOrders) * 100)

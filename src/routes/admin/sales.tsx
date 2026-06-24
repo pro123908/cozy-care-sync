@@ -32,6 +32,15 @@ type PriceHistoryEntry = {
   qty_sold: number;
 };
 
+type Order = {
+  id: string;
+  created_at: string;
+  total: number;
+  phone: string | null;
+  email: string | null;
+  status: string;
+};
+
 type SalesRow = {
   id: string;
   name: string;
@@ -40,6 +49,7 @@ type SalesRow = {
   price: number;
   purchase_price: number;
   sales_count: number;
+  stock_count: number;
   total_revenue: number; // sum of unit_price*qty from order items — accurate even if price changed later
   active: boolean;
   image_url: string | null;
@@ -65,6 +75,8 @@ const RANK_MEDAL = ["🥇", "🥈", "🥉"];
 function AdminSalesPage() {
   const [rows, setRows] = useState<SalesRow[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryEntry[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [revenueView, setRevenueView] = useState<"monthly" | "weekly">("monthly");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -80,7 +92,7 @@ function AdminSalesPage() {
   const fetchSalesRows = async () => {
     const supabase = await getSupabase();
     const [productsResult, statsResult] = await Promise.all([
-      supabase.from("products").select("id, name, brand, cat, price, purchase_price, active, image_url, stock"),
+      supabase.from("products").select("id, name, brand, cat, price, purchase_price, stock_count, active, image_url, stock"),
       supabase.rpc("product_sales_stats"),
     ]);
 
@@ -103,9 +115,10 @@ function AdminSalesPage() {
     let cancelled = false;
     const load = async () => {
       const supabase = await getSupabase();
-      const [data, histResult] = await Promise.all([
+      const [data, histResult, ordersResult] = await Promise.all([
         fetchSalesRows(),
         supabase.rpc("product_price_history"),
+        supabase.from("orders").select("id, created_at, total, phone, email, status"),
       ]);
       if (cancelled) return;
       setRows(data);
@@ -116,6 +129,7 @@ function AdminSalesPage() {
           qty_sold: Number(h.qty_sold),
         }))
       );
+      setOrders((ordersResult.data ?? []) as Order[]);
       setLoading(false);
     };
     void load();
@@ -190,6 +204,107 @@ function AdminSalesPage() {
       topCategoryByVolume: categoryStats[0],
     };
   }, [rows, totalSales]);
+
+  const orderStats = useMemo(() => {
+    const active = orders.filter((o) => o.status !== "cancelled" && o.status !== "Cancelled");
+    if (active.length === 0) return null;
+
+    const aov = active.reduce((s, o) => s + o.total, 0) / active.length;
+
+    // Revenue by month
+    const monthMap = new Map<string, { revenue: number; orders: number }>();
+    active.forEach((o) => {
+      const d = new Date(o.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!monthMap.has(key)) monthMap.set(key, { revenue: 0, orders: 0 });
+      const m = monthMap.get(key)!;
+      m.revenue += o.total;
+      m.orders += 1;
+    });
+    const revenueByMonth = Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, data]) => {
+        const [yr, mo] = key.split("-");
+        const label = new Date(parseInt(yr), parseInt(mo) - 1).toLocaleDateString("en-PK", { month: "short", year: "2-digit" });
+        return { key, label, revenue: data.revenue, revenueK: Math.round(data.revenue / 1000), orders: data.orders };
+      });
+
+    // Revenue by week (last 12 weeks)
+    const weekMap = new Map<string, { revenue: number; orders: number }>();
+    active.forEach((o) => {
+      const d = new Date(o.created_at);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const key = weekStart.toISOString().slice(0, 10);
+      if (!weekMap.has(key)) weekMap.set(key, { revenue: 0, orders: 0 });
+      const w = weekMap.get(key)!;
+      w.revenue += o.total;
+      w.orders += 1;
+    });
+    const revenueByWeek = Array.from(weekMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([key, data]) => {
+        const d = new Date(key);
+        const label = d.toLocaleDateString("en-PK", { month: "short", day: "numeric" });
+        return { key, label, revenue: data.revenue, revenueK: Math.round(data.revenue / 1000), orders: data.orders };
+      });
+
+    // Repeat customers (keyed by phone, fall back to email)
+    const customerMap = new Map<string, number>();
+    active.forEach((o) => {
+      const key = (o.phone || o.email || "").trim().toLowerCase();
+      if (key) customerMap.set(key, (customerMap.get(key) || 0) + 1);
+    });
+    const totalCustomers = customerMap.size;
+    const repeatCustomers = [...customerMap.values()].filter((c) => c > 1).length;
+    const freq1 = [...customerMap.values()].filter((c) => c === 1).length;
+    const freq2 = [...customerMap.values()].filter((c) => c === 2).length;
+    const freq3plus = [...customerMap.values()].filter((c) => c >= 3).length;
+
+    // Days active (for velocity)
+    const firstDate = active.reduce((min, o) => (o.created_at < min ? o.created_at : min), active[0].created_at);
+    const daysActive = Math.max(1, (Date.now() - new Date(firstDate).getTime()) / (24 * 60 * 60 * 1000));
+
+    return { aov, revenueByMonth, revenueByWeek, totalCustomers, repeatCustomers, freq1, freq2, freq3plus, totalOrderCount: active.length, daysActive };
+  }, [orders]);
+
+  const inventoryHealth = useMemo(() => {
+    if (!orderStats || orderStats.daysActive < 1) return [];
+    return rows
+      .filter((r) => r.active && r.sales_count > 0)
+      .map((r) => {
+        const dailyVelocity = r.sales_count / orderStats.daysActive;
+        const daysRemaining = dailyVelocity > 0 ? Math.round(r.stock_count / dailyVelocity) : Infinity;
+        const weeklyVelocity = Math.round(dailyVelocity * 7 * 10) / 10;
+        return { ...r, weeklyVelocity, daysRemaining };
+      })
+      .filter((r) => r.daysRemaining < 90)
+      .sort((a, b) => a.daysRemaining - b.daysRemaining)
+      .slice(0, 15);
+  }, [rows, orderStats]);
+
+  const categoryProfitData = useMemo(() => {
+    const map = new Map<string, { revenue: number; profit: number }>();
+    rows.forEach((r) => {
+      if (!map.has(r.cat)) map.set(r.cat, { revenue: 0, profit: 0 });
+      const c = map.get(r.cat)!;
+      c.revenue += r.total_revenue;
+      if (r.purchase_price > 0 && r.sales_count > 0)
+        c.profit += r.total_revenue - r.purchase_price * r.sales_count;
+    });
+    return Array.from(map.entries())
+      .map(([name, s]) => ({
+        name: name.length > 14 ? name.slice(0, 13) + "…" : name,
+        fullName: name,
+        profitK: Math.round(s.profit / 1000),
+        profit: s.profit,
+        margin: s.revenue > 0 ? Math.round((s.profit / s.revenue) * 100) : 0,
+      }))
+      .filter((c) => c.profit > 0)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 8);
+  }, [rows]);
 
   const toggleSort = (col: typeof sortBy) => {
     if (sortBy === col) setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -307,11 +422,12 @@ function AdminSalesPage() {
                 <div style={{ height: 1, background: "var(--line)", marginBottom: isMobile ? 18 : 24 }} />
 
                 {/* Stats row */}
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 16 : 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: isMobile ? 16 : 0 }}>
                   {[
                     { label: "Units sold", value: totalSales.toLocaleString(), color: "#6366f1" },
+                    { label: "Total orders", value: (orderStats?.totalOrderCount ?? 0).toLocaleString(), color: "#06b6d4" },
+                    { label: "Avg order value", value: PKR(Math.round(orderStats?.aov ?? 0)), color: "#f59e0b" },
                     { label: "Total profit", value: PKR(stats?.totalProfit ?? 0), color: "#10b981" },
-                    { label: "Products tracked", value: String(rows.length), color: "#06b6d4" },
                     { label: "Avg rev / product", value: PKR(stats?.avgRevenue ?? 0), color: "#8b5cf6" },
                   ].map(({ label, value, color }, i, arr) => (
                     <div
@@ -335,7 +451,7 @@ function AdminSalesPage() {
             </div>
 
             {/* ── Insight chips ── */}
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
               <div style={insightCard("#f0fdf4", "#16a34a")}>
                 <div style={insightIcon("🏆")} />
                 <div style={insightLabel}>Top seller</div>
@@ -370,7 +486,71 @@ function AdminSalesPage() {
                 <div style={{ ...insightValue, fontSize: 26 }}>{stats?.medianSales ?? 0}</div>
                 <div style={insightSub}>units per product</div>
               </div>
+              <div style={insightCard("#f5f3ff", "#7c3aed")}>
+                <div style={insightIcon("🔄")} />
+                <div style={insightLabel}>Repeat customers</div>
+                <div style={{ ...insightValue, fontSize: 26 }}>
+                  {orderStats && orderStats.totalCustomers > 0
+                    ? `${Math.round((orderStats.repeatCustomers / orderStats.totalCustomers) * 100)}%`
+                    : "—"}
+                </div>
+                <div style={insightSub}>
+                  {orderStats
+                    ? `${orderStats.repeatCustomers} of ${orderStats.totalCustomers} customers`
+                    : "No order data"}
+                </div>
+              </div>
             </div>
+
+            {/* ── Revenue over time ── */}
+            {orderStats && (orderStats.revenueByMonth.length > 0 || orderStats.revenueByWeek.length > 0) && (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: isMobile ? "16px 12px" : "20px 24px", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>Revenue over time</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(["monthly", "weekly"] as const).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setRevenueView(v)}
+                        style={{ padding: "4px 10px", borderRadius: 7, border: "1px solid var(--line)", background: revenueView === v ? "var(--ink)" : "var(--card)", color: revenueView === v ? "var(--card)" : "var(--ink-4)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {v === "monthly" ? "Monthly" : "Weekly"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 16 }}>
+                  Revenue (Rs. thousands) and orders per {revenueView === "monthly" ? "month" : "week"}
+                </div>
+                <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
+                  <BarChart
+                    data={revenueView === "monthly" ? orderStats.revenueByMonth : orderStats.revenueByWeek}
+                    margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+                    barGap={4}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                    <XAxis dataKey="label" tick={{ fontSize: isMobile ? 9 : 11, fill: "var(--ink-4)", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--ink-4)" }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload as { label: string; revenue: number; orders: number };
+                        return (
+                          <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+                            <div style={{ fontWeight: 800, marginBottom: 6, color: "var(--ink)" }}>{d.label}</div>
+                            <div style={{ color: "#6366f1" }}>Revenue: <strong>Rs. {d.revenue.toLocaleString()}</strong></div>
+                            <div style={{ color: "#10b981" }}>Orders: <strong>{d.orders}</strong></div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12, paddingTop: 8 }} />
+                    <Bar dataKey="revenueK" name="Revenue (Rs k)" fill="#6366f1" radius={[6, 6, 0, 0]} maxBarSize={52} />
+                    <Bar dataKey="orders" name="Orders" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={52} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
             {/* ── Category bar chart ── */}
             {chartData.length > 0 && (
@@ -404,6 +584,41 @@ function AdminSalesPage() {
                       ))}
                     </Bar>
                     <Bar dataKey="revenue" name="Revenue (Rs k)" fill="#10b981" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* ── Profit by category ── */}
+            {categoryProfitData.length > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, padding: isMobile ? "16px 12px" : "20px 24px", marginBottom: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", marginBottom: 4 }}>Profit by category</div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 16 }}>
+                  Total profit per category — colour shows margin (green ≥20%, amber ≥10%, red &lt;10%)
+                </div>
+                <ResponsiveContainer width="100%" height={isMobile ? 200 : 240}>
+                  <BarChart data={categoryProfitData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                    <XAxis dataKey="name" tick={{ fontSize: isMobile ? 9 : 11, fill: "var(--ink-4)", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: "var(--ink-4)" }} axisLine={false} tickLine={false} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        const d = payload[0].payload as { fullName: string; profit: number; margin: number };
+                        return (
+                          <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 10, padding: "10px 14px", fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+                            <div style={{ fontWeight: 800, marginBottom: 6, color: "var(--ink)" }}>{d.fullName}</div>
+                            <div style={{ color: "#10b981" }}>Profit: <strong>Rs. {d.profit.toLocaleString()}</strong></div>
+                            <div style={{ color: "#6366f1" }}>Margin: <strong>{d.margin}%</strong></div>
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar dataKey="profitK" name="Profit (Rs k)" radius={[6, 6, 0, 0]} maxBarSize={52}>
+                      {categoryProfitData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.margin >= 20 ? "#10b981" : entry.margin >= 10 ? "#f59e0b" : "#ef4444"} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -493,6 +708,111 @@ function AdminSalesPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* ── Inventory health ── */}
+            {inventoryHealth.length > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 16, marginBottom: 20, overflow: "hidden" }}>
+                <div style={{ padding: isMobile ? "14px 14px 10px" : "18px 20px 12px", borderBottom: "1px solid rgba(239,68,68,0.12)", background: "rgba(254,242,242,0.4)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>📦 Inventory health</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
+                    At-risk products based on current sales velocity — restock before they run out
+                  </div>
+                </div>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 500 }}>
+                    <thead>
+                      <tr style={{ background: "var(--bg-elev, var(--chip))" }}>
+                        <th style={thStyle}>Product</th>
+                        <th style={thStyle}>Stock left</th>
+                        <th style={thStyle}>Sold / week</th>
+                        <th style={thStyle}>Days remaining</th>
+                        <th style={thStyle}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inventoryHealth.map((r) => {
+                        const urgent = r.daysRemaining < 14;
+                        const warning = !urgent && r.daysRemaining < 30;
+                        const statusColor = urgent ? "#dc2626" : warning ? "#d97706" : "#059669";
+                        const statusBg = urgent ? "rgba(220,38,38,0.1)" : warning ? "rgba(217,119,6,0.1)" : "rgba(5,150,105,0.1)";
+                        const statusLabel = urgent ? "Urgent" : warning ? "Low soon" : "Watch";
+                        return (
+                          <tr key={r.id} style={{ borderTop: "1px solid var(--line)" }}>
+                            <td style={{ ...tdStyle, minWidth: 180 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{r.name}</div>
+                              <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{r.brand}</div>
+                            </td>
+                            <td style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: r.stock_count <= 2 ? "#dc2626" : "var(--ink)" }}>
+                              {r.stock_count} units
+                            </td>
+                            <td style={{ ...tdStyle, fontSize: 13, color: "var(--ink-3)" }}>
+                              ~{r.weeklyVelocity}/wk
+                            </td>
+                            <td style={{ ...tdStyle, fontSize: 14, fontWeight: 800, color: statusColor }}>
+                              {r.daysRemaining === Infinity ? "∞" : `~${r.daysRemaining}d`}
+                            </td>
+                            <td style={tdStyle}>
+                              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, color: statusColor, background: statusBg }}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Customer breakdown ── */}
+            {orderStats && orderStats.totalCustomers > 0 && (
+              <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, marginBottom: 20, overflow: "hidden" }}>
+                <div style={{ padding: isMobile ? "14px 14px 10px" : "18px 20px 12px", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>👥 Customer breakdown</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>Repeat vs first-time buyers</div>
+                </div>
+                <div style={{ padding: isMobile ? "16px 14px" : "20px 24px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 12 : 0 }}>
+                    {[
+                      { label: "Total customers", value: orderStats.totalCustomers, color: "#6366f1", sub: "unique phone / email" },
+                      { label: "Ordered once", value: orderStats.freq1, color: "#94a3b8", sub: `${Math.round((orderStats.freq1 / orderStats.totalCustomers) * 100)}% of customers` },
+                      { label: "Ordered twice", value: orderStats.freq2, color: "#f59e0b", sub: `${Math.round((orderStats.freq2 / orderStats.totalCustomers) * 100)}% of customers` },
+                      { label: "3+ orders", value: orderStats.freq3plus, color: "#10b981", sub: `${Math.round((orderStats.freq3plus / orderStats.totalCustomers) * 100)}% of customers` },
+                    ].map(({ label, value, color, sub }, i) => (
+                      <div key={label} style={{ paddingLeft: !isMobile && i > 0 ? 24 : 0, borderLeft: !isMobile && i > 0 ? "1px solid var(--line)" : "none", paddingRight: !isMobile && i < 3 ? 24 : 0 }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6 }}>{label}</div>
+                        <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color, letterSpacing: -0.5 }}>{value}</div>
+                        <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Repeat rate bar */}
+                  {orderStats.totalCustomers > 0 && (
+                    <div style={{ marginTop: 20 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, fontWeight: 700, color: "var(--ink-4)", marginBottom: 6 }}>
+                        <span>First-time ({orderStats.freq1})</span>
+                        <span>Repeat ({orderStats.repeatCustomers})</span>
+                      </div>
+                      <div style={{ height: 10, borderRadius: 999, background: "var(--line)", overflow: "hidden", display: "flex" }}>
+                        <div style={{ width: `${(orderStats.freq1 / orderStats.totalCustomers) * 100}%`, background: "#94a3b8", transition: "width .4s ease" }} />
+                        <div style={{ width: `${(orderStats.freq2 / orderStats.totalCustomers) * 100}%`, background: "#f59e0b", transition: "width .4s ease" }} />
+                        <div style={{ width: `${(orderStats.freq3plus / orderStats.totalCustomers) * 100}%`, background: "#10b981", transition: "width .4s ease" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
+                        {[{ label: "1×", color: "#94a3b8" }, { label: "2×", color: "#f59e0b" }, { label: "3×+", color: "#10b981" }].map(({ label, color }) => (
+                          <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-4)" }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
