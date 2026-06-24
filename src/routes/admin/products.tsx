@@ -1375,7 +1375,7 @@ function AdminProductsPage() {
                   }}
                 >
                   <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", minWidth: 1100, borderCollapse: "collapse", fontSize: 13 }}>
+                  <table style={{ width: "100%", minWidth: 1350, borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "var(--bg-elev)", color: "var(--ink-3)" }}>
                         <th style={thStyle}>
@@ -1415,7 +1415,7 @@ function AdminProductsPage() {
                             />
                           </td>
                           <td style={tdStyle}>{p.id}</td>
-                          <td style={tdStyle}>
+                          <td style={{ ...tdStyle, maxWidth: 220 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <div
                                 style={{
@@ -1453,9 +1453,9 @@ function AdminProductsPage() {
                                   />
                                 )}
                               </div>
-                              <div>
-                                <div style={{ fontWeight: 700 }}>{p.name}</div>
-                                <div style={{ color: "var(--ink-4)", fontSize: 12 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                                <div style={{ color: "var(--ink-4)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                   {p.brand || "-"}
                                 </div>
                               </div>
@@ -2927,7 +2927,8 @@ const thStyle: CSSProperties = {
 const tdStyle: CSSProperties = {
   padding: "10px 12px",
   color: "var(--ink)",
-  verticalAlign: "top",
+  verticalAlign: "middle",
+  whiteSpace: "nowrap",
 };
 
 const miniBtnStyle: CSSProperties = {
