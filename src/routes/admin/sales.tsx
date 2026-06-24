@@ -26,6 +26,12 @@ export const Route = createFileRoute("/admin/sales")({
   }),
 });
 
+type PriceHistoryEntry = {
+  product_id: string;
+  unit_price: number;
+  qty_sold: number;
+};
+
 type SalesRow = {
   id: string;
   name: string;
@@ -34,6 +40,7 @@ type SalesRow = {
   price: number;
   purchase_price: number;
   sales_count: number;
+  total_revenue: number; // sum of unit_price*qty from order items — accurate even if price changed later
   active: boolean;
   image_url: string | null;
   stock: string;
@@ -57,6 +64,7 @@ const RANK_MEDAL = ["🥇", "🥈", "🥉"];
 
 function AdminSalesPage() {
   const [rows, setRows] = useState<SalesRow[]>([]);
+  const [priceHistory, setPriceHistory] = useState<PriceHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -71,26 +79,43 @@ function AdminSalesPage() {
 
   const fetchSalesRows = async () => {
     const supabase = await getSupabase();
-    let { data, error } = await supabase
-      .from("products")
-      .select("id, name, brand, cat, price, purchase_price, sales_count, active, image_url, stock")
-      .order("sales_count", { ascending: false });
-    if (error) {
-      const fallback = await supabase
-        .from("products")
-        .select("id, name, brand, cat, price, purchase_price, active, image_url, stock")
-        .order("name", { ascending: true });
-      data = fallback.data;
-    }
-    return ((data as SalesRow[]) ?? []).map((r) => ({ ...r, sales_count: r.sales_count ?? 0 }));
+    const [productsResult, statsResult] = await Promise.all([
+      supabase.from("products").select("id, name, brand, cat, price, purchase_price, active, image_url, stock"),
+      supabase.rpc("product_sales_stats"),
+    ]);
+
+    const products = (productsResult.data ?? []) as Omit<SalesRow, "sales_count" | "total_revenue">[];
+    const statsMap = new Map<string, { sales_count: number; total_revenue: number }>(
+      ((statsResult.data ?? []) as { product_id: string; sales_count: string; total_revenue: string }[]).map((s) => [
+        s.product_id,
+        { sales_count: Number(s.sales_count), total_revenue: Number(s.total_revenue) },
+      ])
+    );
+
+    return products.map((p) => ({
+      ...p,
+      sales_count: statsMap.get(p.id)?.sales_count ?? 0,
+      total_revenue: statsMap.get(p.id)?.total_revenue ?? 0,
+    })) as SalesRow[];
   };
 
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const data = await fetchSalesRows();
+      const supabase = await getSupabase();
+      const [data, histResult] = await Promise.all([
+        fetchSalesRows(),
+        supabase.rpc("product_price_history"),
+      ]);
       if (cancelled) return;
       setRows(data);
+      setPriceHistory(
+        ((histResult.data ?? []) as { product_id: string; unit_price: string; qty_sold: string }[]).map((h) => ({
+          product_id: h.product_id,
+          unit_price: Number(h.unit_price),
+          qty_sold: Number(h.qty_sold),
+        }))
+      );
       setLoading(false);
     };
     void load();
@@ -118,20 +143,21 @@ function AdminSalesPage() {
 
   const stats = useMemo(() => {
     if (rows.length === 0) return null;
-    const totalRevenue = rows.reduce((sum, r) => sum + r.price * r.sales_count, 0);
+    const totalRevenue = rows.reduce((sum, r) => sum + r.total_revenue, 0);
     const avgRevenue = totalRevenue / rows.length;
     const bestRevenueProduct = rows.reduce((best, r) =>
-      r.price * r.sales_count > best.price * best.sales_count ? r : best
+      r.total_revenue > best.total_revenue ? r : best
     );
     const totalProfit = rows.reduce((sum, r) => {
-      const margin = r.purchase_price > 0 ? r.price - r.purchase_price : 0;
-      return sum + margin * r.sales_count;
+      if (r.purchase_price <= 0 || r.sales_count === 0) return sum;
+      return sum + (r.total_revenue - r.purchase_price * r.sales_count);
     }, 0);
     const bestProfitProduct = rows
-      .filter((r) => r.purchase_price > 0)
+      .filter((r) => r.purchase_price > 0 && r.sales_count > 0)
       .reduce<SalesRow | null>((best, r) => {
-        const profit = (r.price - r.purchase_price) * r.sales_count;
-        return best === null || profit > (best.price - best.purchase_price) * best.sales_count ? r : best;
+        const profit = r.total_revenue - r.purchase_price * r.sales_count;
+        const bestProfit = best ? best.total_revenue - best.purchase_price * best.sales_count : -Infinity;
+        return profit > bestProfit ? r : best;
       }, null);
     const zeroSalesCount = rows.filter((r) => r.sales_count === 0).length;
     const meanSales = totalSales / rows.length;
@@ -149,7 +175,7 @@ function AdminSalesPage() {
       if (!categoryMap.has(r.cat)) categoryMap.set(r.cat, { volume: 0, revenue: 0, productCount: 0 });
       const cat = categoryMap.get(r.cat)!;
       cat.volume += r.sales_count;
-      cat.revenue += r.price * r.sales_count;
+      cat.revenue += r.total_revenue;
       cat.productCount += 1;
     });
     const categoryStats = Array.from(categoryMap.entries())
@@ -179,7 +205,7 @@ function AdminSalesPage() {
       let diff = 0;
       if (sortBy === "sales_count") diff = a.sales_count - b.sales_count;
       else if (sortBy === "price") diff = a.price - b.price;
-      else if (sortBy === "profit") diff = (a.price - a.purchase_price) * a.sales_count - (b.price - b.purchase_price) * b.sales_count;
+      else if (sortBy === "profit") diff = (a.total_revenue - a.purchase_price * a.sales_count) - (b.total_revenue - b.purchase_price * b.sales_count);
       else diff = a.name.localeCompare(b.name);
       return sortDir === "desc" ? -diff : diff;
     });
@@ -322,7 +348,7 @@ function AdminSalesPage() {
                 <div style={insightValue}>{stats?.bestProfitProduct?.name ?? "—"}</div>
                 <div style={insightSub}>
                   {stats?.bestProfitProduct
-                    ? `${PKR((stats.bestProfitProduct.price - stats.bestProfitProduct.purchase_price) * stats.bestProfitProduct.sales_count)} profit`
+                    ? `${PKR(stats.bestProfitProduct.total_revenue - stats.bestProfitProduct.purchase_price * stats.bestProfitProduct.sales_count)} profit`
                     : "No data yet"}
                 </div>
               </div>
@@ -470,6 +496,9 @@ function AdminSalesPage() {
               </div>
             )}
 
+            {/* ── Sale Price History ── */}
+            <PriceHistorySection priceHistory={priceHistory} rows={rows} isMobile={isMobile} />
+
             {/* ── Search & controls ── */}
             <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10, marginBottom: 12, alignItems: isMobile ? "stretch" : "center" }}>
               <input
@@ -531,9 +560,9 @@ function AdminSalesPage() {
                               <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", minWidth: 24, textAlign: "right" }}>{row.sales_count}</span>
                               <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>{PKR(row.price)}</span>
                             </div>
-                            {row.purchase_price > 0 && (
+                            {row.purchase_price > 0 && row.sales_count > 0 && (
                               <div style={{ marginTop: 6, fontSize: 11, color: "#10b981", fontWeight: 700 }}>
-                                Profit/unit: {PKR(row.price - row.purchase_price)} · Total: {PKR((row.price - row.purchase_price) * row.sales_count)}
+                                Avg profit/unit: {PKR(Math.round(row.total_revenue / row.sales_count) - row.purchase_price)} · Total: {PKR(row.total_revenue - row.purchase_price * row.sales_count)}
                               </div>
                             )}
                           </div>
@@ -586,23 +615,28 @@ function AdminSalesPage() {
                             </td>
                             <td style={{ ...tdStyle, fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{PKR(row.price)}</td>
                             <td style={tdStyle}>
-                              {row.purchase_price > 0 ? (
+                              {row.purchase_price > 0 && row.sales_count > 0 ? (
                                 <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
-                                  {PKR(row.price - row.purchase_price)}
+                                  {PKR(Math.round(row.total_revenue / row.sales_count) - row.purchase_price)}
                                 </span>
                               ) : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>}
                             </td>
                             <td style={tdStyle}>
-                              {row.purchase_price > 0 ? (
-                                <div>
-                                  <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
-                                    {PKR((row.price - row.purchase_price) * row.sales_count)}
-                                  </span>
-                                  <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
-                                    {Math.round(((row.price - row.purchase_price) / row.price) * 100)}% margin
+                              {row.purchase_price > 0 && row.sales_count > 0 ? (() => {
+                                const totalProfit = row.total_revenue - row.purchase_price * row.sales_count;
+                                const avgUnitPrice = row.total_revenue / row.sales_count;
+                                const margin = Math.round(((avgUnitPrice - row.purchase_price) / avgUnitPrice) * 100);
+                                return (
+                                  <div>
+                                    <span style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
+                                      {PKR(totalProfit)}
+                                    </span>
+                                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>
+                                      {margin}% margin
+                                    </div>
                                   </div>
-                                </div>
-                              ) : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>}
+                                );
+                              })() : <span style={{ color: "var(--ink-4)", fontSize: 12 }}>—</span>}
                             </td>
                             <td style={tdStyle}>
                               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -636,6 +670,139 @@ function AdminSalesPage() {
         )}
       </div>
     </AdminGate>
+  );
+}
+
+function PriceHistorySection({
+  priceHistory,
+  rows,
+  isMobile,
+}: {
+  priceHistory: PriceHistoryEntry[];
+  rows: SalesRow[];
+  isMobile: boolean;
+}) {
+  const productMap = new Map(rows.map((r) => [r.id, r]));
+
+  // Group history entries by product, keeping only products that have sales
+  type ProductHistory = {
+    product: SalesRow;
+    entries: PriceHistoryEntry[];
+    hasPriceChange: boolean;
+  };
+  const grouped: ProductHistory[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of priceHistory) {
+    if (seen.has(entry.product_id)) continue;
+    seen.add(entry.product_id);
+    const product = productMap.get(entry.product_id);
+    if (!product) continue;
+    const entries = priceHistory.filter((h) => h.product_id === entry.product_id);
+    const hasPriceChange = entries.some((h) => h.unit_price !== product.price);
+    grouped.push({ product, entries, hasPriceChange });
+  }
+
+  if (grouped.length === 0) return null;
+
+  const changedCount = grouped.filter((g) => g.hasPriceChange).length;
+
+  return (
+    <div style={{ background: "var(--card)", border: "1px solid var(--line)", borderRadius: 16, marginBottom: 20, overflow: "hidden" }}>
+      <div style={{ padding: isMobile ? "14px 14px 10px" : "18px 20px 12px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>🏷️ Prices at time of sale</div>
+          <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
+            What customers actually paid — not affected by price changes.
+            {changedCount > 0 && (
+              <span style={{ marginLeft: 8, background: "rgba(245,158,11,0.12)", color: "#b45309", padding: "1px 7px", borderRadius: 999, fontWeight: 700 }}>
+                {changedCount} price {changedCount === 1 ? "change" : "changes"} detected
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: isMobile ? 520 : 700 }}>
+          <thead>
+            <tr style={{ background: "var(--bg-elev, var(--chip))" }}>
+              <th style={thStyle}>Product</th>
+              <th style={thStyle}>Sold at price</th>
+              <th style={thStyle}>Units</th>
+              <th style={thStyle}>Current price</th>
+              <th style={thStyle}>Difference</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grouped.map(({ product, entries, hasPriceChange }, gi) => (
+              entries.map((entry, ei) => {
+                const diff = entry.unit_price - product.price;
+                const isChanged = entry.unit_price !== product.price;
+                return (
+                  <tr
+                    key={`${product.id}-${entry.unit_price}`}
+                    style={{
+                      borderTop: ei === 0 && gi > 0 ? "2px solid var(--line)" : "1px solid var(--line)",
+                      background: isChanged ? "rgba(245,158,11,0.04)" : "transparent",
+                    }}
+                  >
+                    <td style={{ ...tdStyle, minWidth: 200 }}>
+                      {ei === 0 ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          {product.image_url && (
+                            <div style={{ width: 32, height: 32, borderRadius: 7, overflow: "hidden", border: "1px solid var(--line)", flexShrink: 0 }}>
+                              <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                            </div>
+                          )}
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{product.name}</div>
+                            <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{product.brand}</div>
+                          </div>
+                          {hasPriceChange && (
+                            <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(245,158,11,0.15)", color: "#b45309", padding: "2px 6px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                              price changed
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ paddingLeft: product.image_url ? 40 : 0 }} />
+                      )}
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 700, fontSize: 13, color: isChanged ? "#b45309" : "var(--ink)" }}>
+                      {PKR(entry.unit_price)}
+                    </td>
+                    <td style={{ ...tdStyle, fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
+                      {entry.qty_sold}
+                    </td>
+                    <td style={{ ...tdStyle, fontSize: 13, color: "var(--ink)", fontWeight: isChanged ? 700 : 400 }}>
+                      {ei === 0 ? PKR(product.price) : <span style={{ color: "var(--ink-4)", fontSize: 11 }}>↑</span>}
+                    </td>
+                    <td style={tdStyle}>
+                      {isChanged ? (
+                        <span style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: diff > 0 ? "#10b981" : "#ef4444",
+                          background: diff > 0 ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          whiteSpace: "nowrap",
+                        }}>
+                          {diff > 0 ? "+" : ""}{PKR(diff)}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "var(--ink-4)" }}>—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
