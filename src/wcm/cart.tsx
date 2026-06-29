@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { PRODUCTS, PKR, getUnitPrice, type Product } from "./data";
 import { Icons } from "./icons";
-import { ProductImage, Btn, TextField, Section, Row } from "./ui";
+import { ProductImage, Btn, TextField, Section, Row, useToasts } from "./ui";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
@@ -299,19 +299,57 @@ export function CartDrawer({
               value={<span style={{ fontWeight: 800, fontSize: 18 }}>{PKR(total)}</span>}
             />
           </div>
-          {subtotal > 0 && subtotal < 2000 && (
+          {subtotal > 0 && (
             <div
               style={{
                 marginTop: 10,
-                padding: "8px 12px",
-                background: "var(--pill-warn-bg)",
+                padding: "10px 12px",
+                background: "var(--surface)",
                 borderRadius: 10,
-                fontSize: 12,
-                color: "var(--pill-warn-fg)",
-                fontWeight: 600,
+                border: "1px solid var(--line)",
               }}
             >
-              Add {PKR(2000 - subtotal)} more for free delivery.
+              {subtotal >= 2000 ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--pill-success-fg)",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span aria-hidden="true">🎉</span> Free delivery unlocked!
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--text-2)",
+                    marginBottom: 6,
+                  }}
+                >
+                  Add {PKR(2000 - subtotal)} more for free delivery
+                </div>
+              )}
+              <div
+                style={{
+                  height: 5,
+                  background: "var(--line)",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.min(100, Math.round((subtotal / 2000) * 100))}%`,
+                    background: subtotal >= 2000 ? "var(--pill-success-fg)" : "var(--grad)",
+                    borderRadius: 999,
+                    transition: "width .4s ease",
+                  }}
+                />
+              </div>
             </div>
           )}
           <Btn
@@ -361,6 +399,7 @@ export function CheckoutContent({
 }) {
   const [step, setStep] = useState(1);
   const isMobile = useIsMobile();
+  const { push } = useToasts();
   // Scroll to top on mobile when moving to step 2 or 3
   React.useEffect(() => {
     if (isMobile && (step === 2 || step === 3)) {
@@ -381,6 +420,8 @@ export function CheckoutContent({
   const [promo, setPromo] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [promoErr, setPromoErr] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoShake, setPromoShake] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
   const PROMOS: Record<string, number> = { WELLCARE10: 0.1, HEALTH20: 0.2, CARE15: 0.15 };
@@ -401,14 +442,24 @@ export function CheckoutContent({
   const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt);
 
   const applyPromo = () => {
-    const code = promo.trim().toUpperCase();
-    if (PROMOS[code]) {
-      setPromoApplied(true);
-      setPromoErr("");
-    } else {
-      setPromoErr("Invalid code");
-      setPromoApplied(false);
-    }
+    if (!promo.trim()) return;
+    setPromoLoading(true);
+    setPromoErr("");
+    window.setTimeout(() => {
+      const code = promo.trim().toUpperCase();
+      if (PROMOS[code]) {
+        setPromoApplied(true);
+        setPromoErr("");
+        push(`Promo code applied — ${Math.round(PROMOS[code] * 100)}% off!`, { tone: "green" });
+      } else {
+        setPromoErr("Invalid or expired promo code");
+        setPromoApplied(false);
+        setPromoShake(true);
+        push("That promo code isn't valid", { tone: "red" });
+        window.setTimeout(() => setPromoShake(false), 500);
+      }
+      setPromoLoading(false);
+    }, 500);
   };
 
   const validateShip = () => {
@@ -419,6 +470,12 @@ export function CheckoutContent({
     if (!ship.address.trim()) e.address = "Required";
     if (!ship.city.trim()) e.city = "Required";
     setErrs(e);
+    const firstKey = Object.keys(e)[0];
+    if (firstKey) {
+      window.setTimeout(() => {
+        document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -431,14 +488,18 @@ export function CheckoutContent({
 
   const copyBankValue = async (field: "account" | "iban", value: string) => {
     try {
-      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      if (typeof navigator === "undefined" || !navigator.clipboard) {
+        push("Couldn't copy — please copy manually", { tone: "red" });
+        return;
+      }
       await navigator.clipboard.writeText(value);
       setCopiedBankField(field);
+      push("Copied to clipboard");
       window.setTimeout(() => {
         setCopiedBankField((prev) => (prev === field ? null : prev));
       }, 1200);
     } catch {
-      // noop: failing to copy should not block checkout flow
+      push("Couldn't copy — please copy manually", { tone: "red" });
     }
   };
 
@@ -451,6 +512,7 @@ export function CheckoutContent({
       );
       setSavedAddresses(next);
       localStorage.setItem("wcm_saved_addresses", JSON.stringify(next));
+      push("Address saved for next time");
     }
 
     onPlace({
@@ -471,11 +533,10 @@ export function CheckoutContent({
         borderRadius: 20,
         width: "100%",
         maxWidth: 980,
-        margin: "32px auto",
-        minHeight: "calc(100vh - 240px)",
+        margin: isMobile ? "0 auto 32px" : "32px auto",
+        minHeight: isMobile ? undefined : "calc(100vh - 240px)",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
         boxShadow: "var(--shadow-lg)",
         border: "1px solid var(--line)",
       }}
@@ -488,6 +549,10 @@ export function CheckoutContent({
           padding: "16px 22px",
           background: "var(--card)",
           borderBottom: "1px solid var(--line)",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          borderRadius: "20px 20px 0 0",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -548,9 +613,9 @@ export function CheckoutContent({
 
       <div
         className="wcm-checkout-cols"
-        style={{ display: "grid", gap: 0, flex: 1, overflow: "hidden" }}
+        style={{ display: "grid", gap: 0, flex: isMobile ? undefined : 1, overflow: isMobile ? undefined : "hidden" }}
       >
-        <div style={{ padding: 24, overflowY: "auto" }}>
+        <div style={{ padding: 24, overflowY: isMobile ? undefined : "auto" }}>
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
@@ -598,12 +663,14 @@ export function CheckoutContent({
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
               >
                 <TextField
+                  id="field-name"
                   label="Full name"
                   value={ship.name}
                   onChange={(e) => setShip({ ...ship, name: e.target.value })}
                   error={errs.name}
                 />
                 <TextField
+                  id="field-phone"
                   label="Phone number"
                   value={ship.phone}
                   onChange={(e) => setShip({ ...ship, phone: e.target.value })}
@@ -611,13 +678,20 @@ export function CheckoutContent({
                 />
               </div>
               <TextField
+                id="field-email"
                 label="Email"
                 value={ship.email}
-                onChange={(e) => setShip({ ...ship, email: e.target.value })}
+                onChange={(e) => { setShip({ ...ship, email: e.target.value }); if (errs.email) setErrs({ ...errs, email: "" }); }}
+                onBlur={() => {
+                  if (ship.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) {
+                    setErrs((prev) => ({ ...prev, email: "Enter a valid email" }));
+                  }
+                }}
                 error={errs.email}
                 hint="Required for order confirmation and tracking updates."
               />
               <TextField
+                id="field-address"
                 label="Street address"
                 value={ship.address}
                 onChange={(e) => setShip({ ...ship, address: e.target.value })}
@@ -628,6 +702,7 @@ export function CheckoutContent({
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
               >
                 <TextField
+                  id="field-city"
                   label="City"
                   list="city-suggestions"
                   value={ship.city}
@@ -959,8 +1034,15 @@ export function CheckoutContent({
               {PKR(finalTotal)}
             </span>
           </div>
+          <style>{`@keyframes wcmPromoShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}`}</style>
           <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, position: "relative" }}>
+            <div
+              style={{
+                flex: 1,
+                position: "relative",
+                animation: promoShake ? "wcmPromoShake .45s ease" : undefined,
+              }}
+            >
               <input
                 placeholder="Promo code"
                 value={promo}
@@ -969,7 +1051,8 @@ export function CheckoutContent({
                   setPromoApplied(false);
                   setPromoErr("");
                 }}
-                disabled={promoApplied}
+                onKeyDown={(e) => { if (e.key === "Enter" && !promoApplied && !promoLoading) applyPromo(); }}
+                disabled={promoApplied || promoLoading}
                 style={{
                   width: "100%",
                   padding: "9px 12px",
@@ -980,28 +1063,28 @@ export function CheckoutContent({
                   fontFamily: "inherit",
                   outline: "none",
                   color: promoApplied ? "var(--pill-success-fg)" : "var(--ink)",
+                  boxShadow: promoErr ? "0 0 0 3px var(--pill-rose-bg)" : undefined,
+                  transition: "border-color .2s, box-shadow .2s",
                 }}
               />
               {promoErr && (
-                <div style={{ fontSize: 11, color: "var(--pill-rose-fg)", marginTop: 3 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pill-rose-fg)", marginTop: 4 }}>
                   {promoErr}
                 </div>
               )}
               {promoApplied && (
-                <div style={{ fontSize: 11, color: "var(--pill-success-fg)", marginTop: 3 }}>
-                  Applied!
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pill-success-fg)", marginTop: 4 }}>
+                  ✓ Applied!
                 </div>
               )}
             </div>
             <button
               onClick={
                 promoApplied
-                  ? () => {
-                      setPromoApplied(false);
-                      setPromo("");
-                    }
+                  ? () => { setPromoApplied(false); setPromo(""); setPromoErr(""); }
                   : applyPromo
               }
+              disabled={promoLoading || (!promoApplied && !promo.trim())}
               style={{
                 padding: "9px 14px",
                 borderRadius: 10,
@@ -1010,11 +1093,14 @@ export function CheckoutContent({
                 color: promoApplied ? "var(--pill-success-fg)" : "var(--ink-2)",
                 fontWeight: 700,
                 fontSize: 13,
-                cursor: "pointer",
+                cursor: promoLoading || (!promoApplied && !promo.trim()) ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
+                opacity: promoLoading || (!promoApplied && !promo.trim()) ? 0.6 : 1,
+                transition: "opacity .15s",
+                minWidth: 66,
               }}
             >
-              {promoApplied ? "Remove" : "Apply"}
+              {promoLoading ? "…" : promoApplied ? "Remove" : "Apply"}
             </button>
           </div>
           <div style={{ flex: 1 }} />

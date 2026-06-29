@@ -185,6 +185,13 @@ function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const lastTrackedPathRef = useRef<string | null>(null);
 
+  // Prevent modal stacking — cart and auth are mutually exclusive
+  useEffect(() => { if (cartOpen) setAuthOpen(false); }, [cartOpen]);
+  useEffect(() => { if (authOpen) setCartOpen(false); }, [authOpen]);
+
+  // Close cart on route change
+  useEffect(() => { setCartOpen(false); }, [pathname]);
+
   useEffect(() => {
     if (!pathname) return;
     if (lastTrackedPathRef.current === pathname) return;
@@ -206,7 +213,6 @@ function AppLayout() {
         minHeight: "100vh",
         width: "100%",
         maxWidth: "100%",
-        overflowX: "hidden",
       }}
     >
       <Header
@@ -214,6 +220,8 @@ function AppLayout() {
         toggleTheme={toggleTheme}
         cartCount={cartCount}
         onCartOpen={() => setCartOpen(true)}
+        cartOpen={cartOpen}
+        authOpen={authOpen}
         user={user}
         isAdmin={isAdmin}
         onSignIn={() => setAuthOpen(true)}
@@ -349,6 +357,8 @@ function Header({
   toggleTheme,
   cartCount,
   onCartOpen,
+  cartOpen,
+  authOpen,
   user,
   isAdmin,
   onSignIn,
@@ -358,6 +368,8 @@ function Header({
   toggleTheme: () => void;
   cartCount: number;
   onCartOpen: () => void;
+  cartOpen: boolean;
+  authOpen: boolean;
   user: import("./context").WcmUser | null;
   isAdmin: boolean;
   onSignIn: () => void;
@@ -369,6 +381,7 @@ function Header({
     { icon: "🏷", text: "Flat 20% off on all items", chip: "SALE" },
   ];
   const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { if (cartOpen || authOpen) setMenuOpen(false); }, [cartOpen, authOpen]);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -396,6 +409,7 @@ function Header({
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [suggestTotal, setSuggestTotal] = useState(0);
   const [suggestLoading, setSuggestLoading] = useState(false);
+  const [highlightedIdx, setHighlightedIdx] = useState(-1);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -423,6 +437,7 @@ function Header({
   }, []);
 
   useEffect(() => {
+    if (search.trim()) setSuggestLoading(true);
     const t = setTimeout(() => fetchSuggestions(search), 220);
     return () => clearTimeout(t);
   }, [search, fetchSuggestions]);
@@ -657,15 +672,31 @@ function Header({
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setDropOpen(true);
+                  setHighlightedIdx(-1);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
+                  if (!dropOpen) return;
+                  if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    goSearchPage(search);
+                    setHighlightedIdx((i) => Math.min(i + 1, suggestions.length));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setHighlightedIdx((i) => Math.max(i - 1, -1));
+                  } else if (e.key === "Escape") {
+                    setDropOpen(false);
+                    setHighlightedIdx(-1);
+                  } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (highlightedIdx >= 0 && highlightedIdx < suggestions.length) {
+                      goProduct(suggestions[highlightedIdx]);
+                    } else {
+                      goSearchPage(search);
+                    }
+                    setHighlightedIdx(-1);
                   }
                 }}
                 onFocus={() => setDropOpen(true)}
-                onBlur={() => setTimeout(() => setDropOpen(false), 150)}
+                onBlur={() => setTimeout(() => { setDropOpen(false); setHighlightedIdx(-1); }, 150)}
                 style={{
                   width: "100%",
                   padding: "11px 14px 11px 42px",
@@ -786,25 +817,24 @@ function Header({
                     </div>
                   ) : suggestions.length > 0 ? (
                     <>
-                      {suggestions.map((p) => (
+                      {suggestions.map((p, idx) => (
                         <button
                           key={p.id}
                           onMouseDown={() => goProduct(p)}
+                          onMouseEnter={() => setHighlightedIdx(idx)}
+                          onMouseLeave={() => setHighlightedIdx(-1)}
                           style={{
                             width: "100%",
                             display: "flex",
                             alignItems: "center",
                             gap: 12,
                             padding: "10px 16px",
-                            background: "none",
+                            background: highlightedIdx === idx ? "var(--chip-2)" : "none",
                             border: "none",
                             cursor: "pointer",
                             textAlign: "left",
                             borderBottom: "1px solid var(--line)",
-                            transition: "background .1s",
                           }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
                         >
                           <div
                             style={{
@@ -836,22 +866,22 @@ function Header({
                       {/* See all results row */}
                       <button
                         onMouseDown={() => goSearchPage(search)}
+                        onMouseEnter={() => setHighlightedIdx(suggestions.length)}
+                        onMouseLeave={() => setHighlightedIdx(-1)}
                         style={{
                           width: "100%",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
                           padding: "11px 16px",
-                          background: "var(--bg-elev)",
+                          background: highlightedIdx === suggestions.length ? "var(--chip-2)" : "var(--bg-elev)",
                           border: "none",
                           cursor: "pointer",
                           fontFamily: "inherit",
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "var(--chip-2)")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-elev)")}
                       >
                         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--blue-600)" }}>
-                          See all {suggestTotal > 6 ? `${suggestTotal.toLocaleString()} ` : ""}results for "{search}"
+                          See all {suggestTotal > 0 ? `${suggestTotal.toLocaleString()} ` : ""}results for "{search}"
                         </span>
                         <span style={{ fontSize: 13, color: "var(--blue-500)" }}>→</span>
                       </button>

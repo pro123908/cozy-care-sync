@@ -126,7 +126,7 @@ function ProductPage() {
   if (!product) {
     return (
       <div style={{ padding: "64px 24px", textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🔎</div>
+        <div style={{ fontSize: 48, marginBottom: 12 }} role="img" aria-label="Product not found">🔎</div>
         <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Product not found</div>
         <div style={{ color: "var(--ink-4)", fontSize: 14, marginBottom: 20 }}>
           This product doesn't exist or may have been removed.

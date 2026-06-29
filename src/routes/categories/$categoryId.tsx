@@ -171,7 +171,7 @@ function CategoryProductsPage() {
             border: "1px solid var(--line)",
           }}
         >
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }} role="img" aria-label="Empty category">📦</div>
           <div style={{ fontWeight: 800, fontSize: 18, color: "var(--ink)", marginBottom: 6 }}>
             No products in this category yet
           </div>

@@ -413,8 +413,11 @@ export function ProductsPage({
             In stock only
           </label>
           <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
-            Showing {filtered.length === 0 ? 0 : pageStart + 1}-
-            {Math.min(pageStart + PRODUCTS_PAGE_SIZE, filtered.length)} of {filtered.length}
+            {!productsLoaded ? (
+              <span style={{ display: "inline-block", width: 80, height: 14, borderRadius: 6, background: "var(--chip)", animation: "wcmPulse 1.4s ease infinite" }} />
+            ) : (
+              <>Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + PRODUCTS_PAGE_SIZE, filtered.length)} of {filtered.length}</>
+            )}
           </span>
           <SortDropdown
             value={sort}
@@ -427,7 +430,7 @@ export function ProductsPage({
       </div>
 
       {isMobile && mobileFiltersOpen && (
-        <div className="wcm-filter-sheet-overlay" onClick={() => setMobileFiltersOpen(false)}>
+        <div className="wcm-filter-sheet-overlay" onClick={() => setMobileFiltersOpen(false)} onKeyDown={(e) => { if (e.key === "Escape") setMobileFiltersOpen(false); }}>
           <div className="wcm-filter-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="wcm-filter-sheet-head">
               <div style={{ fontWeight: 800, fontSize: 16 }}>Filters</div>
@@ -509,6 +512,24 @@ export function ProductsPage({
       )}
 
       <div ref={productsTopRef} />
+      {(() => {
+        const cartSubtotal = cart.reduce((s, c) => {
+          const p = products.find((pr) => pr.id === c.id);
+          return p ? s + getUnitPrice(p, c.size) * c.qty : s;
+        }, 0);
+        if (cartSubtotal <= 0 || cartSubtotal >= 2000) return null;
+        return (
+          <div style={{ marginBottom: 14, padding: "9px 12px", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 5 }}>
+              <span>Add {PKR(2000 - cartSubtotal)} more for free delivery</span>
+              <span style={{ color: "var(--ink-4)" }}>{Math.round((cartSubtotal / 2000) * 100)}%</span>
+            </div>
+            <div style={{ height: 4, background: "var(--line)", borderRadius: 999, overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${Math.round((cartSubtotal / 2000) * 100)}%`, background: "var(--grad)", borderRadius: 999, transition: "width .4s ease" }} />
+            </div>
+          </div>
+        );
+      })()}
 
       {!productsLoaded ? (
         <div
@@ -529,7 +550,7 @@ export function ProductsPage({
           key={gridKey}
           style={{ padding: 32, textAlign: "center", animation: "fadeInUp 0.25s ease" }}
         >
-          <div className="wcm-empty-icon">🔎</div>
+          <div className="wcm-empty-icon" role="img" aria-label="Search">🔎</div>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Nothing matches right now</div>
           <div style={{ color: "var(--ink-4)", fontSize: 13, marginTop: 6 }}>
             Clear filters or try one of our fast-moving collections.
@@ -711,7 +732,7 @@ export function ProductDetail({
   cart: CartLine[];
   openProduct: (p: Product) => void;
 }) {
-  const { products, categories, categoriesLoaded, wishlist, toggleWishlist } = useWcm();
+  const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } = useWcm();
   const getProductRatings = useProductRatings();
   const { average: userRating, count: reviewCount } = getProductRatings(product.id);
   const isMobile = useIsMobile();
@@ -1134,21 +1155,24 @@ export function ProductDetail({
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {selectableOptions.map((option) => {
                   const isSelected = selectedSize === option.label;
+                  const isOOS = product.stock === "Out of stock";
                   return (
                     <button
                       key={option.label}
-                      onClick={() => setSelectedSize(option.label)}
+                      onClick={() => !isOOS && setSelectedSize(option.label)}
+                      disabled={isOOS}
                       style={{
                         padding: "7px 12px",
                         borderRadius: 10,
                         fontSize: 13,
                         fontWeight: 700,
-                        cursor: "pointer",
+                        cursor: isOOS ? "not-allowed" : "pointer",
                         border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
-                        background: isSelected ? "#ecfeff" : "var(--card)",
-                        color: isSelected ? "#0f766e" : "var(--ink-3)",
+                        background: isOOS ? "var(--bg-elev)" : isSelected ? "#ecfeff" : "var(--card)",
+                        color: isOOS ? "var(--ink-4)" : isSelected ? "#0f766e" : "var(--ink-3)",
+                        opacity: isOOS ? 0.5 : 1,
                         transition: "all .14s ease",
-                        boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
+                        boxShadow: isSelected && !isOOS ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 6,
@@ -1257,14 +1281,21 @@ export function ProductDetail({
                 {Icons.plus}
               </button>
             </div>
+            {qty >= 5 && (
+              <div style={{ fontSize: 12, color: "var(--pill-warn-fg)", fontWeight: 600, marginTop: 6 }}>
+                Max 5 units per order
+              </div>
+            )}
             <Btn
               full
               size="lg"
               icon={Icons.cart}
               onClick={() => addToCart(product, qty, variantKey)}
               style={{ minHeight: 50 }}
+              disabled={product.stock === "Out of stock"}
             >
-              {inCart ? "Update cart" : "Add to cart"} · {PKR(resolvedUnitPrice * qty)}
+              {product.stock === "Out of stock" ? "Out of stock" : inCart ? "Update cart" : "Add to cart"}
+              {product.stock !== "Out of stock" && ` · ${PKR(resolvedUnitPrice * qty)}`}
             </Btn>
             <Btn
               variant="outline"
@@ -1465,7 +1496,7 @@ export function ProductDetail({
         </div>
       </div>
 
-      {related.length > 0 && (
+      {(!productsLoaded || related.length > 0) && (
         <div>
           <div
             style={{
@@ -1483,21 +1514,25 @@ export function ProductDetail({
             style={{
               display: "grid",
               gridTemplateColumns: isMobile
-                ? "repeat(2, minmax(0, 1fr))"
+                ? "repeat(auto-fill, minmax(160px, 1fr))"
                 : "repeat(auto-fill, minmax(220px, 1fr))",
               gap: isMobile ? 8 : 14,
             }}
           >
-            {related.map((r) => (
-              <ProductCard
-                key={r.id}
-                p={r}
-                onAdd={addToCart}
-                onOpen={openProduct}
-                cartQty={cart.find((c) => c.id === r.id)?.qty ?? 0}
-                compact={isMobile}
-              />
-            ))}
+            {!productsLoaded
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} isMobile={isMobile} />
+                ))
+              : related.map((r) => (
+                  <ProductCard
+                    key={r.id}
+                    p={r}
+                    onAdd={addToCart}
+                    onOpen={openProduct}
+                    cartQty={cart.find((c) => c.id === r.id)?.qty ?? 0}
+                    compact={isMobile}
+                  />
+                ))}
           </div>
         </div>
       )}

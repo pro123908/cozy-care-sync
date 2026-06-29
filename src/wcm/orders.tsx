@@ -299,7 +299,11 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                       width: 18,
                       height: 18,
                       borderRadius: 99,
-                      background: done ? "var(--green-500)" : "var(--chip)",
+                      background: done
+                        ? i === currentIdx
+                          ? "var(--blue-600)"
+                          : "var(--green-500)"
+                        : "var(--chip)",
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -307,9 +311,10 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                       fontSize: 10,
                       fontWeight: 800,
                       flexShrink: 0,
+                      boxShadow: i === currentIdx ? "0 0 0 3px var(--pill-info-bg)" : "none",
                     }}
                   >
-                    {done && (i < currentIdx ? "✓" : "")}
+                    {i < currentIdx ? "✓" : i === currentIdx ? "●" : ""}
                   </div>
                   {i < STATUSES.length - 1 && (
                     <div
@@ -340,10 +345,12 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               <span
                 key={s}
                 style={{
-                  color: i <= currentIdx ? "var(--ink-2)" : "var(--ink-4)",
+                  color: i === currentIdx ? "var(--blue-600)" : i < currentIdx ? "var(--ink-2)" : "var(--ink-4)",
                   fontWeight: i === currentIdx ? 800 : 600,
                   flex: 1,
                   textAlign: i === 0 ? "left" : i === STATUSES.length - 1 ? "right" : "center",
+                  textDecoration: i === currentIdx ? "underline" : "none",
+                  textUnderlineOffset: 2,
                 }}
               >
                 {s}
@@ -800,6 +807,22 @@ export function OrderDetail({
                     <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
                       {done ? trackingDate(order, i) : "Pending"}
                     </div>
+                    {current && order.status === "Out for delivery" && !order.rider && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          padding: "10px 12px",
+                          borderRadius: 11,
+                          background: "var(--pill-warn-bg)",
+                          border: "1px solid var(--pill-warn-fg)",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--pill-warn-fg)",
+                        }}
+                      >
+                        Rider being assigned — you'll receive details shortly
+                      </div>
+                    )}
                     {current && order.rider && (
                       <div
                         style={{

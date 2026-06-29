@@ -136,6 +136,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const cachedOnLoad = dynamicImages.length > 0;
   const [bannersResolved, setBannersResolved] = useState(cachedOnLoad);
   const [slideTick, setSlideTick] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   const hasDynamicBanners = dynamicImages.length > 0;
 
@@ -207,11 +208,12 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   useEffect(() => {
     if (banners.length < 2) return;
     if (!hasDynamicBanners) return;
+    if (isPaused) return;
     const timer = window.setInterval(() => {
       setActive((current) => (current + 1) % banners.length);
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [banners.length, hasDynamicBanners]);
+  }, [banners.length, hasDynamicBanners, isPaused]);
 
   useEffect(() => {
     if (!imageOnlyBannerEnabled) return;
@@ -308,6 +310,33 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             <span style={{ display: "inline-flex", transform: "rotate(180deg)" }}>
               {Icons.chevL}
             </span>
+          </button>
+          <button
+            type="button"
+            aria-label={isPaused ? "Resume slideshow" : "Pause slideshow"}
+            onClick={() => setIsPaused((p) => !p)}
+            style={{
+              position: "absolute",
+              bottom: 10,
+              right: 10,
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "2px solid rgba(255,255,255,.8)",
+              background: "rgba(0,0,0,.55)",
+              color: "#fff",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              backdropFilter: "blur(4px)",
+              zIndex: 2,
+              fontSize: 10,
+              fontWeight: 800,
+              boxShadow: "0 1px 6px rgba(0,0,0,.4)",
+            }}
+          >
+            {isPaused ? "▶" : "⏸"}
           </button>
         </>
       )}

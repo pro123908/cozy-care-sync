@@ -192,12 +192,12 @@
     color: var(--ink);
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   #root {
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   body {
     font-family:
@@ -301,7 +301,7 @@
   padding: 24px 20px 96px;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 .wcm-header-pad {
   padding: 12px 20px;
@@ -667,6 +667,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+}
+.wcm-filter-sheet-close:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
 }
 .wcm-filter-sheet-close svg {
   width: 14px;
@@ -862,6 +867,12 @@
     box-shadow 180ms ease,
     filter 180ms ease;
 }
+.wcm-card-step-btn:focus-visible,
+.wcm-card-wishlist-btn:focus-visible,
+.wcm-card-hover-action:focus-visible {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 2px;
+}
 
 .wcm-card-step-btn:hover {
   transform: translateY(-1px);
@@ -996,6 +1007,9 @@
 }
 
 @media (max-width: 760px) {
+  .wcm-order-card-labels span {
+    font-size: 9.5px !important;
+  }
   .wcm-mobile-filter-btn {
     display: inline-flex;
   }
@@ -1339,7 +1353,7 @@
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 66px);
     z-index: 45;
     display: flex;
     align-items: center;

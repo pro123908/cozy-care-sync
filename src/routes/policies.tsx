@@ -212,7 +212,7 @@ function PoliciesPage() {
       {/* ── Shipping ── */}
       <div id="shipping" style={cardStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ fontSize: 22 }}>🚚</span>
+          <span style={{ fontSize: 22 }} role="img" aria-label="Shipping">🚚</span>
           <div style={h2Style}>Shipping / Service Policy</div>
         </div>
         <p style={{ ...pStyle, color: "var(--ink-4)", fontSize: 13 }}>
@@ -235,7 +235,7 @@ function PoliciesPage() {
       {/* ── Terms ── */}
       <div id="terms" style={cardStyle}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <span style={{ fontSize: 22 }}>📋</span>
+          <span style={{ fontSize: 22 }} role="img" aria-label="Terms and conditions">📋</span>
           <div style={h2Style}>Terms & Conditions</div>
         </div>
         <p style={{ ...pStyle, color: "var(--ink-4)", fontSize: 13 }}>

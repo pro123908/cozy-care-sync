@@ -485,7 +485,7 @@ export const TextField = ({ label, hint, error, ...rest }: TextFieldProps) => (
       }}
     />
     {hint && !error && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{hint}</span>}
-    {error && <span style={{ fontSize: 11.5, color: "var(--pill-rose-fg)" }}>{error}</span>}
+    {error && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-rose-fg)" }}>{error}</span>}
   </label>
 );
 
