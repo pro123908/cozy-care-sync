@@ -400,7 +400,7 @@ function Header({
   useEffect(() => {
     const timer = window.setInterval(() => {
       setAnnouncementIndex((current) => (current + 1) % announcementSlides.length);
-    }, 2600);
+    }, 5000);
     return () => window.clearInterval(timer);
   }, [announcementSlides.length]);
 
@@ -483,13 +483,17 @@ function Header({
           color: "#fff",
           fontSize: 12.5,
           padding: "8px 14px",
-          textAlign: "center",
           letterSpacing: 0.2,
           position: "relative",
           overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexWrap: "nowrap",
+          minHeight: 0,
         }}
       >
-        <style>{`@keyframes wcmTopBarSlide{0%{opacity:0;transform:translateY(8px) scale(.985)}14%{opacity:1;transform:translateY(0) scale(1)}86%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(.99)}}`}</style>
+        <style>{`@keyframes wcmTopBarSlide{0%{opacity:0;transform:translateY(8px) scale(.985)}8%{opacity:1;transform:translateY(0) scale(1)}88%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-8px) scale(.99)}}@media(max-width:540px){.wcm-topbar-dots{display:none!important}}`}</style>
         <div
           style={{
             position: "absolute",
@@ -502,14 +506,17 @@ function Header({
         <div
           key={`announcement-${announcementIndex}`}
           style={{
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            flexWrap: "nowrap",
             gap: 10,
-            maxWidth: "100%",
-            animation: "wcmTopBarSlide 2.6s ease forwards",
+            animation: "wcmTopBarSlide 5s ease forwards",
             position: "relative",
             zIndex: 1,
+            overflow: "hidden",
+            flex: "1 1 0",
+            minWidth: 0,
+            justifyContent: "center",
           }}
         >
           <span
@@ -517,6 +524,7 @@ function Header({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
               minWidth: 22,
               height: 22,
               borderRadius: 999,
@@ -530,12 +538,14 @@ function Header({
           </span>
           <span
             style={{
-              whiteSpace: "nowrap",
               overflow: "hidden",
-              textOverflow: "ellipsis",
+              minWidth: 0,
+              flexShrink: 1,
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: 0.55,
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
             }}
           >
             {announcementSlides[announcementIndex].text}
@@ -550,20 +560,23 @@ function Header({
               fontWeight: 800,
               letterSpacing: 0.6,
               lineHeight: 1.2,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
             }}
           >
             {announcementSlides[announcementIndex].chip}
           </span>
         </div>
         <div
+          className="wcm-topbar-dots"
           style={{
-            display: "inline-flex",
+            display: "flex",
             gap: 5,
             alignItems: "center",
             marginLeft: 10,
+            flexShrink: 0,
             position: "relative",
             zIndex: 1,
-            verticalAlign: "middle",
           }}
           aria-hidden="true"
         >

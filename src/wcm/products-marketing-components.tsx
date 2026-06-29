@@ -249,9 +249,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           fetchPriority={active === 0 ? "high" : "auto"}
           style={{
             width: "100%",
-            height: "clamp(180px, 34vw, 360px)",
-            objectFit: "cover",
-            objectPosition: "center",
+            height: "auto",
             display: "block",
             animation: "wcmHeroFadeIn .35s ease",
           }}
