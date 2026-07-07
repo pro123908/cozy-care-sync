@@ -423,7 +423,7 @@ function Header({
     setSuggestLoading(true);
     const supabase = await getSupabase();
     const { data } = await supabase.rpc("search_products", {
-      q: q.trim(),
+      q,
       cat_filter: "all",
       sort_by: "relevance",
       p_offset: 0,

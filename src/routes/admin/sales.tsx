@@ -196,12 +196,22 @@ function AdminSalesPage() {
       .map(([name, s]) => ({ name, ...s, avgPerProduct: s.volume / s.productCount }))
       .sort((a, b) => b.volume - a.volume);
 
+    // Projection: revenue/profit if every unit of current stock sold at today's price.
+    const activeRows = rows.filter((r) => r.active);
+    const potentialRevenue = activeRows.reduce((sum, r) => sum + r.price * r.stock_count, 0);
+    const potentialProfit = activeRows.reduce((sum, r) => {
+      if (r.purchase_price <= 0) return sum;
+      return sum + (r.price - r.purchase_price) * r.stock_count;
+    }, 0);
+    const totalStockUnits = activeRows.reduce((sum, r) => sum + r.stock_count, 0);
+
     return {
       totalRevenue, avgRevenue, bestRevenueProduct,
       totalProfit, bestProfitProduct,
       zeroSalesCount, meanSales, lowStockCount, medianSales,
       topProducts, slowestProducts, categoryStats,
       topCategoryByVolume: categoryStats[0],
+      potentialRevenue, potentialProfit, totalStockUnits,
     };
   }, [rows, totalSales]);
 
@@ -498,6 +508,14 @@ function AdminSalesPage() {
                   {orderStats
                     ? `${orderStats.repeatCustomers} of ${orderStats.totalCustomers} customers`
                     : "No order data"}
+                </div>
+              </div>
+              <div style={insightCard("#eef2ff", "#4f46e5")}>
+                <div style={{ fontSize: 20, lineHeight: 1, marginBottom: 6 }}>📈</div>
+                <div style={insightLabel}>If all stock sold out</div>
+                <div style={insightValue}>{PKR(stats?.potentialRevenue ?? 0)}</div>
+                <div style={insightSub}>
+                  {PKR(stats?.potentialProfit ?? 0)} profit · {(stats?.totalStockUnits ?? 0).toLocaleString()} units
                 </div>
               </div>
             </div>
