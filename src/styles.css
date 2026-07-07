@@ -97,24 +97,24 @@
 .dark {
   color-scheme: dark;
 
-  --bg: #111b2b;
-  --bg-elev: #162337;
-  --card: #1b2b43;
-  --card-2: #223551;
+  --bg: #0a0a0a;
+  --bg-elev: #121212;
+  --card: #161616;
+  --card-2: #1e1e1e;
 
-  --header-bg: rgba(17, 27, 43, 0.72);
-  --overlay: rgba(5, 12, 24, 0.56);
+  --header-bg: rgba(10, 10, 10, 0.8);
+  --overlay: rgba(0, 0, 0, 0.6);
 
-  --ink: #f5f9ff;
-  --ink-2: #e3edfb;
-  --ink-3: #c9d7eb;
-  --ink-4: #a6bad5;
+  --ink: #f5f5f5;
+  --ink-2: #e2e2e2;
+  --ink-3: #c2c2c2;
+  --ink-4: #999999;
 
-  --line: #3a4f6d;
-  --line-2: #476084;
+  --line: #2a2a2a;
+  --line-2: #333333;
 
-  --chip: #263a57;
-  --chip-2: #30486b;
+  --chip: #1c1c1c;
+  --chip-2: #262626;
 
   --blue-50: #213753;
   --blue-500: #5a98ff;
@@ -145,19 +145,19 @@
   --shadow: 0 8px 22px -10px rgba(4, 10, 20, 0.42);
   --shadow-lg: 0 28px 56px -20px rgba(4, 10, 20, 0.58);
 
-  --scroll-track: #16253a;
-  --scroll-thumb: #3d5676;
-  --scroll-thumb-hover: #507097;
+  --scroll-track: #121212;
+  --scroll-thumb: #333333;
+  --scroll-thumb-hover: #444444;
 
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
 }
 
 :root[data-theme="dark"] body,
 .dark body {
   background-image:
-    radial-gradient(900px 360px at 8% -10%, rgba(90, 152, 255, 0.16), transparent),
-    radial-gradient(740px 320px at 100% 0%, rgba(42, 203, 155, 0.12), transparent);
+    radial-gradient(900px 360px at 8% -10%, rgba(255, 255, 255, 0.03), transparent),
+    radial-gradient(740px 320px at 100% 0%, rgba(255, 255, 255, 0.02), transparent);
   background-attachment: fixed;
 }
 

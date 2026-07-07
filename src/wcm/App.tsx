@@ -1349,7 +1349,7 @@ function ThemeToggle({ theme, onToggle }: { theme: string; onToggle: () => void 
         borderRadius: 99,
         border: "1px solid var(--line)",
         background: dark
-          ? "linear-gradient(135deg, #0f172a, #1e293b)"
+          ? "linear-gradient(135deg, #050505, #1a1a1a)"
           : "linear-gradient(135deg, #f0f9ff, #fef9c3)",
         cursor: "pointer",
         padding: 0,
@@ -1404,7 +1404,7 @@ function ThemeToggle({ theme, onToggle }: { theme: string; onToggle: () => void 
           width: 22,
           height: 22,
           borderRadius: 99,
-          background: dark ? "linear-gradient(135deg, #1e293b, #334155)" : "#fff",
+          background: dark ? "linear-gradient(135deg, #262626, #404040)" : "#fff",
           boxShadow: "0 2px 6px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.15)",
           transition: "left .25s cubic-bezier(.4,.7,.3,1.3), background .25s",
         }}

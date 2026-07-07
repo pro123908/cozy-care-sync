@@ -56,6 +56,9 @@ const MAX_QTY_PER_PRODUCT = 5;
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
 const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
+const ORDER_NOTIFY_FROM = Deno.env.get("ORDER_NOTIFY_FROM") || "Well Care Mart <onboarding@resend.dev>";
+const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -263,6 +266,145 @@ async function sendMetaPurchaseEvent(input: {
     numItems: input.numItems,
     metaResponse,
   });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
+}
+
+async function sendOrderNotificationEmail(input: {
+  orderId: string;
+  ship: ShipDetails;
+  pay: string;
+  items: Array<{ id: string; qty: number; size?: string; unit_price: number }>;
+  subtotal: number;
+  shipping: number;
+  total: number;
+}) {
+  if (!RESEND_API_KEY || !ORDER_NOTIFY_EMAIL) {
+    console.info("[order-email] missing RESEND_API_KEY or ORDER_NOTIFY_EMAIL - skipping notification");
+    return;
+  }
+
+  const recipients = ORDER_NOTIFY_EMAIL.split(",").map((e) => e.trim()).filter(Boolean);
+  if (recipients.length === 0) return;
+
+  const rows = input.items
+    .map(
+      (item, i) =>
+        `<tr style="background:${i % 2 === 0 ? "#ffffff" : "#fafaf7"}">` +
+        `<td style="padding:10px 12px;border-bottom:1px solid #eeece5;color:#1e293b;font-size:14px">${escapeHtml(item.id)}${item.size ? ` <span style="color:#64748b">(${escapeHtml(item.size)})</span>` : ""}</td>` +
+        `<td style="padding:10px 12px;border-bottom:1px solid #eeece5;color:#475569;font-size:14px;text-align:center">x${item.qty}</td>` +
+        `<td style="padding:10px 12px;border-bottom:1px solid #eeece5;color:#1e293b;font-size:14px;text-align:right;font-weight:600">Rs ${(item.unit_price * item.qty).toLocaleString()}</td></tr>`,
+    )
+    .join("");
+
+  const html = `
+  <div style="background:#f6f5f1;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+    <table role="presentation" width="100%" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 24px -8px rgba(15,23,42,0.15)" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="background:#0f172a;padding:20px 28px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="vertical-align:middle">
+                <img src="https://wellcaremart.pk/logo_updated.png" alt="Well Care Mart" height="32" style="height:32px;display:block" />
+              </td>
+              <td style="text-align:right;vertical-align:middle">
+                <span style="color:#cbd5e1;font-size:13px">New order notification</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="height:4px;background:linear-gradient(90deg,#2563eb,#10b981);line-height:0;font-size:0">&nbsp;</td>
+      </tr>
+      <tr>
+        <td style="padding:28px 28px 8px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td>
+                <div style="font-size:20px;font-weight:700;color:#0f172a">Order ${escapeHtml(input.orderId)}</div>
+                <div style="font-size:13px;color:#64748b;margin-top:2px">Payment: ${escapeHtml(input.pay)}</div>
+              </td>
+              <td style="text-align:right;vertical-align:top">
+                <span style="display:inline-block;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px">Order placed</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 28px">
+          <div style="background:#fafaf7;border:1px solid #eeece5;border-radius:12px;padding:14px 16px">
+            <div style="font-size:14px;font-weight:600;color:#1e293b">${escapeHtml(input.ship.name)}</div>
+            <div style="font-size:13px;color:#475569;margin-top:4px">${escapeHtml(input.ship.phone)} · ${escapeHtml(input.ship.email)}</div>
+            <div style="font-size:13px;color:#475569;margin-top:4px">${escapeHtml(input.ship.address)}, ${escapeHtml(input.ship.city)}${input.ship.landmark ? ` (${escapeHtml(input.ship.landmark)})` : ""}</div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 28px 0">
+          <table role="presentation" width="100%" style="border-collapse:collapse;border:1px solid #eeece5;border-radius:10px;overflow:hidden">
+            <tr style="background:#f1efe7">
+              <td style="padding:8px 12px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase">Item</td>
+              <td style="padding:8px 12px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;text-align:center">Qty</td>
+              <td style="padding:8px 12px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;text-align:right">Total</td>
+            </tr>
+            ${rows}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 28px 28px">
+          <table role="presentation" width="100%" style="background:linear-gradient(135deg,#eff6ff,#ecfdf5);border-radius:12px" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding:16px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#475569">
+                  <tr><td style="padding:2px 0">Subtotal</td><td style="text-align:right">Rs ${input.subtotal.toLocaleString()}</td></tr>
+                  <tr><td style="padding:2px 0">Shipping</td><td style="text-align:right">${input.shipping === 0 ? "Free" : `Rs ${input.shipping.toLocaleString()}`}</td></tr>
+                  <tr><td style="padding:8px 0 0;font-size:16px;font-weight:700;color:#0f172a">Total</td><td style="text-align:right;padding:8px 0 0;font-size:16px;font-weight:700;color:#0f172a">Rs ${input.total.toLocaleString()}</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 28px 28px">
+          <a href="https://wellcaremart.pk/admin/orders" style="display:block;text-align:center;background:linear-gradient(135deg,#2563eb,#10b981);color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px;border-radius:10px">View in admin panel</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:16px 28px;background:#fafaf7;border-top:1px solid #eeece5;text-align:center">
+          <span style="font-size:12px;color:#94a3b8">Well Care Mart · You care, we deliver</span>
+        </td>
+      </tr>
+    </table>
+  </div>`;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: ORDER_NOTIFY_FROM,
+        to: recipients,
+        subject: `New order ${input.orderId} - Rs ${input.total}`,
+        html,
+      }),
+    });
+    if (!res.ok) {
+      console.error("[order-email] send failed", { status: res.status, body: await res.text().catch(() => "") });
+    }
+  } catch (err) {
+    console.error("[order-email] send threw", err);
+  }
 }
 
 function normalizeSizeOptions(options?: SizeOption[] | null): SizeOption[] {
@@ -498,6 +640,19 @@ Deno.serve(async (req: Request) => {
   if (insertErr) {
     return json({ error: "Failed to create order" }, 500, origin);
   }
+
+  // ------------------------------------------------------------------
+  // 5b. Notify admin of the new order by email (best-effort)
+  // ------------------------------------------------------------------
+  await sendOrderNotificationEmail({
+    orderId,
+    ship,
+    pay,
+    items: orderItems,
+    subtotal,
+    shipping,
+    total,
+  });
 
   // ------------------------------------------------------------------
   // 6. Increment sales counts
