@@ -11,6 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
+type OrderReviewRow = Database["public"]["Tables"]["order_reviews"]["Row"];
 
 type StatusOption = {
   status: string;
@@ -817,6 +818,32 @@ function OrderDetailsPanel({
   const { products } = useWcm();
   const isMobile = useIsMobile();
   const productMap = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const [reviews, setReviews] = useState<OrderReviewRow[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReviewsLoading(true);
+    (async () => {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from("order_reviews")
+        .select("*")
+        .eq("order_code", order.order_code);
+      if (cancelled) return;
+      if (!error && data) setReviews(data);
+      setReviewsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [order.order_code]);
+
+  const reviewsByProduct = useMemo(() => {
+    const map = new Map<string, OrderReviewRow>();
+    for (const r of reviews) map.set(r.product_id, r);
+    return map;
+  }, [reviews]);
 
   const accent = statusRowAccent(order.status);
 
@@ -1002,6 +1029,17 @@ function OrderDetailsPanel({
               })}
             </div>
           )}
+        </div>
+
+        {/* Reviews */}
+        <div style={cardStyle}>
+          <div style={mobileSectionLabel}>Customer reviews</div>
+          <ReviewsSection
+            items={items as OrderItemLike[]}
+            reviewsByProduct={reviewsByProduct}
+            reviewsLoading={reviewsLoading}
+            productMap={productMap}
+          />
         </div>
 
         {/* Payment summary */}
@@ -1291,6 +1329,21 @@ function OrderDetailsPanel({
           </div>
         </div>
 
+        {/* Reviews */}
+        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", marginBottom: 8 }}>
+            Customer reviews
+          </div>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 14 }}>
+            <ReviewsSection
+              items={items as OrderItemLike[]}
+              reviewsByProduct={reviewsByProduct}
+              reviewsLoading={reviewsLoading}
+              productMap={productMap}
+            />
+          </div>
+        </div>
+
         {/* Status change */}
         <div style={{ borderTop: "1px solid var(--line)", paddingTop: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", marginBottom: 10 }}>
@@ -1350,6 +1403,69 @@ function OrderDetailsPanel({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <span style={{ color: "#f59e0b", fontSize: 13, letterSpacing: 1 }}>
+      {"★".repeat(Math.max(0, Math.min(5, rating)))}
+      <span style={{ color: "var(--line)" }}>{"★".repeat(5 - Math.max(0, Math.min(5, rating)))}</span>
+    </span>
+  );
+}
+
+type OrderItemLike = { id: string; qty: number; size?: string; name?: string };
+
+function ReviewsSection({
+  items,
+  reviewsByProduct,
+  reviewsLoading,
+  productMap,
+}: {
+  items: OrderItemLike[];
+  reviewsByProduct: Map<string, OrderReviewRow>;
+  reviewsLoading: boolean;
+  productMap: Map<string, ReturnType<typeof useWcm>["products"][number]>;
+}) {
+  const reviewedItems = items
+    .map((item) => ({ item, review: reviewsByProduct.get(item.id) }))
+    .filter((entry) => entry.review);
+
+  if (reviewsLoading) {
+    return <div style={{ color: "var(--ink-4)", fontSize: 13 }}>Loading reviews…</div>;
+  }
+
+  if (reviewedItems.length === 0) {
+    return <div style={{ color: "var(--ink-4)", fontSize: 13 }}>No reviews submitted for this order.</div>;
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {reviewedItems.map(({ item, review }, idx) => {
+        const prod = productMap.get(item.id);
+        const productName = prod?.name || item.name || item.id || "Item";
+        return (
+          <div
+            key={review!.id}
+            style={{
+              paddingTop: idx === 0 ? 0 : 12,
+              borderTop: idx === 0 ? "none" : "1px solid var(--line)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{productName}</span>
+              <StarRating rating={review!.rating} />
+            </div>
+            {review!.comment && (
+              <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 4 }}>
+                {review!.comment}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

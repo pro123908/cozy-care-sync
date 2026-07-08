@@ -291,6 +291,30 @@ async function sendOrderNotificationEmail(input: {
   const recipients = ORDER_NOTIFY_EMAIL.split(",").map((e) => e.trim()).filter(Boolean);
   if (recipients.length === 0) return;
 
+  // Plain-text alternative — a strong "transactional" signal that helps Gmail
+  // keep this in the Primary tab (and out of Spam/Promotions) so it notifies.
+  const shippingLine = input.shipping === 0 ? "Free" : `Rs ${input.shipping.toLocaleString()}`;
+  const text = [
+    `New order ${input.orderId}`,
+    `Payment: ${input.pay}`,
+    "",
+    `Customer: ${input.ship.name}`,
+    `${input.ship.phone} · ${input.ship.email}`,
+    `${input.ship.address}, ${input.ship.city}${input.ship.landmark ? ` (${input.ship.landmark})` : ""}`,
+    "",
+    "Items:",
+    ...input.items.map(
+      (item) =>
+        `- ${item.id}${item.size ? ` (${item.size})` : ""} x${item.qty}  Rs ${(item.unit_price * item.qty).toLocaleString()}`,
+    ),
+    "",
+    `Subtotal: Rs ${input.subtotal.toLocaleString()}`,
+    `Shipping: ${shippingLine}`,
+    `Total: Rs ${input.total.toLocaleString()}`,
+    "",
+    "View in admin panel: https://wellcaremart.pk/admin/orders",
+  ].join("\n");
+
   const rows = input.items
     .map(
       (item, i) =>
@@ -395,7 +419,9 @@ async function sendOrderNotificationEmail(input: {
       body: JSON.stringify({
         from: ORDER_NOTIFY_FROM,
         to: recipients,
+        reply_to: input.ship.email,
         subject: `New order ${input.orderId} - Rs ${input.total}`,
+        text,
         html,
       }),
     });
