@@ -1073,17 +1073,6 @@ function Header({
                       >
                         {Icons.user} Account settings
                       </button>
-                      {isAdmin && (
-                        <button
-                          onClick={() => {
-                            setMenuOpen(false);
-                            navigate({ to: "/admin" });
-                          }}
-                          style={menuItem}
-                        >
-                          {Icons.shield} Admin panel
-                        </button>
-                      )}
                       <button
                         onClick={() => {
                           setMenuOpen(false);

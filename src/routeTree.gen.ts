@@ -24,14 +24,9 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrdersIndexRouteImport } from './routes/orders/index'
 import { Route as CategoriesIndexRouteImport } from './routes/categories/index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
 import { Route as CategoriesCategoryIdRouteImport } from './routes/categories/$categoryId'
-import { Route as AdminSalesRouteImport } from './routes/admin/sales'
-import { Route as AdminProductsRouteImport } from './routes/admin/products'
-import { Route as AdminPrescriptionsRouteImport } from './routes/admin/prescriptions'
-import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 
 const WishlistRoute = WishlistRouteImport.update({
   id: '/wishlist',
@@ -108,11 +103,6 @@ const CategoriesIndexRoute = CategoriesIndexRouteImport.update({
   path: '/categories/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProductsProductIdRoute = ProductsProductIdRouteImport.update({
   id: '/$productId',
   path: '/$productId',
@@ -126,26 +116,6 @@ const OrdersOrderIdRoute = OrdersOrderIdRouteImport.update({
 const CategoriesCategoryIdRoute = CategoriesCategoryIdRouteImport.update({
   id: '/categories/$categoryId',
   path: '/categories/$categoryId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminSalesRoute = AdminSalesRouteImport.update({
-  id: '/admin/sales',
-  path: '/admin/sales',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminProductsRoute = AdminProductsRouteImport.update({
-  id: '/admin/products',
-  path: '/admin/products',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminPrescriptionsRoute = AdminPrescriptionsRouteImport.update({
-  id: '/admin/prescriptions',
-  path: '/admin/prescriptions',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/admin/orders',
-  path: '/admin/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -163,14 +133,9 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
-  '/admin/orders': typeof AdminOrdersRoute
-  '/admin/prescriptions': typeof AdminPrescriptionsRoute
-  '/admin/products': typeof AdminProductsRoute
-  '/admin/sales': typeof AdminSalesRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
-  '/admin/': typeof AdminIndexRoute
   '/categories/': typeof CategoriesIndexRoute
   '/orders/': typeof OrdersIndexRoute
 }
@@ -188,14 +153,9 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
-  '/admin/orders': typeof AdminOrdersRoute
-  '/admin/prescriptions': typeof AdminPrescriptionsRoute
-  '/admin/products': typeof AdminProductsRoute
-  '/admin/sales': typeof AdminSalesRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
-  '/admin': typeof AdminIndexRoute
   '/categories': typeof CategoriesIndexRoute
   '/orders': typeof OrdersIndexRoute
 }
@@ -214,14 +174,9 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
-  '/admin/orders': typeof AdminOrdersRoute
-  '/admin/prescriptions': typeof AdminPrescriptionsRoute
-  '/admin/products': typeof AdminProductsRoute
-  '/admin/sales': typeof AdminSalesRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
-  '/admin/': typeof AdminIndexRoute
   '/categories/': typeof CategoriesIndexRoute
   '/orders/': typeof OrdersIndexRoute
 }
@@ -241,14 +196,9 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
-    | '/admin/orders'
-    | '/admin/prescriptions'
-    | '/admin/products'
-    | '/admin/sales'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
-    | '/admin/'
     | '/categories/'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
@@ -266,14 +216,9 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
-    | '/admin/orders'
-    | '/admin/prescriptions'
-    | '/admin/products'
-    | '/admin/sales'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
-    | '/admin'
     | '/categories'
     | '/orders'
   id:
@@ -291,14 +236,9 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
-    | '/admin/orders'
-    | '/admin/prescriptions'
-    | '/admin/products'
-    | '/admin/sales'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
-    | '/admin/'
     | '/categories/'
     | '/orders/'
   fileRoutesById: FileRoutesById
@@ -317,13 +257,8 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   TrackOrderRoute: typeof TrackOrderRoute
   WishlistRoute: typeof WishlistRoute
-  AdminOrdersRoute: typeof AdminOrdersRoute
-  AdminPrescriptionsRoute: typeof AdminPrescriptionsRoute
-  AdminProductsRoute: typeof AdminProductsRoute
-  AdminSalesRoute: typeof AdminSalesRoute
   CategoriesCategoryIdRoute: typeof CategoriesCategoryIdRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
-  AdminIndexRoute: typeof AdminIndexRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
   OrdersIndexRoute: typeof OrdersIndexRoute
 }
@@ -435,13 +370,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/admin'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/products/$productId': {
       id: '/products/$productId'
       path: '/$productId'
@@ -461,34 +389,6 @@ declare module '@tanstack/react-router' {
       path: '/categories/$categoryId'
       fullPath: '/categories/$categoryId'
       preLoaderRoute: typeof CategoriesCategoryIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/sales': {
-      id: '/admin/sales'
-      path: '/admin/sales'
-      fullPath: '/admin/sales'
-      preLoaderRoute: typeof AdminSalesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/products': {
-      id: '/admin/products'
-      path: '/admin/products'
-      fullPath: '/admin/products'
-      preLoaderRoute: typeof AdminProductsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/prescriptions': {
-      id: '/admin/prescriptions'
-      path: '/admin/prescriptions'
-      fullPath: '/admin/prescriptions'
-      preLoaderRoute: typeof AdminPrescriptionsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/orders': {
-      id: '/admin/orders'
-      path: '/admin/orders'
-      fullPath: '/admin/orders'
-      preLoaderRoute: typeof AdminOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -520,13 +420,8 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   TrackOrderRoute: TrackOrderRoute,
   WishlistRoute: WishlistRoute,
-  AdminOrdersRoute: AdminOrdersRoute,
-  AdminPrescriptionsRoute: AdminPrescriptionsRoute,
-  AdminProductsRoute: AdminProductsRoute,
-  AdminSalesRoute: AdminSalesRoute,
   CategoriesCategoryIdRoute: CategoriesCategoryIdRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
-  AdminIndexRoute: AdminIndexRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
   OrdersIndexRoute: OrdersIndexRoute,
 }
