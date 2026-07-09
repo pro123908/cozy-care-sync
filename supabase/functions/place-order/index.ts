@@ -111,6 +111,32 @@ async function sha256Hex(value: string) {
     .join("");
 }
 
+const metaEventLogClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+async function logMetaEvent(row: {
+  event_name: string;
+  event_id?: string | null;
+  status: "sent" | "failed" | "skipped";
+  reason?: string | null;
+  value?: number | null;
+  currency?: string | null;
+  num_items?: number | null;
+  content_ids?: string[] | null;
+  has_email?: boolean;
+  has_phone?: boolean;
+  event_source_url?: string | null;
+  fbtrace_id?: string | null;
+  user_agent?: string | null;
+  ip_address?: string | null;
+}) {
+  const { error } = await metaEventLogClient
+    .from("meta_events")
+    .insert({ source: "order-purchase", ...row });
+  if (error) console.error("[meta-capi] failed to log event", error);
+}
+
 function summarizeMetaResponse(metaResponse: unknown) {
   if (!metaResponse || typeof metaResponse !== "object") return { raw: metaResponse };
   const response = metaResponse as Record<string, unknown>;
@@ -161,6 +187,16 @@ async function sendMetaPurchaseEvent(input: {
       eventId: input.orderId,
       value: purchaseValue,
     });
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "skipped",
+      reason: `Invalid value: ${purchaseValue}`,
+      value: purchaseValue,
+      currency: "PKR",
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
+    });
     return;
   }
 
@@ -168,6 +204,16 @@ async function sendMetaPurchaseEvent(input: {
     console.warn("[meta-capi] skipping Purchase with empty content_ids", {
       eventName: "Purchase",
       eventId: input.orderId,
+    });
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "skipped",
+      reason: "Empty content_ids",
+      value: purchaseValue,
+      currency: "PKR",
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
     });
     return;
   }
@@ -177,6 +223,17 @@ async function sendMetaPurchaseEvent(input: {
       eventName: "Purchase",
       eventId: input.orderId,
       numItems: input.numItems,
+    });
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "skipped",
+      reason: `Invalid num_items: ${input.numItems}`,
+      value: purchaseValue,
+      currency: "PKR",
+      content_ids: input.itemIds,
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
     });
     return;
   }
@@ -198,6 +255,21 @@ async function sendMetaPurchaseEvent(input: {
     console.info(
       "[meta-capi] missing META_ACCESS_TOKEN or META_PIXEL_ID - skipping Purchase event",
     );
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "skipped",
+      reason: "Missing META_ACCESS_TOKEN or META_PIXEL_ID",
+      value: purchaseValue,
+      currency: "PKR",
+      num_items: input.numItems,
+      content_ids: input.itemIds,
+      has_email: Boolean(input.email),
+      has_phone: Boolean(input.phone),
+      event_source_url: input.eventSourceUrl,
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
+    });
     return;
   }
 
@@ -250,14 +322,30 @@ async function sendMetaPurchaseEvent(input: {
       status: res.status,
       response: txt,
     });
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "failed",
+      reason: `HTTP ${res.status}: ${txt.slice(0, 500)}`,
+      value: purchaseValue,
+      currency: "PKR",
+      num_items: input.numItems,
+      content_ids: input.itemIds,
+      has_email: Boolean(input.email),
+      has_phone: Boolean(input.phone),
+      event_source_url: input.eventSourceUrl,
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
+    });
     return;
   }
 
   const metaResponse = await res.json().catch(() => null);
+  const responseSummary = summarizeMetaResponse(metaResponse) as { fbtrace_id?: string };
   console.info("[meta-capi] meta response summary", {
     eventName: "Purchase",
     eventId: input.orderId,
-    summary: summarizeMetaResponse(metaResponse),
+    summary: responseSummary,
   });
   console.info("[meta-capi] event sent", {
     eventName: "Purchase",
@@ -265,6 +353,21 @@ async function sendMetaPurchaseEvent(input: {
     value: purchaseValue,
     numItems: input.numItems,
     metaResponse,
+  });
+  await logMetaEvent({
+    event_name: "Purchase",
+    event_id: input.orderId,
+    status: "sent",
+    value: purchaseValue,
+    currency: "PKR",
+    num_items: input.numItems,
+    content_ids: input.itemIds,
+    has_email: Boolean(input.email),
+    has_phone: Boolean(input.phone),
+    event_source_url: input.eventSourceUrl,
+    fbtrace_id: responseSummary.fbtrace_id || null,
+    user_agent: input.userAgent,
+    ip_address: input.clientIp,
   });
 }
 

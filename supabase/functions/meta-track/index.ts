@@ -1,8 +1,35 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
 const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+const logClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+
+async function logMetaEvent(row: {
+  event_name: string;
+  event_id?: string | null;
+  status: "sent" | "failed" | "skipped";
+  reason?: string | null;
+  value?: number | null;
+  currency?: string | null;
+  num_items?: number | null;
+  content_ids?: string[] | null;
+  has_email?: boolean;
+  has_phone?: boolean;
+  event_source_url?: string | null;
+  fbtrace_id?: string | null;
+  user_agent?: string | null;
+  ip_address?: string | null;
+}) {
+  const { error } = await logClient.from("meta_events").insert({ source: "client-event", ...row });
+  if (error) console.error("[meta-capi] failed to log event", error);
+}
 
 const ALLOWED_EVENTS = new Set([
   "PageView",
@@ -113,15 +140,37 @@ serve(async (req) => {
     hasFbp: Boolean(body.user_data?.fbp),
   });
 
+  const eventValue = typeof customData.value === "number" ? customData.value : null;
+  const eventCurrency = typeof customData.currency === "string" ? customData.currency : null;
+  const eventNumItems = typeof customData.num_items === "number" ? customData.num_items : null;
+  const eventContentIds = Array.isArray(customData.content_ids)
+    ? customData.content_ids.map(String)
+    : null;
+  const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
+  const userAgent = req.headers.get("user-agent") || "";
+
   if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
     console.info("[meta-capi] missing META_ACCESS_TOKEN or META_PIXEL_ID - skipping event", {
       eventName,
     });
+    await logMetaEvent({
+      event_name: eventName,
+      event_id: body.event_id || null,
+      status: "skipped",
+      reason: "Missing META_ACCESS_TOKEN or META_PIXEL_ID",
+      value: eventValue,
+      currency: eventCurrency,
+      num_items: eventNumItems,
+      content_ids: eventContentIds,
+      has_email: Boolean(body.user_data?.email),
+      has_phone: Boolean(body.user_data?.phone),
+      event_source_url: body.event_source_url?.trim() || origin,
+      user_agent: userAgent,
+      ip_address: clientIp,
+    });
     return json({ ok: true, skipped: true }, 200, origin);
   }
 
-  const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
-  const userAgent = req.headers.get("user-agent") || "";
   const eventSourceUrl = body.event_source_url?.trim() || origin || req.url;
 
   const userData: Record<string, unknown> = {
@@ -163,21 +212,52 @@ serve(async (req) => {
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
     console.error("[meta-capi] event failed", { eventName, status: res.status, response: txt });
+    await logMetaEvent({
+      event_name: eventName,
+      event_id: body.event_id || null,
+      status: "failed",
+      reason: `HTTP ${res.status}: ${txt.slice(0, 500)}`,
+      value: eventValue,
+      currency: eventCurrency,
+      num_items: eventNumItems,
+      content_ids: eventContentIds,
+      has_email: Boolean(body.user_data?.email),
+      has_phone: Boolean(body.user_data?.phone),
+      event_source_url: eventSourceUrl,
+      user_agent: userAgent,
+      ip_address: clientIp,
+    });
     return json({ ok: false, error: "Failed to send event" }, 502, origin);
   }
 
   const metaResponse = await res.json().catch(() => null);
+  const responseSummary = summarizeMetaResponse(metaResponse) as { fbtrace_id?: string };
   console.info("[meta-capi] meta response summary", {
     eventName,
     eventId: body.event_id || null,
-    summary: summarizeMetaResponse(metaResponse),
+    summary: responseSummary,
   });
   console.info("[meta-capi] event sent", {
     eventName,
     eventId: body.event_id || null,
-    value: typeof customData.value === "number" ? customData.value : null,
-    numItems: typeof customData.num_items === "number" ? customData.num_items : null,
+    value: eventValue,
+    numItems: eventNumItems,
     metaResponse,
+  });
+  await logMetaEvent({
+    event_name: eventName,
+    event_id: body.event_id || null,
+    status: "sent",
+    value: eventValue,
+    currency: eventCurrency,
+    num_items: eventNumItems,
+    content_ids: eventContentIds,
+    has_email: Boolean(body.user_data?.email),
+    has_phone: Boolean(body.user_data?.phone),
+    event_source_url: eventSourceUrl,
+    fbtrace_id: responseSummary.fbtrace_id || null,
+    user_agent: userAgent,
+    ip_address: clientIp,
   });
   return json({ ok: true }, 200, origin);
 });
