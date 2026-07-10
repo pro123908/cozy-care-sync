@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.meta-track]
 verify_jwt = false
+
+[functions.order-delivered-email]
+verify_jwt = false
+
+[functions.send-order-push]
+verify_jwt = false

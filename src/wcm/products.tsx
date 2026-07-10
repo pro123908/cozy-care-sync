@@ -1040,29 +1040,6 @@ export function ProductDetail({
                 Inclusive of all taxes · Free delivery over Rs 2,000
               </div>
             </div>
-            <div
-              className="wcm-detail-stock-pill"
-              style={{
-                padding: "4px 10px",
-                borderRadius: 99,
-                background:
-                  product.stock === "In stock"
-                    ? "var(--pill-success-bg)"
-                    : product.stock === "Low stock"
-                      ? "var(--pill-warn-bg)"
-                      : "var(--pill-rose-bg)",
-                color:
-                  product.stock === "In stock"
-                    ? "var(--pill-success-fg)"
-                    : product.stock === "Low stock"
-                      ? "var(--pill-warn-fg)"
-                      : "var(--pill-rose-fg)",
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {Icons.dot} {product.stock}
-            </div>
           </Section>
           {isPolysling && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1155,24 +1132,21 @@ export function ProductDetail({
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {selectableOptions.map((option) => {
                   const isSelected = selectedSize === option.label;
-                  const isOOS = product.stock === "Out of stock";
                   return (
                     <button
                       key={option.label}
-                      onClick={() => !isOOS && setSelectedSize(option.label)}
-                      disabled={isOOS}
+                      onClick={() => setSelectedSize(option.label)}
                       style={{
                         padding: "7px 12px",
                         borderRadius: 10,
                         fontSize: 13,
                         fontWeight: 700,
-                        cursor: isOOS ? "not-allowed" : "pointer",
+                        cursor: "pointer",
                         border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
-                        background: isOOS ? "var(--bg-elev)" : isSelected ? "#ecfeff" : "var(--card)",
-                        color: isOOS ? "var(--ink-4)" : isSelected ? "#0f766e" : "var(--ink-3)",
-                        opacity: isOOS ? 0.5 : 1,
+                        background: isSelected ? "#ecfeff" : "var(--card)",
+                        color: isSelected ? "#0f766e" : "var(--ink-3)",
                         transition: "all .14s ease",
-                        boxShadow: isSelected && !isOOS ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
+                        boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 6,
@@ -1292,10 +1266,8 @@ export function ProductDetail({
               icon={Icons.cart}
               onClick={() => addToCart(product, qty, variantKey)}
               style={{ minHeight: 50 }}
-              disabled={product.stock === "Out of stock"}
             >
-              {product.stock === "Out of stock" ? "Out of stock" : inCart ? "Update cart" : "Add to cart"}
-              {product.stock !== "Out of stock" && ` · ${PKR(resolvedUnitPrice * qty)}`}
+              {inCart ? "Update cart" : "Add to cart"} · {PKR(resolvedUnitPrice * qty)}
             </Btn>
             <Btn
               variant="outline"
