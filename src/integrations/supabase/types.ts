@@ -108,6 +108,9 @@ export type Database = {
           event_name: string
           event_source_url: string | null
           fbtrace_id: string | null
+          geo_city: string | null
+          geo_country: string | null
+          geo_region: string | null
           has_email: boolean
           has_phone: boolean
           id: string
@@ -127,6 +130,9 @@ export type Database = {
           event_name: string
           event_source_url?: string | null
           fbtrace_id?: string | null
+          geo_city?: string | null
+          geo_country?: string | null
+          geo_region?: string | null
           has_email?: boolean
           has_phone?: boolean
           id?: string
@@ -146,6 +152,9 @@ export type Database = {
           event_name?: string
           event_source_url?: string | null
           fbtrace_id?: string | null
+          geo_city?: string | null
+          geo_country?: string | null
+          geo_region?: string | null
           has_email?: boolean
           has_phone?: boolean
           id?: string
@@ -192,6 +201,7 @@ export type Database = {
       orders: {
         Row: {
           address: string
+          city: string | null
           created_at: string
           customer_name: string | null
           email: string | null
@@ -213,6 +223,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          city?: string | null
           created_at?: string
           customer_name?: string | null
           email?: string | null
@@ -234,6 +245,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          city?: string | null
           created_at?: string
           customer_name?: string | null
           email?: string | null

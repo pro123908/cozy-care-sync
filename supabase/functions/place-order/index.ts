@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { resolveGeo } from "../_shared/geo.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,6 +131,9 @@ async function logMetaEvent(row: {
   fbtrace_id?: string | null;
   user_agent?: string | null;
   ip_address?: string | null;
+  geo_city?: string | null;
+  geo_region?: string | null;
+  geo_country?: string | null;
 }) {
   const { error } = await metaEventLogClient
     .from("meta_events")
@@ -178,6 +182,9 @@ async function sendMetaPurchaseEvent(input: {
   fbp?: string;
   userAgent: string;
   clientIp: string;
+  geoCity: string | null;
+  geoRegion: string | null;
+  geoCountry: string | null;
   eventSourceUrl: string;
 }) {
   const purchaseValue = Number(input.total.toFixed(2));
@@ -196,6 +203,9 @@ async function sendMetaPurchaseEvent(input: {
       currency: "PKR",
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
     });
     return;
   }
@@ -214,6 +224,9 @@ async function sendMetaPurchaseEvent(input: {
       currency: "PKR",
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
     });
     return;
   }
@@ -234,6 +247,9 @@ async function sendMetaPurchaseEvent(input: {
       content_ids: input.itemIds,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
     });
     return;
   }
@@ -269,6 +285,9 @@ async function sendMetaPurchaseEvent(input: {
       event_source_url: input.eventSourceUrl,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
     });
     return;
   }
@@ -336,6 +355,9 @@ async function sendMetaPurchaseEvent(input: {
       event_source_url: input.eventSourceUrl,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
     });
     return;
   }
@@ -368,6 +390,9 @@ async function sendMetaPurchaseEvent(input: {
     fbtrace_id: responseSummary.fbtrace_id || null,
     user_agent: input.userAgent,
     ip_address: input.clientIp,
+    geo_city: input.geoCity,
+    geo_region: input.geoRegion,
+    geo_country: input.geoCountry,
   });
 }
 
@@ -724,7 +749,16 @@ Deno.serve(async (req: Request) => {
 
   const subtotal = finalizedItems.reduce((sum, item) => sum + item.line_total, 0);
 
-  const shipping = subtotal === 0 ? 0 : subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  // Free delivery applies ONLY to Karachi addresses on orders at or above the
+  // threshold — everywhere else pays the flat fee. Keep this rule in sync with
+  // computeShipping() in the storefront (src/wcm/data.ts).
+  const isKarachiAddress = /karachi/i.test((ship.city ?? "").trim());
+  const shipping =
+    subtotal === 0
+      ? 0
+      : isKarachiAddress && subtotal >= FREE_SHIPPING_THRESHOLD
+        ? 0
+        : SHIPPING_COST;
 
   // Validate promo code if provided (it's optional — a missing/invalid code = no discount)
   const promoKey = promo_code?.trim().toUpperCase() ?? "";
@@ -758,6 +792,7 @@ Deno.serve(async (req: Request) => {
     status: "Order placed",
     progress: 0,
     address: `${ship.address}, ${ship.city}`,
+    city: ship.city?.trim() || null,
     phone: ship.phone,
     payment: pay,
     items: orderItems,
@@ -797,6 +832,7 @@ Deno.serve(async (req: Request) => {
   // ------------------------------------------------------------------
   const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
   const userAgent = req.headers.get("user-agent") || "";
+  const geo = await resolveGeo(clientIp);
   const eventSourceUrl = req.headers.get("origin") || req.url;
   const numItems = orderItems.reduce((sum, item) => sum + Math.max(1, Number(item.qty) || 1), 0);
   const itemIds = [...new Set(orderItems.map((item) => item.id).filter(Boolean))];
@@ -812,6 +848,9 @@ Deno.serve(async (req: Request) => {
     fbp: meta?.fbp,
     userAgent,
     clientIp,
+    geoCity: geo.geo_city,
+    geoRegion: geo.geo_region,
+    geoCountry: geo.geo_country,
     eventSourceUrl,
   });
 
@@ -829,6 +868,7 @@ Deno.serve(async (req: Request) => {
         customer_name: ship.name.trim(),
         landmark: ship.landmark?.trim() || null,
         address: `${ship.address}, ${ship.city}`,
+        city: ship.city?.trim() || null,
         phone: ship.phone,
         email: ship.email,
         payment: pay,

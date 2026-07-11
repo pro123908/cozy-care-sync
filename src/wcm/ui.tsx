@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import { Icons } from "./icons";
 import type { Product } from "./data";
 
@@ -488,6 +490,380 @@ export const TextField = ({ label, hint, error, ...rest }: TextFieldProps) => (
     {error && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-rose-fg)" }}>{error}</span>}
   </label>
 );
+
+export type SelectOption = {
+  value: string;
+  label: string;
+  // Optional per-option tint — when the selected option carries one, it's
+  // applied to the trigger too.
+  color?: { bg: string; color: string };
+};
+
+// Theme-aware dropdown (ported from the admin app) used instead of a native
+// <select> or datalist so styling stays consistent with the rest of the UI.
+// The trigger's box styling (padding/border/background) comes from `style`;
+// pass `full` to stretch it to the container width in form layouts, and
+// `searchable` to show a type-to-filter box above a fixed-height option list
+// (keeps long lists — e.g. cities — usable without endless scrolling).
+export function Select({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  full,
+  searchable,
+  searchPlaceholder = "Search…",
+  emptyLabel = "No matches",
+  style,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+  disabled?: boolean;
+  full?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
+  emptyLabel?: string;
+  style?: CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<MenuPosition | null>(null);
+  const [query, setQuery] = useState("");
+  const [highlight, setHighlight] = useState(0);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const highlightRef = useRef<HTMLButtonElement | null>(null);
+
+  const q = query.trim().toLowerCase();
+  const filtered =
+    searchable && q ? options.filter((opt) => opt.label.toLowerCase().includes(q)) : options;
+
+  // Position the menu as a fixed-position overlay anchored to the trigger. This
+  // keeps it out of any scrollable ancestor (e.g. the checkout form column), so
+  // opening it never grows that container's scroll area — and it flips above the
+  // trigger when there isn't enough room below.
+  const updatePosition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const width = rect.width;
+    const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const openUp = spaceBelow < 260 && spaceAbove > spaceBelow;
+    // Cap to the space on the chosen side so the menu never spills off-screen;
+    // its internal list scrolls if the options don't fit.
+    const maxHeight = Math.min(320, openUp ? spaceAbove : spaceBelow);
+    setPos({
+      left,
+      width,
+      maxHeight,
+      openUp,
+      top: openUp ? undefined : rect.bottom + 6,
+      bottom: openUp ? window.innerHeight - rect.top + 6 : undefined,
+    });
+  }, []);
+
+  // Close when clicking outside both the trigger and the (portaled) menu.
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [open]);
+
+  // On open: reset the search and start the highlight on the current value.
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      const idx = options.findIndex((opt) => opt.value === value);
+      setHighlight(idx >= 0 ? idx : 0);
+    } else {
+      setPos(null);
+    }
+  }, [open, options, value]);
+
+  // Measure position before paint (no flash), focus the search box, and keep the
+  // overlay anchored while the page/container scrolls or the window resizes.
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+    if (searchable) searchRef.current?.focus();
+    const handler = () => updatePosition();
+    window.addEventListener("scroll", handler, true);
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("scroll", handler, true);
+      window.removeEventListener("resize", handler);
+    };
+  }, [open, searchable, updatePosition]);
+
+  // Keep the highlighted option scrolled into view (open + arrow navigation).
+  useLayoutEffect(() => {
+    if (open) highlightRef.current?.scrollIntoView({ block: "nearest" });
+  }, [highlight, open, pos]);
+
+  const active = options.find((opt) => opt.value === value);
+
+  const choose = (opt?: SelectOption) => {
+    if (!opt) return;
+    onChange(opt.value);
+    setOpen(false);
+  };
+
+  const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlight((h) => Math.min(filtered.length - 1, h + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlight((h) => Math.max(0, h - 1));
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      choose(filtered[highlight]);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        position: "relative",
+        display: full ? "block" : "inline-block",
+        width: full ? "100%" : undefined,
+      }}
+    >
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => !disabled && setOpen((v) => !v)}
+        disabled={disabled}
+        style={{
+          ...style,
+          width: full ? "100%" : style?.width,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          fontFamily: "inherit",
+          cursor: disabled ? "default" : "pointer",
+          opacity: disabled ? 0.6 : 1,
+          ...(active?.color ? { background: active.color.bg, color: active.color.color } : {}),
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span
+          style={{
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: active || value ? undefined : "var(--ink-4)",
+          }}
+        >
+          {active?.label || value || placeholder || "Select"}
+        </span>
+        <span
+          style={{
+            display: "inline-flex",
+            flexShrink: 0,
+            color: "var(--ink-4)",
+            transition: "transform .16s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        >
+          {Icons.chevD}
+        </span>
+      </button>
+
+      {open &&
+        !disabled &&
+        pos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="listbox"
+            style={{
+              ...selectMenuStyle,
+              left: pos.left,
+              width: pos.width,
+              maxHeight: pos.maxHeight,
+              ...(pos.openUp ? { bottom: pos.bottom } : { top: pos.top }),
+            }}
+          >
+            {searchable && (
+            <div style={selectSearchWrapStyle}>
+              <input
+                ref={searchRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setHighlight(0);
+                }}
+                onKeyDown={onSearchKeyDown}
+                placeholder={searchPlaceholder}
+                style={selectSearchInputStyle}
+                aria-label={searchPlaceholder}
+              />
+            </div>
+          )}
+          <div style={selectListStyle}>
+            {filtered.length === 0 ? (
+              <div style={selectEmptyStyle}>{emptyLabel}</div>
+            ) : (
+              filtered.map((opt, i) => {
+                const isActive = opt.value === value;
+                const isHighlighted = i === highlight;
+                return (
+                  <button
+                    key={opt.value}
+                    ref={isHighlighted ? highlightRef : undefined}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    onMouseEnter={() => setHighlight(i)}
+                    onClick={() => choose(opt)}
+                    style={{
+                      ...selectOptionStyle,
+                      ...(isHighlighted ? highlightedSelectOptionStyle : {}),
+                      ...(isActive ? activeSelectOptionStyle : {}),
+                    }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      {opt.color && (
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: opt.color.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {opt.label}
+                      </span>
+                    </span>
+                    {isActive && <span style={{ flexShrink: 0 }}>{Icons.check}</span>}
+                  </button>
+                );
+              })
+            )}
+          </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
+type MenuPosition = {
+  left: number;
+  width: number;
+  maxHeight: number;
+  openUp: boolean;
+  top?: number;
+  bottom?: number;
+};
+
+const selectMenuStyle: CSSProperties = {
+  // Fixed-position overlay: left / top-or-bottom / width / maxHeight are supplied
+  // inline per-instance from the measured trigger rect (see updatePosition).
+  position: "fixed",
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
+  background: "var(--card)",
+  border: "1px solid var(--line)",
+  borderRadius: 10,
+  boxShadow: "var(--shadow-lg)",
+  zIndex: 1000,
+  boxSizing: "border-box",
+};
+
+const selectSearchWrapStyle: CSSProperties = {
+  padding: 8,
+  borderBottom: "1px solid var(--line)",
+  flexShrink: 0,
+};
+
+const selectSearchInputStyle: CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "8px 10px",
+  borderRadius: 8,
+  border: "1px solid var(--line)",
+  background: "var(--bg-elev, var(--card))",
+  color: "var(--ink)",
+  fontFamily: "inherit",
+  fontSize: 13,
+  outline: "none",
+};
+
+const selectListStyle: CSSProperties = {
+  overflowY: "auto",
+  overflowX: "hidden",
+  padding: 6,
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+};
+
+const selectEmptyStyle: CSSProperties = {
+  padding: "12px 10px",
+  fontSize: 13,
+  color: "var(--ink-4)",
+  textAlign: "center",
+};
+
+const selectOptionStyle: CSSProperties = {
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  color: "var(--ink)",
+  textAlign: "left",
+  fontSize: 13,
+  fontFamily: "inherit",
+  padding: "8px 10px",
+  borderRadius: 8,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  cursor: "pointer",
+};
+
+// Hover / keyboard-highlight state — a subtle background so it reads as
+// "focused" without competing with the selected option's stronger tint.
+const highlightedSelectOptionStyle: CSSProperties = {
+  background: "var(--chip)",
+};
+
+const activeSelectOptionStyle: CSSProperties = {
+  background: "var(--pill-info-bg)",
+  color: "var(--blue-700)",
+  fontWeight: 700,
+};
 
 export const Section = ({
   children,

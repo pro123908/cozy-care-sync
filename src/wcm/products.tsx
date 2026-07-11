@@ -6,6 +6,7 @@ import {
   getSelectableOptions,
   getUnitPrice,
   normalizeVariantOptions,
+  FREE_SHIPPING_THRESHOLD,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
@@ -517,15 +518,15 @@ export function ProductsPage({
           const p = products.find((pr) => pr.id === c.id);
           return p ? s + getUnitPrice(p, c.size) * c.qty : s;
         }, 0);
-        if (cartSubtotal <= 0 || cartSubtotal >= 2000) return null;
+        if (cartSubtotal <= 0 || cartSubtotal >= FREE_SHIPPING_THRESHOLD) return null;
         return (
           <div style={{ marginBottom: 14, padding: "9px 12px", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 5 }}>
-              <span>Add {PKR(2000 - cartSubtotal)} more for free delivery</span>
-              <span style={{ color: "var(--ink-4)" }}>{Math.round((cartSubtotal / 2000) * 100)}%</span>
+              <span>Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery in Karachi</span>
+              <span style={{ color: "var(--ink-4)" }}>{Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%</span>
             </div>
             <div style={{ height: 4, background: "var(--line)", borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${Math.round((cartSubtotal / 2000) * 100)}%`, background: "var(--grad)", borderRadius: 999, transition: "width .4s ease" }} />
+              <div style={{ height: "100%", width: `${Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%`, background: "var(--grad)", borderRadius: 999, transition: "width .4s ease" }} />
             </div>
           </div>
         );
@@ -1037,7 +1038,7 @@ export function ProductDetail({
                 className="wcm-detail-tax-note"
                 style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}
               >
-                Inclusive of all taxes · Free delivery over Rs 2,000
+                Inclusive of all taxes · Free delivery in Karachi over Rs 2,000
               </div>
             </div>
           </Section>

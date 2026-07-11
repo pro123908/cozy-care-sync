@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
 import { useWcm } from "@/wcm/context";
-import { getUnitPrice, type Order } from "@/wcm/data";
+import { getUnitPrice, computeShipping, type Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
@@ -39,7 +39,9 @@ function CheckoutPage() {
     (sum, item) => sum + getUnitPrice(item.p, item.size) * item.qty,
     0,
   );
-  const fallbackShipping = fallbackSubtotal === 0 ? 0 : fallbackSubtotal >= 2000 ? 0 : 250;
+  // City isn't known yet at this fallback stage — estimate against Karachi (the
+  // checkout default). CheckoutContent recomputes from the entered city.
+  const fallbackShipping = computeShipping(fallbackSubtotal, "Karachi");
   const fallbackTotal = fallbackSubtotal + fallbackShipping;
 
   const resolvedCheckoutData =

@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { PRODUCTS, PKR, getUnitPrice, type Product } from "./data";
+import {
+  PRODUCTS,
+  PKR,
+  getUnitPrice,
+  computeShipping,
+  isKarachiCity,
+  FREE_SHIPPING_THRESHOLD,
+  SHIPPING_COST,
+  PAKISTAN_CITIES,
+  type Product,
+} from "./data";
 import { Icons } from "./icons";
-import { ProductImage, Btn, TextField, Section, Row, useToasts } from "./ui";
+import { ProductImage, Btn, TextField, Section, Row, Select, useToasts } from "./ui";
+import type { SelectOption } from "./ui";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
 const MAX_QTY_PER_PRODUCT = 5;
+const CITY_OPTIONS: SelectOption[] = PAKISTAN_CITIES.map((city) => ({ value: city, label: city }));
 
 export type CheckoutData = {
   items: CartItem[];
@@ -51,7 +63,9 @@ export function CartDrawer({
     .map((c) => ({ ...c, p: catalog.find((p) => p.id === c.id) as Product }))
     .filter((x) => x.p);
   const subtotal = items.reduce((s, x) => s + getUnitPrice(x.p, x.size) * x.qty, 0);
-  const shipping = subtotal === 0 ? 0 : subtotal >= 2000 ? 0 : 250;
+  // The delivery city isn't known until checkout, so show the Karachi estimate
+  // here (the advertised offer). Checkout recomputes this from the entered city.
+  const shipping = computeShipping(subtotal, "Karachi");
   const total = subtotal + shipping;
   const update = (id: string, size: string | undefined, qty: number) =>
     setCart((c) =>
@@ -309,7 +323,7 @@ export function CartDrawer({
                 border: "1px solid var(--line)",
               }}
             >
-              {subtotal >= 2000 ? (
+              {subtotal >= FREE_SHIPPING_THRESHOLD ? (
                 <div
                   style={{
                     fontSize: 12,
@@ -318,7 +332,7 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  <span aria-hidden="true">🎉</span> Free delivery unlocked!
+                  <span aria-hidden="true">🎉</span> Free delivery in Karachi unlocked!
                 </div>
               ) : (
                 <div
@@ -329,7 +343,7 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  Add {PKR(2000 - subtotal)} more for free delivery
+                  Add {PKR(FREE_SHIPPING_THRESHOLD - subtotal)} more for free delivery in Karachi
                 </div>
               )}
               <div
@@ -343,8 +357,11 @@ export function CartDrawer({
                 <div
                   style={{
                     height: "100%",
-                    width: `${Math.min(100, Math.round((subtotal / 2000) * 100))}%`,
-                    background: subtotal >= 2000 ? "var(--pill-success-fg)" : "var(--grad)",
+                    width: `${Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100))}%`,
+                    background:
+                      subtotal >= FREE_SHIPPING_THRESHOLD
+                        ? "var(--pill-success-fg)"
+                        : "var(--grad)",
                     borderRadius: 999,
                     transition: "width .4s ease",
                   }}
@@ -438,7 +455,12 @@ export function CheckoutContent({
     }
   }, []);
   const discountAmt = Math.round(subtotal * discountPct);
-  const effectiveShipping = Math.max(0, shipping);
+  // Recompute delivery from the entered city so it stays in sync with what the
+  // server actually charges: free only for Karachi orders over the threshold.
+  // The `shipping` prop from the cart is just a pre-address estimate.
+  const effectiveShipping = computeShipping(subtotal, ship.city);
+  const freeDeliveryMissedForCity =
+    effectiveShipping > 0 && subtotal >= FREE_SHIPPING_THRESHOLD && !isKarachiCity(ship.city);
   const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt);
 
   const applyPromo = () => {
@@ -701,20 +723,50 @@ export function CheckoutContent({
                 className="wcm-form-2"
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
               >
-                <TextField
+                <div
                   id="field-city"
-                  label="City"
-                  list="city-suggestions"
-                  value={ship.city}
-                  onChange={(e) => setShip({ ...ship, city: e.target.value })}
-                  error={errs.city}
-                />
-                <datalist id="city-suggestions">
-                  <option value="Karachi" />
-                  <option value="Lahore" />
-                  <option value="Islamabad" />
-                  <option value="Rawalpindi" />
-                </datalist>
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: "var(--ink-3)",
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    City
+                  </span>
+                  <Select
+                    full
+                    searchable
+                    searchPlaceholder="Search city…"
+                    emptyLabel="No matching city"
+                    value={ship.city}
+                    placeholder="Select city"
+                    options={CITY_OPTIONS}
+                    onChange={(city) => {
+                      setShip({ ...ship, city });
+                      if (errs.city) setErrs({ ...errs, city: "" });
+                    }}
+                    style={{
+                      padding: "11px 14px",
+                      borderRadius: 11,
+                      border: `1px solid ${errs.city ? "#fda4af" : "var(--line)"}`,
+                      background: "var(--card)",
+                      color: "var(--ink)",
+                      fontSize: 14,
+                      boxShadow: errs.city ? "0 0 0 3px var(--pill-rose-bg)" : "none",
+                    }}
+                  />
+                  {errs.city && (
+                    <span
+                      style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-rose-fg)" }}
+                    >
+                      {errs.city}
+                    </span>
+                  )}
+                </div>
                 <TextField
                   label="Landmark (optional)"
                   value={ship.landmark}
@@ -728,6 +780,21 @@ export function CheckoutContent({
                   sub={`Across Pakistan via BlueEx · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
                   right={effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}
                 />
+                {freeDeliveryMissedForCity && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--blue-700)",
+                      background: "var(--pill-info-bg)",
+                      borderRadius: 10,
+                      padding: "8px 12px",
+                    }}
+                  >
+                    Free delivery is available on Karachi orders over {PKR(FREE_SHIPPING_THRESHOLD)}.
+                    A {PKR(SHIPPING_COST)} delivery fee applies to {ship.city.trim() || "this city"}.
+                  </div>
+                )}
               </div>
             </div>
           )}

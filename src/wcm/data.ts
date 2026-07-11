@@ -132,6 +132,60 @@ export function getDisplayPrice(product: Product): number {
   return Math.min(...options.map((option) => option.price));
 }
 
+// ---------------------------------------------------------------------------
+// Delivery / shipping rules
+//
+// Free delivery applies ONLY to Karachi addresses on orders at or above the
+// threshold — everywhere else pays the flat shipping fee. Keep this in sync
+// with the authoritative server-side calculation in the place-order edge
+// function (supabase/functions/place-order/index.ts), which is what actually
+// charges the customer.
+// ---------------------------------------------------------------------------
+
+export const FREE_SHIPPING_THRESHOLD = 2000;
+export const SHIPPING_COST = 250;
+
+/** True when the delivery city is Karachi (case/whitespace-insensitive). */
+export function isKarachiCity(city: string | null | undefined): boolean {
+  return /karachi/i.test((city ?? "").trim());
+}
+
+/** Delivery fee for a given subtotal and destination city. */
+export function computeShipping(subtotal: number, city?: string | null): number {
+  if (subtotal <= 0) return 0;
+  if (isKarachiCity(city) && subtotal >= FREE_SHIPPING_THRESHOLD) return 0;
+  return SHIPPING_COST;
+}
+
+// ---------------------------------------------------------------------------
+// Pakistan cities — used to populate the checkout city autocomplete. This is a
+// free-text field, so the list is only a suggestion set (typos still allowed).
+// Sorted alphabetically; covers all provinces plus AJK and Gilgit-Baltistan.
+// ---------------------------------------------------------------------------
+
+export const PAKISTAN_CITIES: string[] = [
+  "Abbottabad", "Ahmedpur East", "Alipur", "Arifwala", "Attock", "Badin",
+  "Bahawalnagar", "Bahawalpur", "Bannu", "Battagram", "Bhakkar", "Bhalwal",
+  "Bhera", "Bhimber", "Burewala", "Chaman", "Chakwal", "Charsadda",
+  "Chichawatni", "Chiniot", "Chishtian", "Dadu", "Daharki", "Dera Ghazi Khan",
+  "Dera Ismail Khan", "Daska", "Dinga", "Dipalpur", "Faisalabad", "Fateh Jang",
+  "Ghotki", "Gilgit", "Gojra", "Gujar Khan", "Gujranwala", "Gujrat",
+  "Hafizabad", "Hangu", "Haripur", "Haroonabad", "Hasilpur", "Haveli Lakha",
+  "Hyderabad", "Islamabad", "Jacobabad", "Jampur", "Jamshoro", "Jaranwala",
+  "Jhang", "Jhelum", "Kabirwala", "Kamalia", "Kamoke", "Karachi", "Kasur",
+  "Khairpur", "Khanewal", "Khanpur", "Kharian", "Khushab", "Khuzdar", "Kohat",
+  "Kot Addu", "Kotri", "Lahore", "Lakki Marwat", "Larkana", "Layyah",
+  "Lodhran", "Loralai", "Mandi Bahauddin", "Mansehra", "Mardan", "Mastung",
+  "Mianwali", "Mingora", "Mirpur", "Mirpur Khas", "Multan", "Muridke",
+  "Murree", "Muzaffarabad", "Muzaffargarh", "Narowal", "Nawabshah", "Nowshera",
+  "Okara", "Pakpattan", "Peshawar", "Pishin", "Quetta", "Rahim Yar Khan",
+  "Rajanpur", "Rawalpindi", "Sadiqabad", "Sahiwal", "Sanghar", "Sargodha",
+  "Sheikhupura", "Shikarpur", "Sialkot", "Sibi", "Skardu", "Sukkur", "Swabi",
+  "Swat", "Tando Adam", "Tando Allahyar", "Tando Muhammad Khan", "Taxila",
+  "Thatta", "Toba Tek Singh", "Turbat", "Vehari", "Wah Cantonment",
+  "Wazirabad", "Zhob",
+];
+
 function slugifySegment(value: string): string {
   return value
     .toLowerCase()

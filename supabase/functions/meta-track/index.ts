@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { resolveGeo } from "../_shared/geo.ts";
 
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
@@ -26,6 +27,9 @@ async function logMetaEvent(row: {
   fbtrace_id?: string | null;
   user_agent?: string | null;
   ip_address?: string | null;
+  geo_city?: string | null;
+  geo_region?: string | null;
+  geo_country?: string | null;
 }) {
   const { error } = await logClient.from("meta_events").insert({ source: "client-event", ...row });
   if (error) console.error("[meta-capi] failed to log event", error);
@@ -148,6 +152,7 @@ serve(async (req) => {
     : null;
   const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
   const userAgent = req.headers.get("user-agent") || "";
+  const geo = await resolveGeo(clientIp);
 
   if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
     console.info("[meta-capi] missing META_ACCESS_TOKEN or META_PIXEL_ID - skipping event", {
@@ -167,6 +172,9 @@ serve(async (req) => {
       event_source_url: body.event_source_url?.trim() || origin,
       user_agent: userAgent,
       ip_address: clientIp,
+      geo_city: geo.geo_city,
+      geo_region: geo.geo_region,
+      geo_country: geo.geo_country,
     });
     return json({ ok: true, skipped: true }, 200, origin);
   }
@@ -226,6 +234,9 @@ serve(async (req) => {
       event_source_url: eventSourceUrl,
       user_agent: userAgent,
       ip_address: clientIp,
+      geo_city: geo.geo_city,
+      geo_region: geo.geo_region,
+      geo_country: geo.geo_country,
     });
     return json({ ok: false, error: "Failed to send event" }, 502, origin);
   }
@@ -258,6 +269,9 @@ serve(async (req) => {
     fbtrace_id: responseSummary.fbtrace_id || null,
     user_agent: userAgent,
     ip_address: clientIp,
+    geo_city: geo.geo_city,
+    geo_region: geo.geo_region,
+    geo_country: geo.geo_country,
   });
   return json({ ok: true }, 200, origin);
 });
