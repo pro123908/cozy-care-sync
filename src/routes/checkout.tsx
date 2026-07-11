@@ -22,7 +22,7 @@ export const Route = createFileRoute("/checkout")({
 });
 
 function CheckoutPage() {
-  const { checkoutData, setCheckoutData, user, setCart, setOrders, push, cart, products } =
+  const { checkoutData, setCheckoutData, user, setCart, setOrders, push, cart, products, productsLoaded } =
     useWcm();
   const navigate = useNavigate();
 
@@ -57,6 +57,12 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (!resolvedCheckoutData || checkoutTrackedRef.current) return;
+    // When there's no explicit checkoutData (e.g. after a page reload), items and
+    // total are derived from the cart against the live product catalog. Wait for
+    // the real products to load first — otherwise we fire against the static
+    // placeholder catalog and capture a partial, zero-value snapshot, which the
+    // once-guard would then lock in.
+    if (!checkoutData && !productsLoaded) return;
 
     const itemIds = uniqueContentIds(
       resolvedCheckoutData.items.map(
@@ -95,7 +101,7 @@ function CheckoutPage() {
       },
     );
     checkoutTrackedRef.current = true;
-  }, [resolvedCheckoutData, user?.email]);
+  }, [resolvedCheckoutData, user?.email, checkoutData, productsLoaded]);
 
   const placeOrder = async (data: PlacedOrderData) => {
     setPlacing(true);
