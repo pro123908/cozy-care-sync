@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { PKR, getDisplayPrice, getSelectableOptions, type Category, type Product } from "./data";
 import { Icons } from "./icons";
@@ -382,13 +382,27 @@ export function ProductCard({
   cartQty: number;
   compact?: boolean;
 }) {
-  const { wishlist, toggleWishlist, setCart } = useWcm();
+  const { wishlist, toggleWishlist, setCart, addToCart } = useWcm();
   const getProductRatings = useProductRatings();
   const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
   const isInCart = cartQty > 0;
   const displayPrice = getDisplayPrice(p);
-  const hasSelectableOptions = getSelectableOptions(p).length > 0;
+  const selectableOptions = getSelectableOptions(p);
+  const hasSelectableOptions = selectableOptions.length > 0;
+  const [showSizePicker, setShowSizePicker] = useState(false);
+  const sizePickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showSizePicker) return;
+    const closeIfOutside = (e: MouseEvent) => {
+      if (sizePickerRef.current && !sizePickerRef.current.contains(e.target as Node)) {
+        setShowSizePicker(false);
+      }
+    };
+    document.addEventListener("mousedown", closeIfOutside);
+    return () => document.removeEventListener("mousedown", closeIfOutside);
+  }, [showSizePicker]);
   const resolvedReviewCount = reviewCount || p.reviews;
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
@@ -672,46 +686,117 @@ export function ProductCard({
               {Icons.minus}
             </button>
           )}
-          <button
-            className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (hasSelectableOptions) {
-                onOpen(p);
-                return;
+          <div ref={sizePickerRef} style={{ position: "relative" }}>
+            <button
+              className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (hasSelectableOptions) {
+                  setShowSizePicker((v) => !v);
+                  return;
+                }
+                onAdd(p);
+              }}
+              disabled={!hasSelectableOptions && cartQty >= 5}
+              aria-label={
+                hasSelectableOptions
+                  ? "Choose a size"
+                  : isInCart
+                    ? `Add one more to cart (currently ${cartQty})`
+                    : "Add to cart"
               }
-              onAdd(p);
-            }}
-            disabled={!hasSelectableOptions && cartQty >= 5}
-            aria-label={
-              hasSelectableOptions
-                ? "Choose options"
-                : isInCart
-                  ? `Add one more to cart (currently ${cartQty})`
-                  : "Add to cart"
-            }
-            title={
-              hasSelectableOptions ? "Choose options" : isInCart ? "Add one more" : "Add to cart"
-            }
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: compact ? 30 : 34,
-              height: compact ? 30 : 34,
-              borderRadius: 10,
-              border: "none",
-              cursor: "pointer",
-              background: "var(--grad)",
-              color: "#fff",
-              boxShadow: "0 6px 14px -6px rgba(37,99,235,.4)",
-              opacity: !hasSelectableOptions && cartQty >= 5 ? 0.5 : 1,
-              WebkitTapHighlightColor: "transparent",
-              touchAction: "manipulation",
-            }}
-          >
-            {Icons.plus}
-          </button>
+              title={
+                hasSelectableOptions ? "Choose a size" : isInCart ? "Add one more" : "Add to cart"
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: compact ? 30 : 34,
+                height: compact ? 30 : 34,
+                borderRadius: 10,
+                border: "none",
+                cursor: "pointer",
+                background: "var(--grad)",
+                color: "#fff",
+                boxShadow: "0 6px 14px -6px rgba(37,99,235,.4)",
+                opacity: !hasSelectableOptions && cartQty >= 5 ? 0.5 : 1,
+                WebkitTapHighlightColor: "transparent",
+                touchAction: "manipulation",
+              }}
+            >
+              {Icons.plus}
+            </button>
+            {showSizePicker && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: "absolute",
+                  bottom: "calc(100% + 8px)",
+                  right: 0,
+                  zIndex: 10,
+                  background: "var(--card)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 10,
+                  boxShadow: "var(--shadow)",
+                  padding: 5,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                  minWidth: 130,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "var(--ink-4)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    padding: "4px 8px 2px",
+                  }}
+                >
+                  Choose a size
+                </div>
+                {selectableOptions.map((opt) => (
+                  <button
+                    key={opt.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      addToCart(p, 1, opt.label);
+                      setShowSizePicker(false);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "7px 8px",
+                      borderRadius: 7,
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      fontSize: 12.5,
+                      fontWeight: 700,
+                      color: "var(--ink)",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "var(--chip)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    <span style={{ color: "var(--ink-4)", fontWeight: 600 }}>{PKR(opt.price)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

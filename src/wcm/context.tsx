@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type Dispatch,
   type SetStateAction,
@@ -426,9 +427,22 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
   const [cartOpen, setCartOpen] = useState(false);
 
+  // Guards against rapid repeat taps on "Add to cart" (the product page has
+  // both a main and a sticky CTA calling this, and a laggy in-app browser
+  // with no immediate feedback reliably gets double/triple-tapped) — without
+  // this, each extra tap both adds another unit silently and fires another
+  // duplicate AddToCart event to Meta.
+  const lastAddRef = useRef<Map<string, number>>(new Map());
+  const ADD_TO_CART_COOLDOWN_MS = 1500;
+
   const addToCart = (p: Product, qty = 1, size?: string) => {
     const normalizedSize =
       size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
+    const dedupeKey = `${p.id}::${normalizedSize || ""}`;
+    const now = Date.now();
+    if (now - (lastAddRef.current.get(dedupeKey) || 0) < ADD_TO_CART_COOLDOWN_MS) return;
+    lastAddRef.current.set(dedupeKey, now);
+
     const unitPrice = getUnitPrice(p, normalizedSize);
     const safeQty = Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, Number(qty) || 1));
     let addedQty = 0;

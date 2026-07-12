@@ -240,23 +240,56 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       className={`wcm-hero${imageOnlyBannerEnabled ? " wcm-hero-image-only" : ""}`}
     >
       <style>{`@keyframes wcmHeroFadeIn{from{opacity:0}to{opacity:1}}`}</style>
-      {imageOnlyBannerEnabled && (
-        <img
-          className="wcm-hero-image"
-          key={`hero-slide-${slideTick}-${active}`}
-          src={banner.imageUrl}
-          alt={banner.imageAlt || "Homepage banner"}
-          loading="eager"
-          decoding="async"
-          fetchPriority={active === 0 ? "high" : "auto"}
-          style={{
-            width: "100%",
-            height: "auto",
-            display: "block",
-            animation: "wcmHeroFadeIn .35s ease",
-          }}
-        />
-      )}
+      {imageOnlyBannerEnabled &&
+        (showImageCarouselArrows ? (
+          // Multiple real banners to cycle through — a horizontal track of every
+          // slide, shifted with `translateX` so one banner visibly slides out as
+          // the next slides in, instead of a single <img> being swapped/faded.
+          <div style={{ overflow: "hidden", width: "100%" }}>
+            <div
+              style={{
+                display: "flex",
+                width: `${banners.length * 100}%`,
+                transform: `translateX(-${(100 / banners.length) * active}%)`,
+                transition: "transform 0.55s cubic-bezier(0.65, 0, 0.35, 1)",
+              }}
+            >
+              {banners.map((b, i) => (
+                <img
+                  key={`${b.imageUrl}-${i}`}
+                  className="wcm-hero-image"
+                  src={b.imageUrl}
+                  alt={b.imageAlt || `Homepage banner ${i + 1}`}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority={i === 0 ? "high" : "auto"}
+                  style={{
+                    width: `${100 / banners.length}%`,
+                    height: "auto",
+                    display: "block",
+                    flexShrink: 0,
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <img
+            className="wcm-hero-image"
+            key={`hero-slide-${slideTick}-${active}`}
+            src={banner.imageUrl}
+            alt={banner.imageAlt || "Homepage banner"}
+            loading="eager"
+            decoding="async"
+            fetchPriority={active === 0 ? "high" : "auto"}
+            style={{
+              width: "100%",
+              height: "auto",
+              display: "block",
+              animation: "wcmHeroFadeIn .35s ease",
+            }}
+          />
+        ))}
       {showImageCarouselArrows && (
         <>
           <button
