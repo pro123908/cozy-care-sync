@@ -169,6 +169,7 @@ function AppLayout() {
     onSignOut,
     cart,
     setCart,
+    removeFromCart,
     cartOpen,
     setCartOpen,
     cartCount,
@@ -249,6 +250,7 @@ function AppLayout() {
           cart={cart}
           products={products}
           setCart={setCart}
+          onRemove={removeFromCart}
           onClose={() => setCartOpen(false)}
           onCheckout={goCheckout}
         />

@@ -4,6 +4,7 @@ import type { Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
 
@@ -61,6 +62,11 @@ function TrackOrderPage() {
       }
 
       setOrder(payload.order as Order);
+      trackMetaEvent("TrackOrderLookup", {
+        content_ids: [cleanOrderId],
+        content_name: cleanOrderId,
+        status: (payload.order as Order).status,
+      });
       navigate({
         to: "/track-order",
         search: {

@@ -75,6 +75,7 @@ type WcmContextType = {
   setCartOpen: (v: boolean) => void;
   cartCount: number;
   addToCart: (p: Product, qty?: number, size?: string) => void;
+  removeFromCart: (p: Product, qty: number, size?: string) => void;
   // Wishlist
   wishlist: string[];
   toggleWishlist: (id: string) => void;
@@ -494,6 +495,29 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const removeFromCart = (p: Product, qty: number, size?: string) => {
+    setCart((c) => c.filter((x) => !(x.id === p.id && x.size === size)));
+
+    const unitPrice = getUnitPrice(p, size);
+    trackMetaEvent(
+      "RemoveFromCart",
+      {
+        content_ids: [p.id],
+        content_name: p.name,
+        content_type: "product",
+        content_category: p.category_name || p.cat,
+        brand: p.brand,
+        num_items: qty,
+        contents: [{ id: p.id, quantity: qty, item_price: toMetaValue(unitPrice) }],
+        value: toMetaValue(unitPrice * qty),
+        currency: "PKR",
+      },
+      {
+        userData: { email: user?.email },
+      },
+    );
+  };
+
   const onSignOut = async () => {
     const supabase = await getSupabase();
     await supabase.auth.signOut();
@@ -631,6 +655,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         setCartOpen,
         cartCount,
         addToCart,
+        removeFromCart,
         wishlist,
         toggleWishlist,
         products,

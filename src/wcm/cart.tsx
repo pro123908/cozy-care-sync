@@ -44,6 +44,7 @@ export function CartDrawer({
   cart,
   products: liveProducts,
   setCart,
+  onRemove,
   onClose,
   onCheckout,
 }: {
@@ -51,6 +52,7 @@ export function CartDrawer({
   cart: CartLine[];
   products?: Product[];
   setCart: React.Dispatch<React.SetStateAction<CartLine[]>>;
+  onRemove: (p: Product, qty: number, size?: string) => void;
   onClose: () => void;
   onCheckout: (items: CartItem[], subtotal: number, shipping: number, total: number) => void;
 }) {
@@ -67,16 +69,20 @@ export function CartDrawer({
   // here (the advertised offer). Checkout recomputes this from the entered city.
   const shipping = computeShipping(subtotal, "Karachi");
   const total = subtotal + shipping;
-  const update = (id: string, size: string | undefined, qty: number) =>
+  const update = (id: string, size: string | undefined, qty: number) => {
+    if (qty <= 0) {
+      const item = items.find((x) => x.id === id && x.size === size);
+      if (item) onRemove(item.p, item.qty, item.size);
+      return;
+    }
     setCart((c) =>
-      qty <= 0
-        ? c.filter((x) => !(x.id === id && x.size === size))
-        : c.map((x) =>
-            x.id === id && x.size === size
-              ? { ...x, qty: Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, qty)) }
-              : x,
-          ),
+      c.map((x) =>
+        x.id === id && x.size === size
+          ? { ...x, qty: Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, qty)) }
+          : x,
+      ),
     );
+  };
 
   return (
     <>

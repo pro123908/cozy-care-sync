@@ -40,6 +40,7 @@ const ALLOWED_EVENTS = new Set([
   "PageView",
   "ViewContent",
   "AddToCart",
+  "RemoveFromCart",
   "InitiateCheckout",
   "AddPaymentInfo",
   "Purchase",
@@ -47,6 +48,7 @@ const ALLOWED_EVENTS = new Set([
   "AddToWishlist",
   "Contact",
   "CompleteRegistration",
+  "TrackOrderLookup",
 ]);
 
 type Body = {
