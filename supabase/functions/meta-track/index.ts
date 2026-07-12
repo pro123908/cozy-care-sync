@@ -21,6 +21,7 @@ async function logMetaEvent(row: {
   currency?: string | null;
   num_items?: number | null;
   content_ids?: string[] | null;
+  search_string?: string | null;
   has_email?: boolean;
   has_phone?: boolean;
   event_source_url?: string | null;
@@ -150,6 +151,8 @@ serve(async (req) => {
   const eventContentIds = Array.isArray(customData.content_ids)
     ? customData.content_ids.map(String)
     : null;
+  const eventSearchString =
+    typeof customData.search_string === "string" ? customData.search_string.slice(0, 500) : null;
   const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
   const userAgent = req.headers.get("user-agent") || "";
   const geo = await resolveGeo(clientIp);
@@ -167,6 +170,7 @@ serve(async (req) => {
       currency: eventCurrency,
       num_items: eventNumItems,
       content_ids: eventContentIds,
+      search_string: eventSearchString,
       has_email: Boolean(body.user_data?.email),
       has_phone: Boolean(body.user_data?.phone),
       event_source_url: body.event_source_url?.trim() || origin,
@@ -229,6 +233,7 @@ serve(async (req) => {
       currency: eventCurrency,
       num_items: eventNumItems,
       content_ids: eventContentIds,
+      search_string: eventSearchString,
       has_email: Boolean(body.user_data?.email),
       has_phone: Boolean(body.user_data?.phone),
       event_source_url: eventSourceUrl,
@@ -263,6 +268,7 @@ serve(async (req) => {
     currency: eventCurrency,
     num_items: eventNumItems,
     content_ids: eventContentIds,
+    search_string: eventSearchString,
     has_email: Boolean(body.user_data?.email),
     has_phone: Boolean(body.user_data?.phone),
     event_source_url: eventSourceUrl,

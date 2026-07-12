@@ -176,7 +176,7 @@ function WishlistPage() {
                     width: 30,
                     height: 30,
                     borderRadius: 99,
-                    background: "rgba(255,255,255,0.9)",
+                    background: "var(--card)",
                     border: "none",
                     cursor: "pointer",
                     display: "inline-flex",

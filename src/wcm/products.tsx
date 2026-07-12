@@ -415,9 +415,21 @@ export function ProductsPage({
           </label>
           <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
             {!productsLoaded ? (
-              <span style={{ display: "inline-block", width: 80, height: 14, borderRadius: 6, background: "var(--chip)", animation: "wcmPulse 1.4s ease infinite" }} />
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 80,
+                  height: 14,
+                  borderRadius: 6,
+                  background: "var(--chip)",
+                  animation: "wcmPulse 1.4s ease infinite",
+                }}
+              />
             ) : (
-              <>Showing {filtered.length === 0 ? 0 : pageStart + 1}–{Math.min(pageStart + PRODUCTS_PAGE_SIZE, filtered.length)} of {filtered.length}</>
+              <>
+                Showing {filtered.length === 0 ? 0 : pageStart + 1}–
+                {Math.min(pageStart + PRODUCTS_PAGE_SIZE, filtered.length)} of {filtered.length}
+              </>
             )}
           </span>
           <SortDropdown
@@ -431,7 +443,13 @@ export function ProductsPage({
       </div>
 
       {isMobile && mobileFiltersOpen && (
-        <div className="wcm-filter-sheet-overlay" onClick={() => setMobileFiltersOpen(false)} onKeyDown={(e) => { if (e.key === "Escape") setMobileFiltersOpen(false); }}>
+        <div
+          className="wcm-filter-sheet-overlay"
+          onClick={() => setMobileFiltersOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setMobileFiltersOpen(false);
+          }}
+        >
           <div className="wcm-filter-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="wcm-filter-sheet-head">
               <div style={{ fontWeight: 800, fontSize: 16 }}>Filters</div>
@@ -520,13 +538,49 @@ export function ProductsPage({
         }, 0);
         if (cartSubtotal <= 0 || cartSubtotal >= FREE_SHIPPING_THRESHOLD) return null;
         return (
-          <div style={{ marginBottom: 14, padding: "9px 12px", background: "var(--surface)", borderRadius: 10, border: "1px solid var(--line)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 5 }}>
-              <span>Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery in Karachi</span>
-              <span style={{ color: "var(--ink-4)" }}>{Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%</span>
+          <div
+            style={{
+              marginBottom: 14,
+              padding: "9px 12px",
+              background: "var(--surface)",
+              borderRadius: 10,
+              border: "1px solid var(--line)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "var(--text-2)",
+                marginBottom: 5,
+              }}
+            >
+              <span>
+                Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery in Karachi
+              </span>
+              <span style={{ color: "var(--ink-4)" }}>
+                {Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%
+              </span>
             </div>
-            <div style={{ height: 4, background: "var(--line)", borderRadius: 999, overflow: "hidden" }}>
-              <div style={{ height: "100%", width: `${Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%`, background: "var(--grad)", borderRadius: 999, transition: "width .4s ease" }} />
+            <div
+              style={{
+                height: 4,
+                background: "var(--line)",
+                borderRadius: 999,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%`,
+                  background: "var(--grad)",
+                  borderRadius: 999,
+                  transition: "width .4s ease",
+                }}
+              />
             </div>
           </div>
         );
@@ -551,7 +605,9 @@ export function ProductsPage({
           key={gridKey}
           style={{ padding: 32, textAlign: "center", animation: "fadeInUp 0.25s ease" }}
         >
-          <div className="wcm-empty-icon" role="img" aria-label="Search">🔎</div>
+          <div className="wcm-empty-icon" role="img" aria-label="Search">
+            🔎
+          </div>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Nothing matches right now</div>
           <div style={{ color: "var(--ink-4)", fontSize: 13, marginTop: 6 }}>
             Clear filters or try one of our fast-moving collections.
@@ -662,7 +718,7 @@ export function ProductsPage({
                     ...paginationBtnStyle,
                     minWidth: 40,
                     background: activePage ? "var(--ink)" : "var(--card)",
-                    color: activePage ? "#fff" : "var(--ink-2)",
+                    color: activePage ? "var(--card)" : "var(--ink-2)",
                     borderColor: activePage ? "var(--ink)" : "var(--line)",
                   }}
                 >
@@ -733,7 +789,8 @@ export function ProductDetail({
   cart: CartLine[];
   openProduct: (p: Product) => void;
 }) {
-  const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } = useWcm();
+  const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } =
+    useWcm();
   const getProductRatings = useProductRatings();
   const { average: userRating, count: reviewCount } = getProductRatings(product.id);
   const isMobile = useIsMobile();
@@ -1060,10 +1117,11 @@ export function ProductDetail({
                       cursor: "pointer",
                       border:
                         selectedAgeGroup === group
-                          ? "2px solid #0d9488"
+                          ? "2px solid var(--pill-teal-fg)"
                           : "1.5px solid var(--line)",
-                      background: selectedAgeGroup === group ? "#f0fdfa" : "var(--card)",
-                      color: selectedAgeGroup === group ? "#0f766e" : "var(--ink-3)",
+                      background:
+                        selectedAgeGroup === group ? "var(--pill-teal-bg)" : "var(--card)",
+                      color: selectedAgeGroup === group ? "var(--pill-teal-fg)" : "var(--ink-3)",
                       transition: "border-color .12s, background .12s, color .12s",
                     }}
                   >
@@ -1089,9 +1147,12 @@ export function ProductDetail({
                       fontSize: 13,
                       fontWeight: 700,
                       cursor: "pointer",
-                      border: selectedFit === fit ? "2px solid #0d9488" : "1.5px solid var(--line)",
-                      background: selectedFit === fit ? "#f0fdfa" : "var(--card)",
-                      color: selectedFit === fit ? "#0f766e" : "var(--ink-3)",
+                      border:
+                        selectedFit === fit
+                          ? "2px solid var(--pill-teal-fg)"
+                          : "1.5px solid var(--line)",
+                      background: selectedFit === fit ? "var(--pill-teal-bg)" : "var(--card)",
+                      color: selectedFit === fit ? "var(--pill-teal-fg)" : "var(--ink-3)",
                       transition: "border-color .12s, background .12s, color .12s",
                     }}
                   >
@@ -1143,9 +1204,11 @@ export function ProductDetail({
                         fontSize: 13,
                         fontWeight: 700,
                         cursor: "pointer",
-                        border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
-                        background: isSelected ? "#ecfeff" : "var(--card)",
-                        color: isSelected ? "#0f766e" : "var(--ink-3)",
+                        border: isSelected
+                          ? "2px solid var(--pill-teal-fg)"
+                          : "1px solid var(--line)",
+                        background: isSelected ? "var(--pill-teal-bg)" : "var(--card)",
+                        color: isSelected ? "var(--pill-teal-fg)" : "var(--ink-3)",
                         transition: "all .14s ease",
                         boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
                         display: "inline-flex",
@@ -1203,9 +1266,11 @@ export function ProductDetail({
                         fontSize: 13,
                         fontWeight: 700,
                         cursor: "pointer",
-                        border: isSelected ? "2px solid #0d9488" : "1px solid var(--line)",
-                        background: isSelected ? "#ecfeff" : "var(--card)",
-                        color: isSelected ? "#0f766e" : "var(--ink-3)",
+                        border: isSelected
+                          ? "2px solid var(--pill-teal-fg)"
+                          : "1px solid var(--line)",
+                        background: isSelected ? "var(--pill-teal-bg)" : "var(--card)",
+                        color: isSelected ? "var(--pill-teal-fg)" : "var(--ink-3)",
                         transition: "all .14s ease",
                         boxShadow: isSelected ? "0 6px 14px -10px rgba(13,148,136,.6)" : "none",
                         minWidth: 52,
@@ -1257,7 +1322,14 @@ export function ProductDetail({
               </button>
             </div>
             {qty >= 5 && (
-              <div style={{ fontSize: 12, color: "var(--pill-warn-fg)", fontWeight: 600, marginTop: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--pill-warn-fg)",
+                  fontWeight: 600,
+                  marginTop: 6,
+                }}
+              >
                 Max 5 units per order
               </div>
             )}

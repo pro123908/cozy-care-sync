@@ -1089,7 +1089,7 @@ function Header({
                               height: 18,
                               borderRadius: 99,
                               background: "var(--ink)",
-                              color: "#fff",
+                              color: "var(--card)",
                               fontSize: 10,
                               fontWeight: 800,
                               display: "inline-flex",

@@ -58,8 +58,8 @@ function CategoriesPage() {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: "#ecfeff",
-                color: "#0f766e",
+                background: "var(--pill-teal-bg)",
+                color: "var(--pill-teal-fg)",
               }}
             >
               {Icons.pkg}
@@ -159,7 +159,7 @@ function CategoriesPage() {
                   height: isMobile ? 112 : 128,
                   borderRadius: 999,
                   overflow: "hidden",
-                  border: "2px solid #ffffff",
+                  border: "2px solid var(--card)",
                   display: "inline-flex",
                   flexShrink: 0,
                   background: categoryImage ? "#ffffff" : "#e2e8f0",

@@ -345,7 +345,12 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
               <span
                 key={s}
                 style={{
-                  color: i === currentIdx ? "var(--blue-600)" : i < currentIdx ? "var(--ink-2)" : "var(--ink-4)",
+                  color:
+                    i === currentIdx
+                      ? "var(--blue-600)"
+                      : i < currentIdx
+                        ? "var(--ink-2)"
+                        : "var(--ink-4)",
                   fontWeight: i === currentIdx ? 800 : 600,
                   flex: 1,
                   textAlign: i === 0 ? "left" : i === STATUSES.length - 1 ? "right" : "center",
@@ -393,7 +398,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                         ? current
                           ? "var(--blue-600)"
                           : "var(--green-500)"
-                        : "#fff",
+                        : "var(--chip)",
                       border: done ? "none" : "2px solid var(--line)",
                       color: "#fff",
                       display: "inline-flex",
@@ -768,7 +773,7 @@ export function OrderDetail({
                         ? current
                           ? "var(--blue-600)"
                           : "var(--green-500)"
-                        : "#fff",
+                        : "var(--chip)",
                       border: done ? "none" : "2px solid var(--line)",
                       color: "#fff",
                       display: "inline-flex",
@@ -830,7 +835,7 @@ export function OrderDetail({
                           padding: "10px 12px",
                           borderRadius: 11,
                           background: "var(--blue-50)",
-                          border: "1px solid #dbeafe",
+                          border: "1px solid var(--blue-50)",
                           display: "flex",
                           alignItems: "center",
                           gap: 10,

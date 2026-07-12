@@ -62,8 +62,8 @@ function DealsPage() {
                 width: 36,
                 height: 36,
                 borderRadius: 10,
-                background: "#fef2f2",
-                color: "#dc2626",
+                background: "var(--pill-rose-bg)",
+                color: "var(--pill-rose-fg)",
               }}
             >
               {Icons.percent}
@@ -84,7 +84,7 @@ function DealsPage() {
             <p style={{ fontSize: 13, color: "var(--ink-4)", margin: 0 }}>
               {dealProducts.length} products on sale
               {dealProducts.length > 0 && (
-                <span style={{ color: "#dc2626", fontWeight: 700 }}>
+                <span style={{ color: "var(--pill-rose-fg)", fontWeight: 700 }}>
                   {" "}
                   · Save up to{" "}
                   {PKR(totalSaved > 0 ? Math.max(...dealProducts.map((p) => p.was! - p.price)) : 0)}

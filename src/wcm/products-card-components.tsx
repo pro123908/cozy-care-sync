@@ -106,7 +106,7 @@ export function CategoryRail({
                     height: 104,
                     borderRadius: 999,
                     overflow: "hidden",
-                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
+                    border: on ? "3px solid #0f766e" : "2px solid var(--card)",
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gridTemplateRows: "1fr 1fr",
@@ -144,7 +144,7 @@ export function CategoryRail({
                     height: 104,
                     borderRadius: 999,
                     overflow: "hidden",
-                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
+                    border: on ? "3px solid #0f766e" : "2px solid var(--card)",
                     display: "inline-flex",
                     flexShrink: 0,
                     background: "#ffffff",
@@ -178,7 +178,7 @@ export function CategoryRail({
                     width: 104,
                     height: 104,
                     borderRadius: 999,
-                    border: on ? "3px solid #0f766e" : "2px solid #ffffff",
+                    border: on ? "3px solid #0f766e" : "2px solid var(--card)",
                     background: "#e2e8f0",
                     display: "inline-flex",
                     alignItems: "center",
@@ -471,7 +471,10 @@ export function ProductCard({
               zIndex: 3,
               padding: compact ? "2px 7px" : "3px 8px",
               borderRadius: 99,
-              background: "var(--ink)",
+              // Fixed dark (not var(--ink), which flips to near-white in dark
+              // mode) — this floats over a product photo, so it needs to stay
+              // a dark pill with white text regardless of page theme.
+              background: "rgba(15, 23, 42, 0.9)",
               color: "#fff",
               fontSize: compact ? 10 : 11,
               fontWeight: 800,
@@ -536,7 +539,8 @@ export function ProductCard({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "var(--ink)",
+              // Same fixed-dark reasoning as the discount badge above.
+              background: "rgba(15, 23, 42, 0.9)",
               border: "1px solid rgba(255,255,255,.9)",
               color: "#fff",
               fontSize: compact ? 11 : 12,
@@ -918,8 +922,8 @@ export function DealsRail({
               width: 22,
               height: 22,
               borderRadius: 6,
-              background: "#fef2f2",
-              color: "#dc2626",
+              background: "var(--pill-rose-bg)",
+              color: "var(--pill-rose-fg)",
               flexShrink: 0,
             }}
           >

@@ -110,10 +110,10 @@ export function ProductPhoto({
 }
 
 const PRODUCT_PLACEHOLDER_PALETTES: Record<string, [string, string, string]> = {
-  emerald: ["var(--soft-green)", "#d1fae5", "#16a34a"],
-  sky: ["#eff6ff", "var(--pill-info-bg)", "#2563eb"],
-  rose: ["#fff1f2", "var(--pill-rose-bg)", "#e11d48"],
-  amber: ["#fffbeb", "var(--pill-warn-bg)", "#b45309"],
+  emerald: ["var(--soft-green)", "var(--pill-success-bg)", "var(--pill-success-fg)"],
+  sky: ["var(--blue-50)", "var(--pill-info-bg)", "var(--pill-info-fg)"],
+  rose: ["var(--rose-50)", "var(--pill-rose-bg)", "var(--pill-rose-fg)"],
+  amber: ["var(--amber-50)", "var(--pill-warn-bg)", "var(--pill-warn-fg)"],
   slate: ["var(--chip-2)", "var(--pill-slate-bg)", "var(--pill-slate-fg)"],
 };
 
@@ -185,7 +185,7 @@ export function ProductImageFallback({
           left: compact ? 6 : 10,
           padding: compact ? "2px 6px" : "3px 8px",
           borderRadius: 99,
-          background: "rgba(255,255,255,0.85)",
+          background: "color-mix(in srgb, var(--card) 85%, transparent)",
           fontSize: compact ? 9 : 10,
           fontWeight: 700,
           color: ink,
@@ -405,7 +405,7 @@ export const Btn = ({
       border: "none",
       boxShadow: "0 6px 16px -6px rgba(37,99,235,.45), 0 2px 4px rgba(22,163,74,.18)",
     },
-    solid: { background: "var(--ink)", color: "#fff", border: "none" },
+    solid: { background: "var(--ink)", color: "var(--bg)", border: "none" },
     ghost: { background: "transparent", color: "var(--ink-2)", border: "1px solid transparent" },
     soft: { background: "var(--chip)", color: "var(--ink-2)", border: "1px solid transparent" },
     outline: { background: "var(--card)", color: "var(--ink)", border: "1px solid var(--line)" },
@@ -466,7 +466,7 @@ export const TextField = ({ label, hint, error, ...rest }: TextFieldProps) => (
       style={{
         padding: "11px 14px",
         borderRadius: 11,
-        border: `1px solid ${error ? "var(--rose,#e11d48)" : "var(--line)"}`,
+        border: `1px solid ${error ? "var(--pill-rose-fg)" : "var(--line)"}`,
         background: "var(--card)",
         fontFamily: "inherit",
         fontSize: 14,
@@ -481,7 +481,7 @@ export const TextField = ({ label, hint, error, ...rest }: TextFieldProps) => (
         rest.onFocus?.(e);
       }}
       onBlur={(e) => {
-        e.currentTarget.style.borderColor = error ? "#fda4af" : "var(--line)";
+        e.currentTarget.style.borderColor = error ? "var(--pill-rose-fg)" : "var(--line)";
         e.currentTarget.style.boxShadow = error ? "0 0 0 3px var(--pill-rose-bg)" : "none";
         rest.onBlur?.(e);
       }}
@@ -892,10 +892,34 @@ const TOAST_TONES: Record<
   string,
   { accent: string; bg: string; iconBg: string; icon: React.ReactNode; border: string }
 > = {
-  green: { accent: "#16a34a", bg: "#fff", iconBg: "#f0fdf4", border: "#bbf7d0", icon: Icons.check },
-  red: { accent: "#dc2626", bg: "#fff", iconBg: "#fef2f2", border: "#fecaca", icon: Icons.close },
-  blue: { accent: "#2563eb", bg: "#fff", iconBg: "#eff6ff", border: "#bfdbfe", icon: Icons.bell },
-  amber: { accent: "#d97706", bg: "#fff", iconBg: "#fffbeb", border: "#fde68a", icon: Icons.bolt },
+  green: {
+    accent: "#16a34a",
+    bg: "var(--card)",
+    iconBg: "var(--pill-success-bg)",
+    border: "var(--pill-success-bg)",
+    icon: Icons.check,
+  },
+  red: {
+    accent: "#dc2626",
+    bg: "var(--card)",
+    iconBg: "var(--pill-rose-bg)",
+    border: "var(--pill-rose-bg)",
+    icon: Icons.close,
+  },
+  blue: {
+    accent: "#2563eb",
+    bg: "var(--card)",
+    iconBg: "var(--pill-info-bg)",
+    border: "var(--pill-info-bg)",
+    icon: Icons.bell,
+  },
+  amber: {
+    accent: "#d97706",
+    bg: "var(--card)",
+    iconBg: "var(--pill-warn-bg)",
+    border: "var(--pill-warn-bg)",
+    icon: Icons.bolt,
+  },
 };
 
 type Toast = { id: string; msg: string; tone: string; icon?: React.ReactNode; leaving?: boolean };

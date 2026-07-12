@@ -495,7 +495,9 @@ export function CheckoutContent({
     const firstKey = Object.keys(e)[0];
     if (firstKey) {
       window.setTimeout(() => {
-        document.getElementById(`field-${firstKey}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document
+          .getElementById(`field-${firstKey}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 50);
     }
     return Object.keys(e).length === 0;
@@ -635,7 +637,12 @@ export function CheckoutContent({
 
       <div
         className="wcm-checkout-cols"
-        style={{ display: "grid", gap: 0, flex: isMobile ? undefined : 1, overflow: isMobile ? undefined : "hidden" }}
+        style={{
+          display: "grid",
+          gap: 0,
+          flex: isMobile ? undefined : 1,
+          overflow: isMobile ? undefined : "hidden",
+        }}
       >
         <div style={{ padding: 24, overflowY: isMobile ? undefined : "auto" }}>
           {step === 1 && (
@@ -703,7 +710,10 @@ export function CheckoutContent({
                 id="field-email"
                 label="Email"
                 value={ship.email}
-                onChange={(e) => { setShip({ ...ship, email: e.target.value }); if (errs.email) setErrs({ ...errs, email: "" }); }}
+                onChange={(e) => {
+                  setShip({ ...ship, email: e.target.value });
+                  if (errs.email) setErrs({ ...errs, email: "" });
+                }}
                 onBlur={() => {
                   if (ship.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) {
                     setErrs((prev) => ({ ...prev, email: "Enter a valid email" }));
@@ -723,10 +733,7 @@ export function CheckoutContent({
                 className="wcm-form-2"
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}
               >
-                <div
-                  id="field-city"
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
+                <div id="field-city" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span
                     style={{
                       fontSize: 12,
@@ -752,7 +759,7 @@ export function CheckoutContent({
                     style={{
                       padding: "11px 14px",
                       borderRadius: 11,
-                      border: `1px solid ${errs.city ? "#fda4af" : "var(--line)"}`,
+                      border: `1px solid ${errs.city ? "var(--pill-rose-fg)" : "var(--line)"}`,
                       background: "var(--card)",
                       color: "var(--ink)",
                       fontSize: 14,
@@ -760,9 +767,7 @@ export function CheckoutContent({
                     }}
                   />
                   {errs.city && (
-                    <span
-                      style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-rose-fg)" }}
-                    >
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-rose-fg)" }}>
                       {errs.city}
                     </span>
                   )}
@@ -791,8 +796,9 @@ export function CheckoutContent({
                       padding: "8px 12px",
                     }}
                   >
-                    Free delivery is available on Karachi orders over {PKR(FREE_SHIPPING_THRESHOLD)}.
-                    A {PKR(SHIPPING_COST)} delivery fee applies to {ship.city.trim() || "this city"}.
+                    Free delivery is available on Karachi orders over {PKR(FREE_SHIPPING_THRESHOLD)}
+                    . A {PKR(SHIPPING_COST)} delivery fee applies to{" "}
+                    {ship.city.trim() || "this city"}.
                   </div>
                 )}
               </div>
@@ -1118,7 +1124,9 @@ export function CheckoutContent({
                   setPromoApplied(false);
                   setPromoErr("");
                 }}
-                onKeyDown={(e) => { if (e.key === "Enter" && !promoApplied && !promoLoading) applyPromo(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !promoApplied && !promoLoading) applyPromo();
+                }}
                 disabled={promoApplied || promoLoading}
                 style={{
                   width: "100%",
@@ -1135,12 +1143,26 @@ export function CheckoutContent({
                 }}
               />
               {promoErr && (
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pill-rose-fg)", marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--pill-rose-fg)",
+                    marginTop: 4,
+                  }}
+                >
                   {promoErr}
                 </div>
               )}
               {promoApplied && (
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--pill-success-fg)", marginTop: 4 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "var(--pill-success-fg)",
+                    marginTop: 4,
+                  }}
+                >
                   ✓ Applied!
                 </div>
               )}
@@ -1148,7 +1170,11 @@ export function CheckoutContent({
             <button
               onClick={
                 promoApplied
-                  ? () => { setPromoApplied(false); setPromo(""); setPromoErr(""); }
+                  ? () => {
+                      setPromoApplied(false);
+                      setPromo("");
+                      setPromoErr("");
+                    }
                   : applyPromo
               }
               disabled={promoLoading || (!promoApplied && !promo.trim())}
@@ -1160,7 +1186,8 @@ export function CheckoutContent({
                 color: promoApplied ? "var(--pill-success-fg)" : "var(--ink-2)",
                 fontWeight: 700,
                 fontSize: 13,
-                cursor: promoLoading || (!promoApplied && !promo.trim()) ? "not-allowed" : "pointer",
+                cursor:
+                  promoLoading || (!promoApplied && !promo.trim()) ? "not-allowed" : "pointer",
                 whiteSpace: "nowrap",
                 opacity: promoLoading || (!promoApplied && !promo.trim()) ? 0.6 : 1,
                 transition: "opacity .15s",
@@ -1243,7 +1270,7 @@ function DeliveryOption({
             height: 18,
             borderRadius: 99,
             border: selected ? "2px solid var(--green-600)" : "2px solid var(--line)",
-            background: selected ? "var(--green-600)" : "#fff",
+            background: selected ? "var(--green-600)" : "var(--card)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1290,7 +1317,7 @@ function PayOption({
         cursor: "pointer",
         textAlign: "left",
         fontFamily: "inherit",
-        boxShadow: selected ? "0 0 0 4px #ecfdf5" : "none",
+        boxShadow: selected ? "0 0 0 4px var(--pill-success-bg)" : "none",
         transition: "all .15s",
       }}
     >
@@ -1318,7 +1345,7 @@ function PayOption({
           height: 20,
           borderRadius: 99,
           border: selected ? "2px solid var(--green-600)" : "2px solid var(--line)",
-          background: selected ? "var(--green-600)" : "#fff",
+          background: selected ? "var(--green-600)" : "var(--card)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
