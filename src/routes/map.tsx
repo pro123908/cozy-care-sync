@@ -64,7 +64,7 @@ function MapPage() {
       >
         <iframe
           title="Wellcare Mart location map"
-          src="https://maps.google.com/maps?q=Lahore%20Pakistan&t=&z=13&ie=UTF8&iwloc=&output=embed"
+          src="https://maps.google.com/maps?q=Karachi%20Pakistan&t=&z=13&ie=UTF8&iwloc=&output=embed"
           width="100%"
           height="420"
           style={{ border: 0, display: "block" }}
@@ -75,7 +75,7 @@ function MapPage() {
 
       <div style={{ marginTop: 14, color: "var(--ink-3)", fontSize: 14, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>Wellcare Mart</div>
-        <div>Lahore, Pakistan</div>
+        <div>Karachi, Pakistan</div>
         <a
           href="https://www.google.com/maps"
           target="_blank"
