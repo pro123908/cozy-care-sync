@@ -17,6 +17,10 @@ type WebhookPayload = {
   type: string;
   table: string;
   record: OrdersRow;
+  // Optional override so non-order-insert callers (e.g. a WhatsApp
+  // cancellation-request flag) can send an arbitrary notification without
+  // needing an orders row shaped like a new order.
+  notification?: { title: string; body: string; url: string };
 };
 
 type PushSubscriptionRow = {
@@ -61,7 +65,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const order = payload.record;
-  if (!order) {
+  if (!order && !payload.notification) {
     return json({ skipped: true });
   }
 
@@ -84,12 +88,13 @@ Deno.serve(async (req: Request) => {
     return json({ skipped: true });
   }
 
-  const total = order.total ?? 0;
-  const notificationPayload = JSON.stringify({
-    title: `New order ${order.order_code}`,
-    body: `${order.customer_name || "A customer"} · Rs ${total.toLocaleString()}`,
-    url: `/orders?orderId=${order.id}`,
-  });
+  const notificationPayload = JSON.stringify(
+    payload.notification ?? {
+      title: `New order ${order.order_code}`,
+      body: `${order.customer_name || "A customer"} · Rs ${(order.total ?? 0).toLocaleString()}`,
+      url: `/orders?orderId=${order.id}`,
+    },
+  );
 
   const staleIds: string[] = [];
 

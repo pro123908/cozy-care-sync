@@ -60,6 +60,10 @@ const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const ORDER_NOTIFY_FROM = Deno.env.get("ORDER_NOTIFY_FROM") || "Well Care Mart <onboarding@resend.dev>";
 const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
+const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID") || "";
+const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN") || "";
+const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM") || "";
+const TWILIO_ORDER_CONFIRMATION_CONTENT_SID = Deno.env.get("TWILIO_ORDER_CONFIRMATION_CONTENT_SID") || "";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -561,6 +565,68 @@ async function sendOrderNotificationEmail(input: {
   }
 }
 
+function toTwilioWhatsAppAddress(rawPhone: string): string | null {
+  const digits = rawPhone.replace(/\D/g, "");
+  if (!digits) return null;
+  let national = digits;
+  if (national.startsWith("0")) national = national.slice(1);
+  if (!national.startsWith("92")) national = `92${national}`;
+  return `whatsapp:+${national}`;
+}
+
+// Business-initiated (the customer checked out on the website, not on
+// WhatsApp) — outside any open customer-service window, so this must use a
+// pre-approved Content Template rather than free-form Body. Templates can't
+// loop over a variable-length item list, so this only sends item count +
+// total rather than a per-item breakdown.
+async function sendWhatsAppOrderConfirmation(input: {
+  phone: string;
+  customerName: string;
+  orderId: string;
+  items: Array<{ id: string; qty: number; size?: string; unit_price: number }>;
+  total: number;
+  pay: string;
+  eta: string;
+}) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM || !TWILIO_ORDER_CONFIRMATION_CONTENT_SID) {
+    console.info("[whatsapp-confirmation] Twilio not fully configured - skipping");
+    return;
+  }
+  const to = toTwilioWhatsAppAddress(input.phone);
+  if (!to) return;
+
+  const itemCount = input.items.reduce((sum, item) => sum + item.qty, 0);
+  const body = new URLSearchParams({
+    From: TWILIO_WHATSAPP_FROM,
+    To: to,
+    ContentSid: TWILIO_ORDER_CONFIRMATION_CONTENT_SID,
+    ContentVariables: JSON.stringify({
+      "1": input.customerName || "there",
+      "2": input.orderId,
+      "3": String(itemCount),
+      "4": input.total.toLocaleString(),
+      "5": input.pay,
+      "6": input.eta,
+    }),
+  });
+
+  try {
+    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+    if (!res.ok) {
+      console.error("[whatsapp-confirmation] send failed", { status: res.status, body: await res.text().catch(() => "") });
+    }
+  } catch (err) {
+    console.error("[whatsapp-confirmation] send threw", err);
+  }
+}
+
 function normalizeSizeOptions(options?: SizeOption[] | null): SizeOption[] {
   if (!Array.isArray(options)) return [];
   const seen = new Set<string>();
@@ -816,6 +882,19 @@ Deno.serve(async (req: Request) => {
     subtotal,
     shipping,
     total,
+  });
+
+  // ------------------------------------------------------------------
+  // 5c. Send the customer a WhatsApp order confirmation (best-effort)
+  // ------------------------------------------------------------------
+  await sendWhatsAppOrderConfirmation({
+    phone: ship.phone,
+    customerName: ship.name.trim(),
+    orderId,
+    items: orderItems,
+    total,
+    pay,
+    eta: fmtDate(eta),
   });
 
   // ------------------------------------------------------------------
