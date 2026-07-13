@@ -1497,7 +1497,6 @@ export function ProductDetail({
               {[
                 { l: "Brand", v: product.brand },
                 { l: "Category", v: cat },
-                { l: "Warranty", v: "6 months brand" },
                 { l: "Returns", v: "7-day easy returns" },
               ].map((r) => (
                 <div
