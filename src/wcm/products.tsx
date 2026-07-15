@@ -1497,7 +1497,7 @@ export function ProductDetail({
               {[
                 { l: "Brand", v: product.brand },
                 { l: "Category", v: cat },
-                { l: "Returns", v: "7-day easy returns" },
+                { l: "Returns", v: "3-day easy returns" },
               ].map((r) => (
                 <div
                   key={r.l}
@@ -1517,7 +1517,7 @@ export function ProductDetail({
           <div className="wcm-product-badges">
             {[
               { i: Icons.shield, t: "100% authentic", s: "Direct from brands" },
-              { i: Icons.refresh, t: "7-day returns", s: "No questions asked" },
+              { i: Icons.refresh, t: "3-day returns", s: "No questions asked" },
             ].map((b) => (
               <div
                 key={b.t}
