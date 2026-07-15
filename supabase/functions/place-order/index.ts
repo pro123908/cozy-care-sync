@@ -60,10 +60,16 @@ const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
 const ORDER_NOTIFY_FROM = Deno.env.get("ORDER_NOTIFY_FROM") || "Well Care Mart <onboarding@resend.dev>";
 const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
-const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID") || "";
-const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN") || "";
-const TWILIO_WHATSAPP_FROM = Deno.env.get("TWILIO_WHATSAPP_FROM") || "";
-const TWILIO_ORDER_CONFIRMATION_CONTENT_SID = Deno.env.get("TWILIO_ORDER_CONFIRMATION_CONTENT_SID") || "";
+// WhatsApp order confirmations go out via Meta's WhatsApp Cloud API (migrated
+// off Twilio 2026-07-15 — the business number now lives on Cloud API, not a
+// BSP). Needs: the phone number's Cloud API ID, a token with
+// whatsapp_business_messaging, and an approved utility template whose body has
+// 6 positional variables in the order used by sendWhatsAppOrderConfirmation.
+const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
+const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
+const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation";
+const WHATSAPP_TEMPLATE_LANG = Deno.env.get("WHATSAPP_TEMPLATE_LANG") || "en";
+const WHATSAPP_GRAPH_VERSION = Deno.env.get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -565,20 +571,24 @@ async function sendOrderNotificationEmail(input: {
   }
 }
 
-function toTwilioWhatsAppAddress(rawPhone: string): string | null {
+// Cloud API wants the recipient as a bare international number (digits only,
+// country code included, no "+" and no "whatsapp:" prefix) — e.g. 923390104375.
+function toWhatsAppNumber(rawPhone: string): string | null {
   const digits = rawPhone.replace(/\D/g, "");
   if (!digits) return null;
   let national = digits;
   if (national.startsWith("0")) national = national.slice(1);
   if (!national.startsWith("92")) national = `92${national}`;
-  return `whatsapp:+${national}`;
+  return national;
 }
 
 // Business-initiated (the customer checked out on the website, not on
 // WhatsApp) — outside any open customer-service window, so this must use a
-// pre-approved Content Template rather than free-form Body. Templates can't
-// loop over a variable-length item list, so this only sends item count +
-// total rather than a per-item breakdown.
+// pre-approved template rather than a free-form message. The template's body
+// must have 6 positional variables ({{1}}..{{6}}) in exactly this order:
+//   1 customer name, 2 order id, 3 item count, 4 total, 5 payment, 6 eta.
+// Templates can't loop over a variable-length item list, so this sends item
+// count + total rather than a per-item breakdown.
 async function sendWhatsAppOrderConfirmation(input: {
   phone: string;
   customerName: string;
@@ -588,37 +598,50 @@ async function sendWhatsAppOrderConfirmation(input: {
   pay: string;
   eta: string;
 }) {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM || !TWILIO_ORDER_CONFIRMATION_CONTENT_SID) {
-    console.info("[whatsapp-confirmation] Twilio not fully configured - skipping");
+  if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_ACCESS_TOKEN) {
+    console.info("[whatsapp-confirmation] Cloud API not fully configured - skipping");
     return;
   }
-  const to = toTwilioWhatsAppAddress(input.phone);
+  const to = toWhatsAppNumber(input.phone);
   if (!to) return;
 
   const itemCount = input.items.reduce((sum, item) => sum + item.qty, 0);
-  const body = new URLSearchParams({
-    From: TWILIO_WHATSAPP_FROM,
-    To: to,
-    ContentSid: TWILIO_ORDER_CONFIRMATION_CONTENT_SID,
-    ContentVariables: JSON.stringify({
-      "1": input.customerName || "there",
-      "2": input.orderId,
-      "3": String(itemCount),
-      "4": input.total.toLocaleString(),
-      "5": input.pay,
-      "6": input.eta,
-    }),
-  });
+  const textParam = (text: string) => ({ type: "text", text });
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: WHATSAPP_TEMPLATE_NAME,
+      language: { code: WHATSAPP_TEMPLATE_LANG },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            textParam(input.customerName || "there"),
+            textParam(input.orderId),
+            textParam(String(itemCount)),
+            textParam(input.total.toLocaleString()),
+            textParam(input.pay),
+            textParam(input.eta),
+          ],
+        },
+      ],
+    },
+  };
 
   try {
-    const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`)}`,
-        "Content-Type": "application/x-www-form-urlencoded",
+    const res = await fetch(
+      `https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       },
-      body,
-    });
+    );
     if (!res.ok) {
       console.error("[whatsapp-confirmation] send failed", { status: res.status, body: await res.text().catch(() => "") });
     }
