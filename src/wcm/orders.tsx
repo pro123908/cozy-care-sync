@@ -7,11 +7,17 @@ import { getSupabase } from "@/integrations/supabase/client";
 
 const STATUSES = ["Order placed", "Order confirmed", "Processing", "Out for delivery", "Delivered"];
 
+// Same Facebook Page reviews link the order-delivered-email edge function
+// sends — supabase/functions/order-delivered-email/index.ts. Kept in sync
+// manually since the two run in different deploy targets.
+const FACEBOOK_REVIEW_URL = "https://www.facebook.com/profile.php?id=61564545159068&sk=reviews";
+
 function statusToStep(status: string): number {
   const map: Record<string, number> = {
     "Order placed": 0,
     "Order confirmed": 1,
     Processing: 2,
+    "Order packed": 2,
     // Backward compatibility for old status values still present in historical orders.
     Packed: 2,
     Shipped: 3,
@@ -20,6 +26,12 @@ function statusToStep(status: string): number {
     Cancelled: -1,
   };
   return map[status] ?? 0;
+}
+
+// The admin panel's "Order packed" status is an internal fulfillment step;
+// customers just see it as "Order processing" alongside the Processing status.
+function displayStatus(status: string): string {
+  return status === "Order packed" ? "Order processing" : status;
 }
 
 function statusTone(s: string) {
@@ -279,7 +291,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
             style={{ display: "flex", alignItems: "center", gap: 10 }}
           >
             <Pill tone={statusTone(order.status)}>
-              {Icons.dot} {order.status}
+              {Icons.dot} {displayStatus(order.status)}
             </Pill>
             <div style={{ fontWeight: 800, fontSize: 16 }}>{PKR(order.total)}</div>
           </div>
@@ -623,7 +635,7 @@ export function OrderDetail({
     const message = [
       "Hi support, I need help with my order.",
       `Order ID: ${order.id}`,
-      `Status: ${order.status}`,
+      `Status: ${displayStatus(order.status)}`,
       `Placed: ${order.placed}`,
       `Payment: ${order.payment}`,
       `Total: ${PKR(order.total)}`,
@@ -717,7 +729,7 @@ export function OrderDetail({
         </div>
         <div className="wcm-order-detail-status-pill">
           <Pill tone={statusTone(order.status)}>
-            {Icons.dot} {order.status}
+            {Icons.dot} {displayStatus(order.status)}
           </Pill>
         </div>
       </div>
@@ -1224,49 +1236,77 @@ export function OrderDetail({
                           <div
                             style={{
                               display: "flex",
-                              gap: 4,
-                              alignItems: "center",
-                              flexWrap: "wrap",
+                              flexDirection: "column",
+                              gap: 8,
+                              width: "100%",
+                              maxWidth: 360,
                             }}
                           >
-                            <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                              {[1, 2, 3, 4, 5].map((s) => (
-                                <button
-                                  key={s}
-                                  onMouseEnter={() => setReviewHover(s)}
-                                  onMouseLeave={() => setReviewHover(0)}
-                                  onClick={() => setReviewRating(s)}
-                                  style={{
-                                    background: "none",
-                                    border: "none",
-                                    cursor: "pointer",
-                                    padding: 0,
-                                    lineHeight: 1,
-                                    transition: "transform .1s",
-                                    transform:
-                                      s <= (reviewHover || reviewRating)
-                                        ? "scale(1.1)"
-                                        : "scale(1)",
-                                  }}
-                                >
-                                  <svg
-                                    width={18}
-                                    height={18}
-                                    viewBox="0 0 24 24"
-                                    fill={
-                                      s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"
-                                    }
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 4,
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
+                                {[1, 2, 3, 4, 5].map((s) => (
+                                  <button
+                                    key={s}
+                                    onMouseEnter={() => setReviewHover(s)}
+                                    onMouseLeave={() => setReviewHover(0)}
+                                    onClick={() => setReviewRating(s)}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      cursor: "pointer",
+                                      padding: 0,
+                                      lineHeight: 1,
+                                      transition: "transform .1s",
+                                      transform:
+                                        s <= (reviewHover || reviewRating)
+                                          ? "scale(1.1)"
+                                          : "scale(1)",
+                                    }}
                                   >
-                                    <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
-                                  </svg>
-                                </button>
-                              ))}
+                                    <svg
+                                      width={18}
+                                      height={18}
+                                      viewBox="0 0 24 24"
+                                      fill={
+                                        s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"
+                                      }
+                                    >
+                                      <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
+                                    </svg>
+                                  </button>
+                                ))}
+                              </div>
+                              {reviewRating > 0 && (
+                                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                                  {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
+                                </span>
+                              )}
                             </div>
-                            {reviewRating > 0 && (
-                              <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                                {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
-                              </span>
-                            )}
+                            <textarea
+                              value={reviewComment}
+                              onChange={(e) => setReviewComment(e.target.value)}
+                              placeholder="Add a comment (optional)"
+                              rows={2}
+                              style={{
+                                width: "100%",
+                                boxSizing: "border-box",
+                                resize: "vertical",
+                                border: "1px solid var(--line)",
+                                borderRadius: 8,
+                                padding: "6px 8px",
+                                fontSize: 12,
+                                fontFamily: "inherit",
+                                background: "var(--card)",
+                                color: "var(--ink)",
+                              }}
+                            />
                             <div style={{ display: "flex", gap: 3 }}>
                               <button
                                 onClick={() => {
@@ -1478,6 +1518,16 @@ export function OrderDetail({
                 Cancel order
               </Btn>
             ))}
+          {order.status === "Delivered" && (
+            <Btn
+              variant="solid"
+              icon={Icons.facebook}
+              onClick={() => window.open(FACEBOOK_REVIEW_URL, "_blank", "noopener,noreferrer")}
+              style={{ background: "#1877F2", color: "#fff" }}
+            >
+              Rate us on Facebook
+            </Btn>
+          )}
           <Btn icon={Icons.phone} onClick={handleContactSupport}>
             Contact support
           </Btn>
