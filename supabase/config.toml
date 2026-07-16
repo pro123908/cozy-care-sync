@@ -23,3 +23,8 @@ verify_jwt = false
 
 [functions.product-feed]
 verify_jwt = false
+
+# Meta calls this webhook directly and can't send an Authorization header —
+# it's protected by the hub.verify_token handshake instead.
+[functions.whatsapp-inbound]
+verify_jwt = false
