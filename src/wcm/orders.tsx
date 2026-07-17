@@ -724,7 +724,7 @@ export function OrderDetail({
               ? "Delivered on " + order.eta
               : order.status === "Cancelled"
                 ? "Order cancelled"
-                : "Arriving by " + order.eta}
+                : "We're on it!"}
           </h1>
         </div>
         <div className="wcm-order-detail-status-pill">
