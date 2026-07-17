@@ -28,6 +28,7 @@ type SizeOption = { size: string; price: number };
 type VariantOption = { name: string; price: number };
 type ProductRow = {
   id: string;
+  name: string;
   price: number;
   active: boolean;
   stock: string;
@@ -64,7 +65,11 @@ const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
 // off Twilio 2026-07-15 — the business number now lives on Cloud API, not a
 // BSP). Needs: the phone number's Cloud API ID, a token with
 // whatsapp_business_messaging, and an approved utility template whose body has
-// 6 positional variables in the order used by sendWhatsAppOrderConfirmation.
+// 7 positional variables in the order used by sendWhatsAppOrderConfirmation.
+// NOTE: the default "order_confirmation" template only has 6 vars (no
+// items-summary slot) — WHATSAPP_TEMPLATE_NAME must be set to
+// "order_confirmation_final" (7 vars, approved 2026-07-17) via secret, or
+// sends will fail with a parameter-count mismatch.
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation";
@@ -582,18 +587,33 @@ function toWhatsAppNumber(rawPhone: string): string | null {
   return national;
 }
 
+// WhatsApp templates can't loop over a variable-length item list, so a
+// human-readable one-line summary ("2x Foo, 1x Bar") is built here instead of
+// sending a per-item breakdown. Capped at 3 named items so the message stays
+// short and readable even for large orders.
+function buildItemsSummary(
+  items: Array<{ id: string; qty: number }>,
+  productMap: Map<string, ProductRow>,
+): string {
+  const MAX_NAMED = 3;
+  const named = items.map((item) => `${item.qty}x ${productMap.get(item.id)?.name || item.id}`);
+  if (named.length <= MAX_NAMED) return named.join(", ");
+  const remaining = named.length - MAX_NAMED;
+  return `${named.slice(0, MAX_NAMED).join(", ")} and ${remaining} more item${remaining === 1 ? "" : "s"}`;
+}
+
 // Business-initiated (the customer checked out on the website, not on
 // WhatsApp) — outside any open customer-service window, so this must use a
 // pre-approved template rather than a free-form message. The template's body
-// must have 6 positional variables ({{1}}..{{6}}) in exactly this order:
-//   1 customer name, 2 order id, 3 item count, 4 total, 5 payment, 6 eta.
-// Templates can't loop over a variable-length item list, so this sends item
-// count + total rather than a per-item breakdown.
+// must have 7 positional variables ({{1}}..{{7}}) in exactly this order:
+//   1 customer name, 2 order id, 3 item count, 4 items summary, 5 total,
+//   6 payment, 7 eta.
 async function sendWhatsAppOrderConfirmation(input: {
   phone: string;
   customerName: string;
   orderId: string;
   items: Array<{ id: string; qty: number; size?: string; unit_price: number }>;
+  itemsSummary: string;
   total: number;
   pay: string;
   eta: string;
@@ -621,6 +641,7 @@ async function sendWhatsAppOrderConfirmation(input: {
             textParam(input.customerName || "there"),
             textParam(input.orderId),
             textParam(String(itemCount)),
+            textParam(input.itemsSummary),
             textParam(input.total.toLocaleString()),
             textParam(input.pay),
             textParam(input.eta),
@@ -763,7 +784,7 @@ Deno.serve(async (req: Request) => {
   const productIds = [...new Set(items.map((i) => i.id))];
   const { data: products, error: productsErr } = await serviceClient
     .from("products")
-    .select("id, price, active, stock, size_options, variant_options")
+    .select("id, name, price, active, stock, size_options, variant_options")
     .in("id", productIds);
 
   if (productsErr || !products) {
@@ -915,6 +936,7 @@ Deno.serve(async (req: Request) => {
     customerName: ship.name.trim(),
     orderId,
     items: orderItems,
+    itemsSummary: buildItemsSummary(orderItems, productMap),
     total,
     pay,
     eta: fmtDate(eta),
