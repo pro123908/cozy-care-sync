@@ -65,11 +65,12 @@ const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
 // off Twilio 2026-07-15 — the business number now lives on Cloud API, not a
 // BSP). Needs: the phone number's Cloud API ID, a token with
 // whatsapp_business_messaging, and an approved utility template whose body has
-// 7 positional variables in the order used by sendWhatsAppOrderConfirmation.
-// NOTE: the default "order_confirmation" template only has 6 vars (no
-// items-summary slot) — WHATSAPP_TEMPLATE_NAME must be set to
-// "order_confirmation_final" (7 vars, approved 2026-07-17) via secret, or
-// sends will fail with a parameter-count mismatch.
+// 6 positional variables in the order used by sendWhatsAppOrderConfirmation.
+// NOTE: the default "order_confirmation" template's 6 vars are ordered
+// differently (no items-summary slot, has an eta slot instead) —
+// WHATSAPP_TEMPLATE_NAME must be set to "order_confirmation_final" (approved
+// 2026-07-17, adds items-summary + drops eta) via secret, or sends will
+// mismatch against whichever template is actually live.
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation";
@@ -605,9 +606,11 @@ function buildItemsSummary(
 // Business-initiated (the customer checked out on the website, not on
 // WhatsApp) — outside any open customer-service window, so this must use a
 // pre-approved template rather than a free-form message. The template's body
-// must have 7 positional variables ({{1}}..{{7}}) in exactly this order:
+// must have 6 positional variables ({{1}}..{{6}}) in exactly this order:
 //   1 customer name, 2 order id, 3 item count, 4 items summary, 5 total,
-//   6 payment, 7 eta.
+//   6 payment. No ETA var — order_confirmation_final's approved body has
+// no delivery-estimate slot (matches the ETA-promise removal elsewhere,
+// see commit c5eb332).
 async function sendWhatsAppOrderConfirmation(input: {
   phone: string;
   customerName: string;
@@ -616,7 +619,6 @@ async function sendWhatsAppOrderConfirmation(input: {
   itemsSummary: string;
   total: number;
   pay: string;
-  eta: string;
 }) {
   if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_ACCESS_TOKEN) {
     console.info("[whatsapp-confirmation] Cloud API not fully configured - skipping");
@@ -644,7 +646,6 @@ async function sendWhatsAppOrderConfirmation(input: {
             textParam(input.itemsSummary),
             textParam(input.total.toLocaleString()),
             textParam(input.pay),
-            textParam(input.eta),
           ],
         },
       ],
@@ -939,7 +940,6 @@ Deno.serve(async (req: Request) => {
     itemsSummary: buildItemsSummary(orderItems, productMap),
     total,
     pay,
-    eta: fmtDate(eta),
   });
 
   // ------------------------------------------------------------------
