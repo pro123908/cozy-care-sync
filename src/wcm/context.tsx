@@ -140,6 +140,68 @@ export function useProductRatings() {
   );
 }
 
+export type PublicProductReview = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+};
+
+// Public, cross-customer reviews for a single product — distinct from
+// useProductRatings above, which only ever reflects the signed-in user's
+// *own* past reviews (order_reviews RLS previously only granted SELECT to a
+// review's author or an admin). Requires the "Anyone can read approved
+// reviews" policy (status = 'approved') added alongside this hook.
+export function usePublicProductReviews(productId: string | undefined) {
+  const [reviews, setReviews] = useState<PublicProductReview[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!productId) {
+      setReviews([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from("order_reviews")
+        // status isn't in the generated Database type yet (codegen predates
+        // the moderation migration) — select it by name anyway, the column
+        // exists in production.
+        .select("id, rating, comment, created_at, status")
+        .eq("product_id", productId)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      setLoading(false);
+      if (error || !data) {
+        setReviews([]);
+        return;
+      }
+      setReviews(
+        (data as unknown as PublicProductReview[]).map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          comment: r.comment,
+          created_at: r.created_at,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
+
+  const count = reviews.length;
+  const average =
+    count === 0 ? 0 : Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / count) * 2) / 2;
+
+  return { reviews, loading, average, count };
+}
+
 export function WcmProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<string>("light");
   useEffect(() => {
@@ -288,6 +350,34 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       }
       reviewMap[r.order_code][r.product_id] = { rating: r.rating, comment: r.comment || "" };
     }
+
+    // RLS scopes this to the customer's own orders (courier_bookings "Customers
+    // can read their own courier bookings" policy) — safe to request every
+    // order code here, ownership is enforced server-side either way.
+    type CourierInfo = {
+      trackingNumber: string;
+      status: string;
+      statusHistory: Array<{ status: string; statusWithCity: string; at: string }> | null;
+    };
+    const courierMap: Record<string, CourierInfo> = {};
+    if (mergedOrders.length > 0) {
+      const { data: courierRows } = await supabase
+        .from("courier_bookings")
+        .select("order_id, tracking_number, status, status_history, synced_at")
+        .in("order_id", mergedOrders.map((o) => o.order_code))
+        .order("synced_at", { ascending: true });
+      // Rows are ascending by synced_at, so the last write per order_id wins —
+      // i.e. the most recently synced booking (handles re-booked orders that
+      // have more than one courier_bookings row).
+      for (const c of courierRows || []) {
+        courierMap[c.order_id as string] = {
+          trackingNumber: c.tracking_number,
+          status: c.status,
+          statusHistory: c.status_history as Array<{ status: string; statusWithCity: string; at: string }> | null,
+        };
+      }
+    }
+
     setOrders(
       mergedOrders.map((r: Database["public"]["Tables"]["orders"]["Row"]) => ({
         id: r.order_code,
@@ -304,6 +394,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         total: r.total,
         rider: (r.rider as { name?: string; phone?: string } | undefined) || undefined,
         product_reviews: reviewMap[r.order_code] || {},
+        courier: courierMap[r.order_code] || null,
       })),
     );
   }, []);
