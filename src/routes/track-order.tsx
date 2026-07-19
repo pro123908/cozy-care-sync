@@ -45,6 +45,10 @@ function TrackOrderPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Deep-linked (orderId+phone, or packed t=) arrivals auto-submit on mount —
+  // don't flash the editable form while that lookup is in flight, only show
+  // it if the auto-lookup actually fails (so the user can correct/retry).
+  const [autoLookingUp, setAutoLookingUp] = useState(Boolean(initialOrderId && initialPhone));
 
   const lookupOrder = async (nextOrderId: string, nextPhone: string) => {
     const cleanOrderId = nextOrderId.trim().toUpperCase();
@@ -101,7 +105,7 @@ function TrackOrderPage() {
 
   useEffect(() => {
     if (!initialOrderId || !initialPhone) return;
-    void lookupOrder(initialOrderId, initialPhone);
+    void lookupOrder(initialOrderId, initialPhone).finally(() => setAutoLookingUp(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -114,7 +118,9 @@ function TrackOrderPage() {
         </p>
       </div>
 
-      {!order && (
+      {autoLookingUp && !order && <WellcareLoader label="Loading your order" />}
+
+      {!autoLookingUp && !order && (
         <div
           style={{
             background: "var(--card)",
