@@ -672,23 +672,25 @@ export function OrderDetail({
     order.status === "Delivered" && items.some(({ p }) => !productReviews[p.id]);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <button
-        onClick={onClose}
-        style={{
-          background: "none",
-          border: "none",
-          color: "var(--ink-3)",
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          fontSize: 13,
-          fontWeight: 600,
-          padding: 0,
-        }}
-      >
-        {Icons.chevL} Back to orders
-      </button>
+      {!guestPhone && (
+        <button
+          onClick={onClose}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--ink-3)",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            padding: 0,
+          }}
+        >
+          {Icons.chevL} Back to orders
+        </button>
+      )}
 
       <div
         className="wcm-order-detail-head"
@@ -957,6 +959,11 @@ export function OrderDetail({
                 {Icons.pin}
               </div>
               <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>
+                {order.customerName && (
+                  <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
+                    {order.customerName}
+                  </div>
+                )}
                 {order.address}
               </div>
             </div>

@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
   const { data: row, error } = await supabase
     .from("orders")
     .select(
-      "order_code, placed, eta, status, progress, address, payment, items, subtotal, shipping, total, rider, phone, user_id",
+      "order_code, placed, eta, status, progress, address, customer_name, payment, items, subtotal, shipping, total, rider, phone, user_id",
     )
     .eq("order_code", orderId)
     .maybeSingle();
@@ -117,6 +117,7 @@ Deno.serve(async (req: Request) => {
         status: row.status,
         progress: row.progress,
         address: row.address,
+        customerName: row.customer_name,
         payment: row.payment,
         items: row.items,
         subtotal: row.subtotal,

@@ -386,6 +386,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         status: r.status,
         progress: r.progress,
         address: r.address,
+        customerName: r.customer_name || undefined,
         payment: r.payment,
         items:
           (r.items as Array<{ id: string; qty: number; size?: string; unit_price?: number }>) || [],

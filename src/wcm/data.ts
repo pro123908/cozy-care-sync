@@ -2568,6 +2568,7 @@ export type Order = {
   status: string;
   progress: number;
   address: string;
+  customerName?: string;
   payment: string;
   items: OrderItem[];
   subtotal: number;
