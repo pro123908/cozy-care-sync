@@ -8,10 +8,22 @@ import { trackMetaEvent } from "@/lib/meta-pixel";
 
 const OrderDetail = lazy(() => import("@/wcm/orders").then((m) => ({ default: m.OrderDetail })));
 
+// "<orderId>_<phone>" — order codes (WCM-XXXXX) never contain underscores,
+// so splitting on the first one cleanly separates the two.
+function splitPackedToken(token: string): [string, string] {
+  const separatorIndex = token.indexOf("_");
+  if (separatorIndex === -1) return ["", ""];
+  return [token.slice(0, separatorIndex), token.slice(separatorIndex + 1)];
+}
+
 export const Route = createFileRoute("/track-order")({
   validateSearch: (search: Record<string, unknown>) => ({
     orderId: typeof search.orderId === "string" ? search.orderId : "",
     phone: typeof search.phone === "string" ? search.phone : "",
+    // Packed single-value form for WhatsApp template URL buttons, which only
+    // support one dynamic variable per button (can't pass orderId and phone
+    // as two separate template vars) — "<orderId>_<phone>" in one field.
+    t: typeof search.t === "string" ? search.t : "",
   }),
   component: TrackOrderPage,
   head: () => ({
@@ -22,7 +34,11 @@ export const Route = createFileRoute("/track-order")({
 
 function TrackOrderPage() {
   const navigate = useNavigate();
-  const { orderId: initialOrderId, phone: initialPhone } = useSearch({ from: "/track-order" });
+  const { orderId: rawOrderId, phone: rawPhone, t: packedToken } = useSearch({ from: "/track-order" });
+
+  const [packedOrderId, packedPhone] = packedToken ? splitPackedToken(packedToken) : ["", ""];
+  const initialOrderId = rawOrderId || packedOrderId;
+  const initialPhone = rawPhone || packedPhone;
 
   const [orderId, setOrderId] = useState(initialOrderId || "");
   const [phone, setPhone] = useState(initialPhone || "");
@@ -72,6 +88,7 @@ function TrackOrderPage() {
         search: {
           orderId: cleanOrderId,
           phone: cleanPhone,
+          t: "",
         },
         replace: true,
       });
@@ -150,7 +167,7 @@ function TrackOrderPage() {
             onClose={() => {
               setOrder(null);
               setError("");
-              navigate({ to: "/track-order", search: { orderId: "", phone: "" }, replace: true });
+              navigate({ to: "/track-order", search: { orderId: "", phone: "", t: "" }, replace: true });
             }}
           />
         </Suspense>

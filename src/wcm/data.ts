@@ -2576,4 +2576,9 @@ export type Order = {
   rider?: { name: string; phone: string };
   product_reviews?: Record<string, OrderReview>;
   review?: OrderReview;
+  courier?: {
+    trackingNumber: string;
+    status: string;
+    statusHistory?: Array<{ status: string; statusWithCity: string; at: string }> | null;
+  } | null;
 };

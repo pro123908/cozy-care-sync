@@ -29,6 +29,43 @@ const AUTO_REPLY_COOLDOWN_HOURS = 6;
 const replyText = () =>
   `Thanks for your message! 🙏\n\nThis number is automated and isn't monitored, so we won't see replies here.\n\nFor any questions about your order, please WhatsApp us at ${SUPPORT_NUMBER} — our team will help you right away.`;
 
+// Confirm/Cancel quick-reply buttons on the order confirmation template carry
+// a payload of "CONFIRM:<order_code>" / "CANCEL:<order_code>". These only set
+// informational flags — Confirm does NOT set status to "Order confirmed"
+// (stock deduction stays admin-gated) and Cancel does NOT set status to
+// "Cancelled" (stays super-admin-only). Admin reviews and acts manually.
+const confirmAckText = (orderCode: string) =>
+  `Order: ${orderCode}\n\n🎉 Dear customer, your order has been confirmed. Thank you`;
+
+const cancelAckText = (orderCode: string) =>
+  `Order: ${orderCode}\n\n📝 We've received your cancellation request. Our team will review it and get back to you shortly.`;
+
+async function handleButtonTap(payload: string, from: string): Promise<boolean> {
+  const separatorIndex = payload.indexOf(":");
+  if (separatorIndex === -1) return false;
+  const action = payload.slice(0, separatorIndex);
+  const orderCode = payload.slice(separatorIndex + 1);
+  if (!orderCode || (action !== "CONFIRM" && action !== "CANCEL")) return false;
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const column = action === "CONFIRM" ? "customer_confirmed_at" : "cancellation_requested_at";
+  const { error } = await supabase
+    .from("orders")
+    .update({ [column]: new Date().toISOString() })
+    .eq("order_code", orderCode);
+
+  if (error) {
+    console.error("[whatsapp-inbound] order flag update failed", { orderCode, action, message: error.message });
+    return false;
+  }
+
+  await sendText(from, action === "CONFIRM" ? confirmAckText(orderCode) : cancelAckText(orderCode));
+  return true;
+}
+
 async function sendText(to: string, body: string): Promise<void> {
   const res = await fetch(
     `https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
@@ -127,6 +164,13 @@ Deno.serve(async (req: Request) => {
         for (const message of messages) {
           const from = typeof message.from === "string" ? message.from : "";
           if (!from) continue;
+
+          if (message.type === "button") {
+            const button = message.button as Record<string, unknown> | undefined;
+            const payload = typeof button?.payload === "string" ? button.payload : "";
+            if (payload && (await handleButtonTap(payload, from))) continue;
+          }
+
           if (await shouldReply(from)) {
             await sendText(from, replyText());
           }

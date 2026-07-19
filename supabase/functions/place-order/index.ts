@@ -624,6 +624,10 @@ async function sendWhatsAppOrderConfirmation(input: {
     console.info("[whatsapp-confirmation] Cloud API not fully configured - skipping");
     return;
   }
+  if (Deno.env.get("WHATSAPP_SEND_ENABLED") === "false") {
+    console.info("[whatsapp-confirmation] Sends paused via WHATSAPP_SEND_ENABLED=false - skipping");
+    return;
+  }
   const to = toWhatsAppNumber(input.phone);
   if (!to) return;
 

@@ -86,6 +86,16 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Could not fetch order reviews" }, 500, origin);
   }
 
+  // An order can have more than one courier_bookings row (e.g. re-booked
+  // after a cancelled attempt) — take the most recently synced one.
+  const { data: courierRows } = await supabase
+    .from("courier_bookings")
+    .select("tracking_number, status, status_history")
+    .eq("order_id", orderId)
+    .order("synced_at", { ascending: false })
+    .limit(1);
+  const courierRow = courierRows?.[0] ?? null;
+
   const productReviews = (reviews || []).reduce(
     (acc: Record<string, { rating: number; comment: string }>, review) => {
       if (!review.product_id || review.product_id === "__order__") return acc;
@@ -114,6 +124,13 @@ Deno.serve(async (req: Request) => {
         total: row.total,
         rider: row.rider,
         product_reviews: productReviews,
+        courier: courierRow
+          ? {
+              trackingNumber: courierRow.tracking_number,
+              status: courierRow.status,
+              statusHistory: courierRow.status_history ?? null,
+            }
+          : null,
       },
     },
     200,

@@ -529,7 +529,10 @@ function trackingDate(order: Order, i: number) {
   if (i === 0) return order.placed + " · 11:24 AM";
   if (i === 1) return order.placed + " · 12:00 PM";
   if (i === 2) return order.placed + " · 03:48 PM";
-  if (i === 3) return "In transit · BlueEx courier";
+  if (i === 3) {
+    if (order.courier) return `${order.courier.status} · Leopards Courier (${order.courier.trackingNumber})`;
+    return "Preparing for dispatch";
+  }
   if (i === 4) return order.eta + " · 02:18 PM";
   return "";
 }
@@ -883,6 +886,39 @@ export function OrderDetail({
                         </Btn>
                       </div>
                     )}
+                    {i === 3 &&
+                      done &&
+                      order.courier?.statusHistory &&
+                      order.courier.statusHistory.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: 10,
+                            padding: "10px 12px",
+                            borderRadius: 11,
+                            background: "var(--bg-elev)",
+                            border: "1px solid var(--line)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                          }}
+                        >
+                          {[...order.courier.statusHistory].reverse().map((event, eventIndex) => (
+                            <div
+                              key={eventIndex}
+                              style={{ display: "flex", justifyContent: "space-between", gap: 10 }}
+                            >
+                              <span style={{ fontSize: 12.5, color: "var(--ink)" }}>
+                                {event.statusWithCity || event.status}
+                              </span>
+                              <span
+                                style={{ fontSize: 11.5, color: "var(--ink-4)", whiteSpace: "nowrap" }}
+                              >
+                                {event.at}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </div>
                 </div>
               );
