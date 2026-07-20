@@ -246,17 +246,38 @@ export function CartDrawer({
                         <button onClick={() => update(p.id, size, qty - 1)} style={miniBtn}>
                           {Icons.minus}
                         </button>
-                        <div
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={qty}
+                          aria-label={`Quantity for ${p.name}`}
+                          onChange={(e) => {
+                            const digits = e.target.value.replace(/\D/g, "");
+                            if (digits === "") return;
+                            // update() treats qty<=0 as "remove this item" — correct for
+                            // the minus button, but typing a bare "0" while editing this
+                            // field (e.g. the first digit of an intended "10") would
+                            // otherwise delete the line and unmount this input mid-edit.
+                            // Clamp to 1 here; removal stays a deliberate minus-button action.
+                            update(p.id, size, Math.min(MAX_QTY_PER_PRODUCT, Math.max(1, Number(digits))));
+                          }}
+                          onBlur={(e) => {
+                            if (e.target.value.trim() === "") update(p.id, size, 1);
+                          }}
                           style={{
-                            minWidth: 30,
+                            width: 30,
+                            border: "none",
+                            background: "transparent",
                             textAlign: "center",
                             fontWeight: 700,
                             fontSize: 13,
                             lineHeight: "30px",
+                            fontFamily: "inherit",
+                            color: "var(--ink)",
+                            padding: 0,
                           }}
-                        >
-                          {qty}
-                        </div>
+                        />
                         <button
                           onClick={() => update(p.id, size, qty + 1)}
                           style={{ ...miniBtn, opacity: qty >= MAX_QTY_PER_PRODUCT ? 0.5 : 1 }}
@@ -1249,6 +1270,24 @@ export function CheckoutContent({
             By placing this order, you agree to Wellcare Mart's terms.
           </div>
         </div>
+      </div>
+      <div className="wcm-co-sticky-cta">
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.4 }}>
+            Total
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: -0.3 }}>{PKR(finalTotal)}</div>
+        </div>
+        <Btn
+          size="lg"
+          onClick={step < 3 ? next : place}
+          disabled={step === 3 && placing}
+          iconRight={step < 3 ? Icons.chev : undefined}
+          icon={step === 3 ? Icons.check : undefined}
+          style={{ flexShrink: 0 }}
+        >
+          {step < 3 ? "Continue" : placing ? "Placing…" : "Place order"}
+        </Btn>
       </div>
     </div>
   );
