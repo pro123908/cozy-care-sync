@@ -88,13 +88,12 @@ Deno.serve(async (req: Request) => {
     return json({ skipped: true });
   }
 
-  const notificationPayload = JSON.stringify(
-    payload.notification ?? {
-      title: `New order ${order.order_code}`,
-      body: `${order.customer_name || "A customer"} · Rs ${(order.total ?? 0).toLocaleString()}`,
-      url: `/orders?orderId=${order.id}`,
-    },
-  );
+  const notification = payload.notification ?? {
+    title: `New order ${order.order_code}`,
+    body: `${order.customer_name || "A customer"} · Rs ${(order.total ?? 0).toLocaleString()}`,
+    url: `/orders?orderId=${order.id}`,
+  };
+  const notificationPayload = JSON.stringify(notification);
 
   const staleIds: string[] = [];
 
@@ -129,5 +128,20 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return json({ ok: true, sent: subscriptions.length - staleIds.length, removed: staleIds.length });
+  const recipientsSent = subscriptions.length - staleIds.length;
+  const { error: logError } = await client.from("notification_log").insert({
+    type: payload.type,
+    title: notification.title,
+    body: notification.body,
+    url: notification.url,
+    order_id: order?.id ?? null,
+    order_code: order?.order_code ?? null,
+    recipients_sent: recipientsSent,
+    recipients_removed: staleIds.length,
+  });
+  if (logError) {
+    console.error("[send-order-push] failed to write notification_log", logError);
+  }
+
+  return json({ ok: true, sent: recipientsSent, removed: staleIds.length });
 });

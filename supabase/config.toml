@@ -28,3 +28,9 @@ verify_jwt = false
 # it's protected by the hub.verify_token handshake instead.
 [functions.whatsapp-inbound]
 verify_jwt = false
+
+# Fires a paid WhatsApp send (unlike the other functions here, which are free
+# push/email) — protected by a shared-secret header (x-shipment-notify-secret)
+# checked in the function body, not Supabase's JWT verification.
+[functions.send-shipment-notification]
+verify_jwt = false

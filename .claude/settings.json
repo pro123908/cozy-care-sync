@@ -209,7 +209,12 @@
       "Bash(node scripts/validate_palette.js \"#5a98ff,#22b8cf,#fb7185\" --mode dark)",
       "Bash(ls -la /Users/bilalahmed/Work/Drox/)",
       "Bash(mv cozy-care-sync *)",
-      "Bash(mv admin-app *)"
+      "Bash(mv admin-app *)",
+      "Bash(curl -s \"https://dkspvlpswpipltceptoa.supabase.co/*)",
+      "Bash(curl -s https://dkspvlpswpipltceptoa.supabase.co/*)",
+      "Bash(curl -s -X POST \"https://dkspvlpswpipltceptoa.supabase.co/*)",
+      "Bash(curl -sI https://dkspvlpswpipltceptoa.supabase.co/*)",
+      "Bash(curl -sI \"https://dkspvlpswpipltceptoa.supabase.co/*)"
     ],
     "additionalDirectories": [
       "/private/tmp",
@@ -217,6 +222,7 @@
       "/Users/bilalahmed/Work/Drox/admin-app/lib/auth",
       "/Users/bilalahmed/Work/Drox/admin-app/components",
       "/Users/bilalahmed/Work/Drox/admin-app/app"
-    ]
+    ],
+    "defaultMode": "auto"
   }
 }
