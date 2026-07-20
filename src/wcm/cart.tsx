@@ -447,6 +447,7 @@ export function CheckoutContent({
   const [promoShake, setPromoShake] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
+  const [selectedQuickFill, setSelectedQuickFill] = useState<string | null>(null);
   const PROMOS: Record<string, number> = { WELLCARE10: 0.1, HEALTH20: 0.2, CARE15: 0.15 };
   const discountPct = promoApplied ? (PROMOS[promo.trim().toUpperCase()] ?? 0) : 0;
 
@@ -576,7 +577,8 @@ export function CheckoutContent({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "16px 22px",
+          gap: 10,
+          padding: isMobile ? "14px 16px" : "16px 22px",
           background: "var(--card)",
           borderBottom: "1px solid var(--line)",
           position: "sticky",
@@ -585,17 +587,26 @@ export function CheckoutContent({
           borderRadius: "20px 20px 0 0",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.2 }}>Checkout</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 14, minWidth: 0 }}>
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: isMobile ? 15 : 17,
+              letterSpacing: -0.2,
+              flexShrink: 0,
+            }}
+          >
+            Checkout
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 5 : 6, flexShrink: 0 }}>
             {[1, 2, 3].map((n) => (
               <React.Fragment key={n}>
                 <div
                   style={{
-                    width: 26,
-                    height: 26,
+                    width: isMobile ? 22 : 26,
+                    height: isMobile ? 22 : 26,
                     borderRadius: 99,
-                    fontSize: 12,
+                    fontSize: isMobile ? 11 : 12,
                     fontWeight: 800,
                     display: "inline-flex",
                     alignItems: "center",
@@ -603,6 +614,7 @@ export function CheckoutContent({
                     background: step >= n ? "var(--grad)" : "var(--chip)",
                     color: step >= n ? "#fff" : "var(--ink-4)",
                     transition: "all .2s",
+                    flexShrink: 0,
                   }}
                 >
                   {step > n ? "✓" : n}
@@ -610,9 +622,10 @@ export function CheckoutContent({
                 {n < 3 && (
                   <div
                     style={{
-                      width: 32,
+                      width: isMobile ? 16 : 32,
                       height: 2,
                       background: step > n ? "var(--green-500)" : "var(--line)",
+                      flexShrink: 0,
                     }}
                   />
                 )}
@@ -635,6 +648,7 @@ export function CheckoutContent({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           {Icons.close}
@@ -669,27 +683,38 @@ export function CheckoutContent({
                     QUICK FILL
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {savedAddresses.map((address) => (
+                    {savedAddresses.map((address) => {
+                      const isSelected = address === selectedQuickFill;
+                      return (
                       <button
                         key={address}
                         onClick={() => {
-                          const [street, city] = address.split(",").map((x) => x.trim());
+                          // Saved as `${street}, ${city}` (see compactAddress below), and
+                          // street itself often contains commas (e.g. "Plot 191Q, Block 2,
+                          // PECHS") — so the city is always the LAST segment, not the 2nd.
+                          const parts = address.split(",").map((x) => x.trim());
+                          const city = parts.length > 1 ? parts[parts.length - 1] : "";
+                          const street = parts.length > 1 ? parts.slice(0, -1).join(", ") : address;
                           setShip({ ...ship, address: street || address, city: city || ship.city });
+                          setSelectedQuickFill(address);
                         }}
                         style={{
-                          border: "1px solid var(--line)",
-                          background: "var(--bg-elev)",
+                          border: isSelected ? "1px solid var(--blue-600)" : "1px solid var(--line)",
+                          background: isSelected ? "var(--pill-info-bg)" : "var(--bg-elev)",
+                          color: isSelected ? "var(--blue-700)" : "var(--ink-3)",
+                          fontWeight: isSelected ? 700 : 400,
                           borderRadius: 99,
                           padding: "6px 10px",
                           fontSize: 12,
-                          color: "var(--ink-3)",
                           cursor: "pointer",
                           fontFamily: "inherit",
+                          transition: "all .15s",
                         }}
                       >
                         {address}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -787,8 +812,8 @@ export function CheckoutContent({
               <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
                 <DeliveryOption
                   selected
-                  title="Standard delivery 2–3 days"
-                  sub={`Across Pakistan via BlueEx · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
+                  title="Standard delivery 3-5 working days"
+                  sub={`Across Pakistan · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
                   right={effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}
                 />
                 {freeDeliveryMissedForCity && (

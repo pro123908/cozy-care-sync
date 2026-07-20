@@ -841,6 +841,9 @@
 .wcm-pdp-sticky-cta {
   display: none;
 }
+.wcm-co-sticky-cta {
+  display: none;
+}
 .wcm-pdp-wrap {
   gap: 18px;
 }
@@ -1383,6 +1386,22 @@
     align-items: center;
     gap: 8px;
     padding: 8px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.12);
+  }
+  .wcm-co-sticky-cta {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    z-index: 45;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
     border-radius: 14px;
     border: 1px solid var(--line);
     background: var(--card);

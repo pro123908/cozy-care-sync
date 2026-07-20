@@ -31,7 +31,7 @@ const faqs: Array<{ q: string; a: string }> = [
   },
   {
     q: "What are your delivery timelines?",
-    a: "Most orders are delivered in 2-5 business days depending on your city and product availability.",
+    a: "Most orders are delivered within 3 to 5 working days depending on your city and product availability.",
   },
   {
     q: "Can I return a product?",

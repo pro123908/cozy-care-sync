@@ -219,8 +219,9 @@ function PoliciesPage() {
           Wellcare Mart provides doorstep delivery of medical and healthcare products.
         </p>
         <p style={pStyle}>
-          Delivery time may vary based on product availability, customer location, and courier
-          service. We try our best to deliver orders as quickly as possible.
+          Orders are typically delivered within 3 to 5 working days, though delivery time may vary
+          based on product availability, customer location, and courier service. We try our best
+          to deliver orders as quickly as possible.
         </p>
         <p style={pStyle}>
           Customers will be contacted to confirm their order before dispatch. Delivery charges may
