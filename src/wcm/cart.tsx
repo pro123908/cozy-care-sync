@@ -19,6 +19,26 @@ type CartItem = CartLine & { p: Product };
 const MAX_QTY_PER_PRODUCT = 5;
 const CITY_OPTIONS: SelectOption[] = PAKISTAN_CITIES.map((city) => ({ value: city, label: city }));
 
+// Pakistani mobile numbers only — same normalization/validation as the admin
+// app's "Add order" dialog (app/orders/page.tsx), so a storefront-placed
+// order and a phone/WhatsApp order manually entered in admin land on the
+// same canonical "03XXXXXXXXX" digit string. Normalizes 92XXXXXXXXXX / bare
+// 3XXXXXXXXX (no leading 0) / already-local input the same way.
+function pkPhoneDigits(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("92")) digits = `0${digits.slice(2)}`;
+  else if (digits.length === 10 && digits.startsWith("3")) digits = `0${digits}`;
+  return digits.slice(0, 11);
+}
+
+function formatPkPhone(digits: string): string {
+  return digits.length > 4 ? `${digits.slice(0, 4)}-${digits.slice(4)}` : digits;
+}
+
+function isValidPkPhone(digits: string): boolean {
+  return /^03\d{9}$/.test(digits);
+}
+
 export type CheckoutData = {
   items: CartItem[];
   subtotal: number;
@@ -515,7 +535,7 @@ export function CheckoutContent({
   const validateShip = () => {
     const e: Record<string, string> = {};
     if (!ship.name.trim()) e.name = "Required";
-    if (!/^\+?\d[\d\s]{8,}$/.test(ship.phone)) e.phone = "Enter a valid phone";
+    if (!isValidPkPhone(ship.phone)) e.phone = "Enter a valid Pakistani mobile number";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) e.email = "Enter a valid email";
     if (!ship.address.trim()) e.address = "Required";
     if (!ship.city.trim()) e.city = "Required";
@@ -753,8 +773,12 @@ export function CheckoutContent({
                 <TextField
                   id="field-phone"
                   label="Phone number"
-                  value={ship.phone}
-                  onChange={(e) => setShip({ ...ship, phone: e.target.value })}
+                  type="tel"
+                  inputMode="tel"
+                  value={formatPkPhone(ship.phone)}
+                  onChange={(e) => setShip({ ...ship, phone: pkPhoneDigits(e.target.value) })}
+                  placeholder="03XX-XXXXXXX"
+                  maxLength={12}
                   error={errs.phone}
                 />
               </div>
@@ -1006,7 +1030,7 @@ export function CheckoutContent({
                       {ship.address}, {ship.city}
                       {ship.landmark ? ` · ${ship.landmark}` : ""}
                       <br />
-                      {ship.phone}
+                      {formatPkPhone(ship.phone)}
                     </div>
                   </div>
                   <button onClick={() => setStep(1)} style={editLink}>
