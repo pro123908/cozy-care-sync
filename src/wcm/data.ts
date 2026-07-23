@@ -10,6 +10,7 @@ export type Product = {
   rating: number;
   reviews: number;
   sales_count?: number;
+  delivered_sales_count?: number;
   stock: string;
   tags: string[];
   blurb: string;
@@ -18,6 +19,26 @@ export type Product = {
   size_options?: ProductSizeOption[];
   variant_options?: ProductVariantOption[];
 };
+
+// Shared "badge" a product gets shown with — curated tags win over the
+// automatic "Hot" signal unless a product is already tagged "Best seller",
+// in which case that curated label wins instead of showing both. Kept here
+// (not duplicated per-component) so the threshold and priority order can't
+// silently drift between the product grid and the search suggestions
+// dropdown.
+//
+// "Hot" is based on delivered_sales_count, not sales_count — sales_count
+// counts every order ever placed regardless of outcome (including
+// cancelled/still-in-transit ones), which overstates real demand; a product
+// with lots of cancellations isn't actually "hot".
+export function getProductBadge(p: Pick<Product, "tags" | "delivered_sales_count">): { label: string; tone: string } | null {
+  const curatedTag = p.tags.find((tag) => ["Best seller", "Top rated", "Deal"].includes(tag));
+  const label = (p.delivered_sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? "🔥 Hot" : curatedTag || "";
+  if (!label) return null;
+  const tone =
+    label === "Best seller" || label === "🔥 Hot" ? "green" : label === "Top rated" ? "blue" : label === "Deal" ? "rose" : "slate";
+  return { label, tone };
+}
 
 export type ProductSizeOption = {
   size: string;

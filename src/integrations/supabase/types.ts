@@ -340,6 +340,7 @@ export type Database = {
           cat: string
           category_id: string | null
           created_at: string
+          delivered_sales_count: number
           id: string
           image_url: string | null
           name: string
@@ -365,6 +366,7 @@ export type Database = {
           cat?: string
           category_id?: string | null
           created_at?: string
+          delivered_sales_count?: number
           id: string
           image_url?: string | null
           name: string
@@ -390,6 +392,7 @@ export type Database = {
           cat?: string
           category_id?: string | null
           created_at?: string
+          delivered_sales_count?: number
           id?: string
           image_url?: string | null
           name?: string
@@ -488,6 +491,7 @@ export type Database = {
           brand: string
           cat: string
           category_name: string
+          delivered_sales_count: number
           id: string
           image_url: string
           name: string

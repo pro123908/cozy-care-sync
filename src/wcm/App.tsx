@@ -1,9 +1,9 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
-import { ProductImageFallback } from "./ui";
+import { Pill, ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
-import { type Product, getProductSeoPathSegment } from "./data";
+import { type Product, getProductBadge, getProductSeoPathSegment } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -820,7 +820,9 @@ function Header({
                     </div>
                   ) : suggestions.length > 0 ? (
                     <>
-                      {suggestions.map((p, idx) => (
+                      {suggestions.map((p, idx) => {
+                        const badge = getProductBadge(p);
+                        return (
                         <button
                           key={p.id}
                           onMouseDown={() => goProduct(p)}
@@ -854,8 +856,15 @@ function Header({
                             )}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {highlightText(p.name, search)}
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {highlightText(p.name, search)}
+                              </div>
+                              {badge && (
+                                <span style={{ flexShrink: 0 }}>
+                                  <Pill tone={badge.tone}>{badge.label}</Pill>
+                                </span>
+                              )}
                             </div>
                             <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
                               {highlightText(p.brand, search)} &middot; {p.category_name || p.cat}
@@ -865,7 +874,8 @@ function Header({
                             Rs {p.price.toLocaleString()}
                           </div>
                         </button>
-                      ))}
+                        );
+                      })}
                       {/* See all results row */}
                       <button
                         onMouseDown={() => goSearchPage(search)}

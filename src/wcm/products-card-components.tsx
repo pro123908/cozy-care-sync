@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { PKR, getDisplayPrice, getSelectableOptions, type Category, type Product } from "./data";
+import { PKR, getDisplayPrice, getProductBadge, getSelectableOptions, type Category, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -406,17 +406,9 @@ export function ProductCard({
   const resolvedReviewCount = reviewCount || p.reviews;
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
-  const curatedTag = p.tags.find((tag) => ["Best seller", "Top rated", "Deal"].includes(tag));
-  const primaryTag =
-    (p.sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? "🔥 Hot" : curatedTag || "";
-  const primaryTagTone =
-    primaryTag === "Best seller" || primaryTag === "🔥 Hot"
-      ? "green"
-      : primaryTag === "Top rated"
-        ? "blue"
-        : primaryTag === "Deal"
-          ? "rose"
-          : "slate";
+  const badge = getProductBadge(p);
+  const primaryTag = badge?.label ?? "";
+  const primaryTagTone = badge?.tone ?? "slate";
   const removeOneFromCart = () => {
     setCart((current) => {
       const index = current.findIndex((line) => line.id === p.id);
