@@ -841,11 +841,7 @@ export function ProductDetail({
     .slice(0, 4);
   const detailImages = useMemo(() => {
     const primary = product.image_url ? [product.image_url] : [];
-    const extra = Array.isArray(
-      (product as Product & { image_urls?: Array<string | null | undefined> }).image_urls,
-    )
-      ? ((product as Product & { image_urls?: Array<string | null | undefined> }).image_urls ?? [])
-      : [];
+    const extra = Array.isArray(product.gallery_images) ? product.gallery_images : [];
     return Array.from(new Set([...primary, ...extra].filter((src): src is string => Boolean(src))));
   }, [product]);
   const hasMultipleImages = detailImages.length > 1;

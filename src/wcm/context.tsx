@@ -654,6 +654,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             blurb: r.blurb,
             swatch: r.swatch,
             image_url: r.image_url ?? undefined,
+            gallery_images: Array.isArray(r.gallery_images) ? r.gallery_images : [],
             size_options: normalizeSizeOptions(
               Array.isArray(r.size_options)
                 ? (r.size_options as Array<{ size?: string; price?: number }>)

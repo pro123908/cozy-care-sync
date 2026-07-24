@@ -341,6 +341,7 @@ export type Database = {
           category_id: string | null
           created_at: string
           delivered_sales_count: number
+          gallery_images: string[]
           id: string
           image_url: string | null
           name: string
@@ -367,6 +368,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           delivered_sales_count?: number
+          gallery_images?: string[]
           id: string
           image_url?: string | null
           name: string
@@ -393,6 +395,7 @@ export type Database = {
           category_id?: string | null
           created_at?: string
           delivered_sales_count?: number
+          gallery_images?: string[]
           id?: string
           image_url?: string | null
           name?: string

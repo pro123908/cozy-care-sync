@@ -16,6 +16,7 @@ export type Product = {
   blurb: string;
   swatch: string;
   image_url?: string | null;
+  gallery_images?: string[] | null;
   size_options?: ProductSizeOption[];
   variant_options?: ProductVariantOption[];
 };
