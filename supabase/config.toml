@@ -48,3 +48,9 @@ verify_jwt = false
 # Read-only, same shared-secret gate as whatsapp-pricing-analytics.
 [functions.whatsapp-template-analytics]
 verify_jwt = false
+
+# Called only by pg_cron via net.http_post (see the health_check_cron
+# migration) — no user JWT exists in that context, so it's gated by the
+# same shared-secret-header convention as the paid-send functions instead.
+[functions.health-check]
+verify_jwt = false
