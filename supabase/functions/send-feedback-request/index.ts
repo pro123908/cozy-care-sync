@@ -15,6 +15,7 @@
 // function) is identical, and it's already configured on both sides.
 
 import { logWhatsAppMessage } from "../_shared/whatsappLog.ts";
+import { captureError } from "../_shared/sentry.ts";
 
 const SHIPMENT_NOTIFY_SECRET = Deno.env.get("SHIPMENT_NOTIFY_SECRET") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
@@ -52,7 +53,17 @@ function toWhatsAppNumber(rawPhone: string): string | null {
   return national;
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }

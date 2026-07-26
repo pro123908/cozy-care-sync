@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { captureError } from "../_shared/sentry.ts";
 
 // Public, unauthenticated CSV feed for Meta Commerce Manager's "Upload a data
 // file" → scheduled-fetch flow (Catalog → Settings → Products). Meta re-pulls
@@ -86,7 +87,17 @@ const COLUMNS = [
   "product_type",
 ] as const;
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   if (req.method !== "GET") {
     return new Response("Method not allowed", { status: 405 });
   }

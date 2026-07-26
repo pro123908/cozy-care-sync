@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { resolveGeo } from "../_shared/geo.ts";
+import { captureError } from "../_shared/sentry.ts";
 
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
@@ -282,4 +283,12 @@ serve(async (req) => {
     geo_country: geo.geo_country,
   });
   return json({ ok: true }, 200, origin);
+}, {
+  onError: (err) => {
+    captureError(err);
+    return new Response(JSON.stringify({ error: "Internal error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  },
 });

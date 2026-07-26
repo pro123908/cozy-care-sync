@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { resolveGeo } from "../_shared/geo.ts";
 import { logWhatsAppMessage } from "../_shared/whatsappLog.ts";
+import { captureError } from "../_shared/sentry.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -765,7 +766,17 @@ function normalizeVariantOptions(options?: VariantOption[] | null): VariantOptio
 // Handler
 // ---------------------------------------------------------------------------
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   const origin = req.headers.get("origin");
 
   // CORS preflight

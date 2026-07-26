@@ -4,6 +4,7 @@
 // admin/staff device so the order shows up as a phone/desktop notification.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { captureError } from "../_shared/sentry.ts";
 import webpush from "npm:web-push@3.6.7";
 
 type OrdersRow = {
@@ -43,7 +44,17 @@ function json(body: unknown, status = 200) {
   });
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }

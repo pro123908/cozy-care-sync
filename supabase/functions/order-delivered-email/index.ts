@@ -4,6 +4,7 @@
 // email with their order summary and a link to leave feedback.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { captureError } from "../_shared/sentry.ts";
 
 type OrderItem = { id: string; qty: number; size?: string; unit_price: number };
 
@@ -216,7 +217,17 @@ async function sendDeliveredEmail(order: OrdersRow) {
   }
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }

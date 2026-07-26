@@ -16,6 +16,8 @@
 // this account, confirmed via a separate `?fields=currency` call — NOT PKR,
 // despite the business being Pakistan-based).
 
+import { captureError } from "../_shared/sentry.ts";
+
 const SHIPMENT_NOTIFY_SECRET = Deno.env.get("SHIPMENT_NOTIFY_SECRET") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const WHATSAPP_WABA_ID = Deno.env.get("WHATSAPP_WABA_ID") || "";
@@ -34,7 +36,17 @@ function json(body: unknown, status = 200) {
   });
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(
+  {
+    onError: (err) => {
+      captureError(err);
+      return new Response(JSON.stringify({ error: "Internal error" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  },
+  async (req: Request) => {
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);
   }
