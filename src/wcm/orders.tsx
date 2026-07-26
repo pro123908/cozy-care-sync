@@ -24,6 +24,7 @@ function statusToStep(status: string): number {
     "Out for delivery": 3,
     Delivered: 4,
     Cancelled: -1,
+    Returned: -1,
   };
   return map[status] ?? 0;
 }
@@ -41,7 +42,7 @@ function statusTone(s: string) {
       ? "green"
       : s === "Out for delivery"
         ? "blue"
-        : s === "Cancelled"
+        : s === "Cancelled" || s === "Returned"
           ? "rose"
           : "amber";
 }
@@ -135,7 +136,7 @@ export function OrdersList({
     );
   }
   const { loadOrders, user } = useWcm();
-  const [filter, setFilter] = useState<"all" | "active" | "delivered" | "cancelled">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "delivered" | "cancelled" | "returned">("all");
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -159,6 +160,7 @@ export function OrdersList({
       );
     if (filter === "delivered") return o.status === "Delivered";
     if (filter === "cancelled") return o.status === "Cancelled";
+    if (filter === "returned") return o.status === "Returned";
     return true;
   });
 
@@ -175,6 +177,10 @@ export function OrdersList({
     {
       id: "cancelled",
       label: `Cancelled (${orders.filter((o) => o.status === "Cancelled").length})`,
+    },
+    {
+      id: "returned",
+      label: `Returned (${orders.filter((o) => o.status === "Returned").length})`,
     },
   ];
 
@@ -729,7 +735,9 @@ export function OrderDetail({
               ? "Delivered on " + order.eta
               : order.status === "Cancelled"
                 ? "Order cancelled"
-                : "We're on it!"}
+                : order.status === "Returned"
+                  ? "Order returned"
+                  : "We're on it!"}
           </h1>
         </div>
         <div className="wcm-order-detail-status-pill">
@@ -1543,6 +1551,7 @@ export function OrderDetail({
           )}
           {order.status !== "Delivered" &&
             order.status !== "Cancelled" &&
+            order.status !== "Returned" &&
             (showCancelConfirm ? (
               <div
                 className="wcm-order-detail-cancel-confirm"
