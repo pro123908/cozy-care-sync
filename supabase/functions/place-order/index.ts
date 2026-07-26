@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { resolveGeo } from "../_shared/geo.ts";
+import { logWhatsAppMessage } from "../_shared/whatsappLog.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,16 +65,21 @@ const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
 // WhatsApp order confirmations go out via Meta's WhatsApp Cloud API (migrated
 // off Twilio 2026-07-15 — the business number now lives on Cloud API, not a
 // BSP). Needs: the phone number's Cloud API ID, a token with
-// whatsapp_business_messaging, and an approved utility template whose body has
-// 6 positional variables in the order used by sendWhatsAppOrderConfirmation.
-// NOTE: the default "order_confirmation" template's 6 vars are ordered
-// differently (no items-summary slot, has an eta slot instead) —
-// WHATSAPP_TEMPLATE_NAME must be set to "order_confirmation_final" (approved
-// 2026-07-17, adds items-summary + drops eta) via secret, or sends will
-// mismatch against whichever template is actually live.
+// whatsapp_business_messaging, and the approved "order_confirmation_request"
+// utility template (verified against its live body in WhatsApp Manager
+// 2026-07-20 — "order_confirmation_final" referenced in older comments here
+// does not exist in the account). Its body has 8 positional variables in
+// this exact order: 1 name, 2 order code, 3 item count, 4 items summary,
+// 5 total, 6 payment, 7 address, 8 phone. "Estimated delivery: 3-5 working
+// days" and the Confirm/Cancel instructions line are static template text,
+// not variables. The template's Confirm/Cancel quick-reply buttons have no
+// payload set at creation, so the payload MUST be supplied per-send via a
+// "button" component (see sendWhatsAppOrderConfirmation) — without it the
+// CONFIRM:<order_code>/CANCEL:<order_code> payload whatsapp-inbound expects
+// won't be there.
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
-const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation";
+const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation_request";
 const WHATSAPP_TEMPLATE_LANG = Deno.env.get("WHATSAPP_TEMPLATE_LANG") || "en";
 const WHATSAPP_GRAPH_VERSION = Deno.env.get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 
@@ -605,16 +611,21 @@ function buildItemsSummary(
 
 // Business-initiated (the customer checked out on the website, not on
 // WhatsApp) — outside any open customer-service window, so this must use a
-// pre-approved template rather than a free-form message. The template's body
-// must have 6 positional variables ({{1}}..{{6}}) in exactly this order:
-//   1 customer name, 2 order id, 3 item count, 4 items summary, 5 total,
-//   6 payment. No ETA var — order_confirmation_final's approved body has
-// no delivery-estimate slot (matches the ETA-promise removal elsewhere,
-// see commit c5eb332).
+// pre-approved template rather than a free-form message. order_confirmation_request's
+// approved body has 8 positional variables ({{1}}..{{8}}) in exactly this
+// order: 1 customer name, 2 order code, 3 item count, 4 items summary,
+// 5 total, 6 payment, 7 address, 8 phone. The "Estimated delivery" line and
+// the Confirm/Cancel instructions are static template text, not variables.
+// The template's Confirm/Cancel quick-reply buttons have no payload baked in
+// at creation, so it's supplied here per-send as a "button" component —
+// whatsapp-inbound's handleButtonTap expects exactly "CONFIRM:<order_code>"
+// / "CANCEL:<order_code>".
 async function sendWhatsAppOrderConfirmation(input: {
   phone: string;
   customerName: string;
   orderId: string;
+  orderRowId: string | null;
+  address: string;
   items: Array<{ id: string; qty: number; size?: string; unit_price: number }>;
   itemsSummary: string;
   total: number;
@@ -650,7 +661,21 @@ async function sendWhatsAppOrderConfirmation(input: {
             textParam(input.itemsSummary),
             textParam(input.total.toLocaleString()),
             textParam(input.pay),
+            textParam(input.address),
+            textParam(`+${to}`),
           ],
+        },
+        {
+          type: "button",
+          sub_type: "quick_reply",
+          index: "0",
+          parameters: [{ type: "payload", payload: `CONFIRM:${input.orderId}` }],
+        },
+        {
+          type: "button",
+          sub_type: "quick_reply",
+          index: "1",
+          parameters: [{ type: "payload", payload: `CANCEL:${input.orderId}` }],
         },
       ],
     },
@@ -669,11 +694,41 @@ async function sendWhatsAppOrderConfirmation(input: {
       },
     );
     if (!res.ok) {
-      console.error("[whatsapp-confirmation] send failed", { status: res.status, body: await res.text().catch(() => "") });
+      const detail = await res.text().catch(() => "");
+      console.error("[whatsapp-confirmation] send failed", { status: res.status, body: detail });
+      await logWhatsAppMessage({
+        orderId: input.orderRowId,
+        orderCode: input.orderId,
+        phone: input.phone,
+        messageType: "order_confirmation",
+        templateName: WHATSAPP_TEMPLATE_NAME,
+        status: "failed",
+        errorDetail: detail,
+      });
+      return;
     }
   } catch (err) {
     console.error("[whatsapp-confirmation] send threw", err);
+    await logWhatsAppMessage({
+      orderId: input.orderRowId,
+      orderCode: input.orderId,
+      phone: input.phone,
+      messageType: "order_confirmation",
+      templateName: WHATSAPP_TEMPLATE_NAME,
+      status: "failed",
+      errorDetail: String(err),
+    });
+    return;
   }
+
+  await logWhatsAppMessage({
+    orderId: input.orderRowId,
+    orderCode: input.orderId,
+    phone: input.phone,
+    messageType: "order_confirmation",
+    templateName: WHATSAPP_TEMPLATE_NAME,
+    status: "sent",
+  });
 }
 
 function normalizeSizeOptions(options?: SizeOption[] | null): SizeOption[] {
@@ -886,8 +941,12 @@ Deno.serve(async (req: Request) => {
   // ------------------------------------------------------------------
   const orderId = generateOrderId();
   const today = new Date();
+  // Policy: ETA is always placement date + 5 days, for every order — was
+  // +1 day, changed 2026-07-21. Same rule applied in admin-app's manual
+  // "Add order" flow (app/orders/page.tsx's createManualOrder) so eta means
+  // the same thing regardless of how an order was created.
   const eta = new Date(today);
-  eta.setDate(today.getDate() + 1);
+  eta.setDate(today.getDate() + 5);
 
   const orderItems = finalizedItems.map((item) => ({
     id: item.id,
@@ -896,25 +955,34 @@ Deno.serve(async (req: Request) => {
     unit_price: item.unit_price,
   }));
 
-  const { error: insertErr } = await serviceClient.from("orders").insert({
-    user_id: userId,
-    customer_name: ship.name.trim(),
-    landmark: ship.landmark?.trim() || null,
-    email: ship.email,
-    order_code: orderId,
-    placed: fmtDate(today),
-    eta: fmtDate(eta),
-    status: "Order placed",
-    progress: 0,
-    address: `${ship.address}, ${ship.city}`,
-    city: ship.city?.trim() || null,
-    phone: ship.phone,
-    payment: pay,
-    items: orderItems,
-    subtotal,
-    shipping,
-    total,
-  });
+  const { data: insertedOrder, error: insertErr } = await serviceClient
+    .from("orders")
+    .insert({
+      user_id: userId,
+      customer_name: ship.name.trim(),
+      landmark: ship.landmark?.trim() || null,
+      email: ship.email,
+      order_code: orderId,
+      placed: fmtDate(today),
+      eta: fmtDate(eta),
+      status: "Order placed",
+      progress: 0,
+      address: `${ship.address}, ${ship.city}`,
+      city: ship.city?.trim() || null,
+      phone: ship.phone,
+      payment: pay,
+      items: orderItems,
+      subtotal,
+      shipping,
+      total,
+      // admin-app's manual "Add/Edit order" flow requires this field and
+      // only offers "WhatsApp"/"Friends & Family" — every storefront order
+      // needs its own recognized value so admin can still edit it later
+      // (an empty source blocked Save entirely, see orders_source migration).
+      source: "Storefront",
+    })
+    .select("id")
+    .single();
 
   if (insertErr) {
     return json({ error: "Failed to create order" }, 500, origin);
@@ -940,6 +1008,8 @@ Deno.serve(async (req: Request) => {
     phone: ship.phone,
     customerName: ship.name.trim(),
     orderId,
+    orderRowId: insertedOrder?.id ?? null,
+    address: `${ship.address}, ${ship.city}`,
     items: orderItems,
     itemsSummary: buildItemsSummary(orderItems, productMap),
     total,

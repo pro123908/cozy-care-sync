@@ -34,3 +34,17 @@ verify_jwt = false
 # checked in the function body, not Supabase's JWT verification.
 [functions.send-shipment-notification]
 verify_jwt = false
+
+# Same shared-secret protection as send-shipment-notification above, same
+# reason (paid WhatsApp send triggered from admin-app).
+[functions.send-feedback-request]
+verify_jwt = false
+
+# Read-only (no WhatsApp send happens here) but still gated the same way —
+# exposes real business spend/volume data.
+[functions.whatsapp-pricing-analytics]
+verify_jwt = false
+
+# Read-only, same shared-secret gate as whatsapp-pricing-analytics.
+[functions.whatsapp-template-analytics]
+verify_jwt = false

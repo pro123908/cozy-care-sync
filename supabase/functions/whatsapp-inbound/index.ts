@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { logWhatsAppMessage } from "../_shared/whatsappLog.ts";
 
 // Inbound webhook for the AUTOMATION number (+92 339 0104375) on WhatsApp
 // Cloud API. That number only ever sends order confirmations — nobody watches
@@ -52,21 +53,31 @@ async function handleButtonTap(payload: string, from: string): Promise<boolean> 
   });
 
   const column = action === "CONFIRM" ? "customer_confirmed_at" : "cancellation_requested_at";
-  const { error } = await supabase
+  const { data: updatedOrder, error } = await supabase
     .from("orders")
     .update({ [column]: new Date().toISOString() })
-    .eq("order_code", orderCode);
+    .eq("order_code", orderCode)
+    .select("id")
+    .single();
 
   if (error) {
     console.error("[whatsapp-inbound] order flag update failed", { orderCode, action, message: error.message });
     return false;
   }
 
-  await sendText(from, action === "CONFIRM" ? confirmAckText(orderCode) : cancelAckText(orderCode));
+  const { ok, detail } = await sendText(from, action === "CONFIRM" ? confirmAckText(orderCode) : cancelAckText(orderCode));
+  await logWhatsAppMessage({
+    orderId: updatedOrder?.id ?? null,
+    orderCode,
+    phone: from,
+    messageType: action === "CONFIRM" ? "confirm_ack" : "cancel_ack",
+    status: ok ? "sent" : "failed",
+    errorDetail: detail,
+  });
   return true;
 }
 
-async function sendText(to: string, body: string): Promise<void> {
+async function sendText(to: string, body: string): Promise<{ ok: boolean; detail?: string }> {
   const res = await fetch(
     `https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
     {
@@ -84,11 +95,11 @@ async function sendText(to: string, body: string): Promise<void> {
     },
   );
   if (!res.ok) {
-    console.error("[whatsapp-inbound] send failed", {
-      status: res.status,
-      body: await res.text().catch(() => ""),
-    });
+    const detail = await res.text().catch(() => "");
+    console.error("[whatsapp-inbound] send failed", { status: res.status, body: detail });
+    return { ok: false, detail };
   }
+  return { ok: true };
 }
 
 // Returns true if this sender is outside the cooldown (i.e. we should reply).

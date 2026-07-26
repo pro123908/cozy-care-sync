@@ -10,6 +10,8 @@
 // this repo's usual "no auth, verify_jwt=false" convention, so a
 // leaked/guessed URL can't be used to run up messaging costs.
 
+import { logWhatsAppMessage } from "../_shared/whatsappLog.ts";
+
 const SHIPMENT_NOTIFY_SECRET = Deno.env.get("SHIPMENT_NOTIFY_SECRET") || "";
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
@@ -67,13 +69,34 @@ Deno.serve(async (req: Request) => {
     return json({ error: "orderCode, trackingNumber, and phone are required" }, 400);
   }
 
+  // These used to return {skipped:true} with a plain 200 and no log entry —
+  // which from a caller checking res.ok looks identical to a real send, and
+  // left zero trace anywhere. That's exactly how 3 real shipment
+  // notifications vanished on 2026-07-20/21 when this fired mid-rollout,
+  // before WHATSAPP_SHIPMENT_TEMPLATE_NAME had been set yet. Now logged as
+  // a real failure (visible + resendable from admin-app's WhatsApp Messages
+  // page) and returned as a real error status.
   if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_ACCESS_TOKEN) {
     console.info("[shipment-notification] Cloud API not fully configured - skipping");
-    return json({ skipped: true, reason: "Cloud API not configured" });
+    await logWhatsAppMessage({
+      orderCode,
+      phone,
+      messageType: "shipment_notification",
+      status: "failed",
+      errorDetail: "Cloud API not configured (WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN unset)",
+    });
+    return json({ error: "Cloud API not configured" }, 503);
   }
   if (!WHATSAPP_SHIPMENT_TEMPLATE_NAME) {
     console.info("[shipment-notification] WHATSAPP_SHIPMENT_TEMPLATE_NAME not set - skipping (template not approved yet?)");
-    return json({ skipped: true, reason: "Shipment template not configured" });
+    await logWhatsAppMessage({
+      orderCode,
+      phone,
+      messageType: "shipment_notification",
+      status: "failed",
+      errorDetail: "WHATSAPP_SHIPMENT_TEMPLATE_NAME not set (template not approved yet?)",
+    });
+    return json({ error: "Shipment template not configured" }, 503);
   }
 
   const to = toWhatsAppNumber(phone);
@@ -128,12 +151,36 @@ Deno.serve(async (req: Request) => {
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error("[shipment-notification] send failed", { status: res.status, body: text });
+      await logWhatsAppMessage({
+        orderCode,
+        phone,
+        messageType: "shipment_notification",
+        templateName: WHATSAPP_SHIPMENT_TEMPLATE_NAME,
+        status: "failed",
+        errorDetail: text,
+      });
       return json({ error: "WhatsApp send failed", detail: text }, 502);
     }
   } catch (err) {
     console.error("[shipment-notification] send threw", err);
+    await logWhatsAppMessage({
+      orderCode,
+      phone,
+      messageType: "shipment_notification",
+      templateName: WHATSAPP_SHIPMENT_TEMPLATE_NAME,
+      status: "failed",
+      errorDetail: String(err),
+    });
     return json({ error: "WhatsApp send threw" }, 500);
   }
+
+  await logWhatsAppMessage({
+    orderCode,
+    phone,
+    messageType: "shipment_notification",
+    templateName: WHATSAPP_SHIPMENT_TEMPLATE_NAME,
+    status: "sent",
+  });
 
   return json({ sent: true });
 });
