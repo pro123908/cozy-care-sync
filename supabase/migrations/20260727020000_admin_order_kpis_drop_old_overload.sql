@@ -1,0 +1,12 @@
+-- 20260727010000 added p_from/p_to to admin_order_kpis() via CREATE OR
+-- REPLACE — but unlike admin_sales_stats/admin_review_stats (which already
+-- had p_from/p_to in their signature before their own date-range migration
+-- touched them), admin_order_kpis() was a genuine zero-argument function
+-- this whole time. Postgres treats argument lists as part of a function's
+-- identity, so that CREATE OR REPLACE created a *second* overload instead
+-- of replacing the original — leaving the old zero-arg, non-date-aware
+-- version still callable (and, since PostgREST resolves an RPC call with no
+-- params to the exact zero-arg match when one exists, still the one that
+-- would actually run for the "All time" case). Drop it so the new
+-- optional-params version is the only overload left.
+drop function if exists public.admin_order_kpis();
