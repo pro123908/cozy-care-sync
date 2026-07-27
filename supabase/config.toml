@@ -54,3 +54,12 @@ verify_jwt = false
 # same shared-secret-header convention as the paid-send functions instead.
 [functions.health-check]
 verify_jwt = false
+
+# Same as health-check above: pg_cron-triggered, gated by x-meta-ads-sync-secret.
+[functions.meta-ads-sync]
+verify_jwt = false
+
+# Same as health-check above: pg_cron-triggered, gated by
+# x-auto-feedback-requests-secret.
+[functions.auto-feedback-requests]
+verify_jwt = false
