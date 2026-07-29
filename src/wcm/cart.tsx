@@ -233,7 +233,7 @@ export function CartDrawer({
                   }}
                 >
                   <div style={{ width: 68, height: 68, borderRadius: 10, overflow: "hidden" }}>
-                    <ProductImage product={p} />
+                    <ProductImage product={p} width={160} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 600 }}>
@@ -1079,7 +1079,7 @@ export function CheckoutContent({
                       }}
                     >
                       <div style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden" }}>
-                        <ProductImage product={p} />
+                        <ProductImage product={p} width={100} />
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.3 }}>

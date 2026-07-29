@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
-import { Pill, ProductImageFallback } from "./ui";
+import { Pill, ProductImageFallback, supabaseImageTransform } from "./ui";
 import { useWcm, WcmProvider } from "./context";
 import { type Product, getProductBadge, getProductSeoPathSegment } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
@@ -849,7 +849,7 @@ function Header({
                             }}
                           >
                             {p.image_url ? (
-                              <img src={p.image_url} alt={p.name} loading="lazy" decoding="async"
+                              <img src={supabaseImageTransform(p.image_url, 100, 70, 100)} alt={p.name} loading="lazy" decoding="async"
                                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                             ) : (
                               <ProductImageFallback cat={p.cat} name={p.name} brand={p.brand} swatch={p.swatch} compact />
