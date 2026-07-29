@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { type Category } from "./data";
 import { Icons } from "./icons";
-import { Btn, supabaseImageTransform } from "./ui";
+import { Btn } from "./ui";
 import { getSupabase } from "@/integrations/supabase/client";
 
 type HomepageBannerRow = {
@@ -186,7 +186,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         // Preload any images not already cached/shown
         normalized.forEach((row) => {
           const preload = new Image();
-          preload.src = supabaseImageTransform(row.image_url, 1600, 80);
+          preload.src = row.image_url;
         });
         setDynamicImages(normalized);
       }
@@ -258,7 +258,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
                 <img
                   key={`${b.imageUrl}-${i}`}
                   className="wcm-hero-image"
-                  src={supabaseImageTransform(b.imageUrl, 1600, 80)}
+                  src={b.imageUrl}
                   alt={b.imageAlt || `Homepage banner ${i + 1}`}
                   loading="eager"
                   decoding="async"
@@ -277,7 +277,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
           <img
             className="wcm-hero-image"
             key={`hero-slide-${slideTick}-${active}`}
-            src={supabaseImageTransform(banner.imageUrl, 1600, 80)}
+            src={banner.imageUrl}
             alt={banner.imageAlt || "Homepage banner"}
             loading="eager"
             decoding="async"

@@ -10,30 +10,6 @@ function getCloudinaryPlaceholderSrc(src: string) {
   return src.replace("/image/upload/", "/image/upload/f_auto,q_1,w_48,e_blur:1200/");
 }
 
-const SUPABASE_STORAGE_OBJECT_PATH = "/storage/v1/object/public/";
-const SUPABASE_STORAGE_RENDER_PATH = "/storage/v1/render/image/public/";
-
-// Resizes/compresses product photos on the fly via Supabase Storage's image
-// transformation endpoint (a Pro-plan feature) instead of shipping the
-// original upload — product photos average ~380KB and run up to 4.7MB,
-// which was the single largest driver of the project's cached-egress usage.
-// `width`/`height` should be roughly 2x the image's actual on-screen CSS
-// size, for retina — omit `height` for non-square crops (e.g. wide hero
-// banners); pass it for square product photos so Supabase crops server-side
-// instead of shipping a full-height image that CSS `object-fit: cover` then
-// throws most of away client-side. No-ops (returns src unchanged) for
-// anything that isn't a Supabase Storage public object URL — external URLs,
-// local assets, etc.
-export function supabaseImageTransform(src: string, width: number, quality?: number, height?: number): string;
-export function supabaseImageTransform(src: string | undefined, width: number, quality?: number, height?: number): string | undefined;
-export function supabaseImageTransform(src: string | undefined, width: number, quality = 70, height?: number): string | undefined {
-  if (!src || !src.includes(SUPABASE_STORAGE_OBJECT_PATH)) return src;
-  const rendered = src.replace(SUPABASE_STORAGE_OBJECT_PATH, SUPABASE_STORAGE_RENDER_PATH);
-  const separator = rendered.includes("?") ? "&" : "?";
-  const heightParam = height != null ? `&height=${height}` : "";
-  return `${rendered}${separator}width=${width}${heightParam}&quality=${quality}&resize=cover`;
-}
-
 type ProductPhotoProps = {
   src: string;
   alt: string;
@@ -42,25 +18,17 @@ type ProductPhotoProps = {
   containerStyle?: React.CSSProperties;
   imgStyle?: React.CSSProperties;
   onError?: () => void;
-  // Target render width in px (~2x the on-screen CSS size) — see
-  // supabaseImageTransform above.
-  width?: number;
 };
 
 export function ProductPhoto({
-  src: rawSrc,
+  src,
   alt,
   loading = "lazy",
   className,
   containerStyle,
   imgStyle,
   onError,
-  width = 320,
 }: ProductPhotoProps) {
-  // Every current caller renders this in a square (aspect-ratio: 1/1) box —
-  // height=width so Supabase crops server-side to match, instead of
-  // shipping a full-height image for CSS object-fit:cover to crop away.
-  const src = supabaseImageTransform(rawSrc, width, 70, width);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const placeholderSrc = getCloudinaryPlaceholderSrc(src);
@@ -233,7 +201,7 @@ export function ProductImageFallback({
   );
 }
 
-export function ProductImage({ product, width = 320 }: { product: Product; width?: number }) {
+export function ProductImage({ product }: { product: Product }) {
   const [bg, mid] =
     PRODUCT_PLACEHOLDER_PALETTES[product.swatch || ""] || PRODUCT_PLACEHOLDER_PALETTES.emerald;
   const [showFallback, setShowFallback] = useState(false);
@@ -247,7 +215,6 @@ export function ProductImage({ product, width = 320 }: { product: Product; width
       <ProductPhoto
         src={product.image_url}
         alt={product.name}
-        width={width}
         containerStyle={{
           width: "100%",
           aspectRatio: "1/1",

@@ -909,7 +909,6 @@ export function ProductDetail({
                 src={activeImageSrc}
                 alt={product.name}
                 loading="eager"
-                width={900}
                 containerStyle={{
                   width: "100%",
                   aspectRatio: "1/1",
@@ -960,7 +959,6 @@ export function ProductDetail({
                   <ProductPhoto
                     src={detailImages[i]}
                     alt={`${product.name} thumbnail ${i + 1}`}
-                    width={200}
                     containerStyle={{ width: "100%", height: "100%" }}
                   />
                 </button>
@@ -1516,7 +1514,6 @@ export function ProductDetail({
                   <ProductPhoto
                     src={detailImages[i]}
                     alt={`${product.name} thumbnail ${i + 1}`}
-                    width={200}
                     containerStyle={{ width: "100%", height: "100%" }}
                   />
                 </button>

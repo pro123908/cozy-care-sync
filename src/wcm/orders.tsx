@@ -482,7 +482,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
                   background: "var(--card)",
                 }}
               >
-                <ProductImage product={it.p} width={100} />
+                <ProductImage product={it.p} />
               </div>
             ))}
             {items.length > 4 && (
@@ -1255,7 +1255,7 @@ export function OrderDetail({
                     className="wcm-order-detail-item-image"
                     style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}
                   >
-                    <ProductImage product={p} width={140} />
+                    <ProductImage product={p} />
                   </div>
                   <div className="wcm-order-detail-item-info">
                     <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 700 }}>
