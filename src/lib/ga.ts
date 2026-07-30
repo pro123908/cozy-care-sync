@@ -38,6 +38,19 @@ function loadGaScript() {
 export function initGaLazy() {
   if (!GA_MEASUREMENT_ID || typeof window === "undefined") return;
   ensureGtagShim();
+  // Explicit Consent Mode grant. If this is never set, gtag.js treats
+  // consent as genuinely undefined (not "denied" — just unset), and can
+  // silently withhold every hit indefinitely depending on account-level
+  // settings, with no error surfaced anywhere: the script loads, the
+  // runtime processes the queue, but nothing ever transmits. This site
+  // doesn't run ads/remarketing, so ad_storage stays denied; only
+  // analytics_storage is granted.
+  window.gtag!("consent", "default", {
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+    analytics_storage: "granted",
+  });
   window.gtag!("js", new Date());
   // App.tsx sends its own page_view on every SPA route change, so this
   // suppresses gtag's automatic one on config to avoid double-counting the
