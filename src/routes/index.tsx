@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
 import { ProductsPage } from "@/wcm/products";
-import { getProductSeoPathSegment } from "@/wcm/data";
+import { getProductSeoPathSegment, getUnitPrice } from "@/wcm/data";
 import { canonicalUrl } from "@/lib/seo";
+import { gaEvent } from "@/lib/ga";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -46,12 +47,24 @@ function IndexPage() {
           resetScroll: false,
         })
       }
-      openProduct={(p) =>
+      openProduct={(p) => {
+        gaEvent("select_item", {
+          item_list_name: "Homepage",
+          items: [
+            {
+              item_id: p.id,
+              item_name: p.name,
+              item_category: p.category_name || p.cat,
+              item_brand: p.brand,
+              price: getUnitPrice(p),
+            },
+          ],
+        });
         navigate({
           to: "/products/$productId",
           params: { productId: getProductSeoPathSegment(p, products) },
-        })
-      }
+        });
+      }}
       goTo={(pg: string) =>
         navigate({
           to: pg === "orders" ? "/orders" : "/",

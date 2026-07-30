@@ -5,10 +5,13 @@ import { Analytics } from "@vercel/analytics/react";
 import * as Sentry from "@sentry/react";
 import { registerSW } from "virtual:pwa-register";
 import { getRouter } from "./router";
+import { initGaLazy } from "./lib/ga";
 import "./styles.css";
 
 const router = getRouter();
 const isVercelDeployment = !["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+initGaLazy();
 
 // No-ops if VITE_SENTRY_DSN isn't set (e.g. local dev) — Sentry.init with an
 // empty dsn just doesn't send anything.

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { trackMetaEvent } from "@/lib/meta-pixel";
+import { gaEvent } from "@/lib/ga";
 import { Icons, WellcareLogo } from "./icons";
 import { WellcareInlineLoader } from "./loader";
 import { Btn, TextField } from "./ui";
@@ -97,6 +98,7 @@ export function AuthModal({
             userData: { email: form.email },
           },
         );
+        gaEvent("sign_up", { method: "email" });
 
         if (!data.session) {
           notify("Check your email to confirm your account.");
@@ -143,6 +145,7 @@ export function AuthModal({
           lastName = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "";
         }
         const initials = ((firstName[0] || "U") + (lastName[0] || "")).toUpperCase();
+        gaEvent("login", { method: "email" });
         onSignIn({ firstName, lastName, email: form.email, initials, role });
       }
     } finally {

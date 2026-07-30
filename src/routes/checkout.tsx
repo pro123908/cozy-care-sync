@@ -8,6 +8,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 import { trackMetaEvent, toMetaValue, uniqueContentIds, getMetaBrowserIds, getOrCreateVisitorId } from "@/lib/meta-pixel";
+import { gaEvent } from "@/lib/ga";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -100,6 +101,25 @@ function CheckoutPage() {
         userData: { email: user?.email },
       },
     );
+    gaEvent("begin_checkout", {
+      currency: "PKR",
+      value: resolvedCheckoutData.total,
+      items: resolvedCheckoutData.items.map(
+        (item: {
+          p?: { id?: string; name?: string; price?: number; category_name?: string; cat?: string; brand?: string };
+          id?: string;
+          qty?: number;
+          unit_price?: number;
+        }) => ({
+          item_id: item.p?.id || item.id || "",
+          item_name: item.p?.name,
+          item_category: item.p?.category_name || item.p?.cat,
+          item_brand: item.p?.brand,
+          price: Number(item.unit_price ?? item.p?.price ?? 0),
+          quantity: Math.max(1, Number(item.qty) || 1),
+        }),
+      ),
+    });
     checkoutTrackedRef.current = true;
   }, [resolvedCheckoutData, user?.email, checkoutData, productsLoaded]);
 
@@ -153,6 +173,19 @@ function CheckoutPage() {
           userData: { email: data.ship.email || user?.email, phone: data.ship.phone },
         },
       );
+      gaEvent("add_payment_info", {
+        currency: "PKR",
+        value: data.total,
+        payment_type: data.pay,
+        items: data.items.map((item) => ({
+          item_id: item.p.id,
+          item_name: item.p.name,
+          item_category: item.p.category_name || item.p.cat,
+          item_brand: item.p.brand,
+          price: getUnitPrice(item.p, item.size),
+          quantity: Math.max(1, Number(item.qty) || 1),
+        })),
+      });
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -188,6 +221,21 @@ function CheckoutPage() {
       }
 
       const newOrder: Order = payload.order;
+
+      gaEvent("purchase", {
+        transaction_id: newOrder.id,
+        currency: "PKR",
+        value: data.total,
+        shipping: data.shipping,
+        items: data.items.map((item) => ({
+          item_id: item.p.id,
+          item_name: item.p.name,
+          item_category: item.p.category_name || item.p.cat,
+          item_brand: item.p.brand,
+          price: getUnitPrice(item.p, item.size),
+          quantity: Math.max(1, Number(item.qty) || 1),
+        })),
+      });
 
       setCart([]);
       setCheckoutData(null);

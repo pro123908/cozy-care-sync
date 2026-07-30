@@ -24,6 +24,7 @@ import {
   normalizeVariantOptions,
 } from "./data";
 import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
+import { gaEvent } from "@/lib/ga";
 
 type ProductRecord = Database["public"]["Tables"]["products"]["Row"] & {
   categories?: { name?: string | null } | null;
@@ -271,6 +272,20 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
           userData: { email: user?.email },
         },
       );
+      gaEvent("add_to_wishlist", {
+        currency: "PKR",
+        value: productUnitPrice,
+        items: [
+          {
+            item_id: id,
+            item_name: product?.name || id,
+            item_category: product?.category_name || product?.cat,
+            item_brand: product?.brand,
+            price: productUnitPrice,
+            quantity: 1,
+          },
+        ],
+      });
     }
 
     setWishlist((w) => {
@@ -579,6 +594,20 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
           userData: { email: user?.email },
         },
       );
+      gaEvent("add_to_cart", {
+        currency: "PKR",
+        value: unitPrice * addedQty,
+        items: [
+          {
+            item_id: p.id,
+            item_name: p.name,
+            item_category: p.category_name || p.cat,
+            item_brand: p.brand,
+            price: unitPrice,
+            quantity: addedQty,
+          },
+        ],
+      });
       push(`Added ${p.name} to cart`);
     }
 
@@ -608,6 +637,20 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         userData: { email: user?.email },
       },
     );
+    gaEvent("remove_from_cart", {
+      currency: "PKR",
+      value: unitPrice * qty,
+      items: [
+        {
+          item_id: p.id,
+          item_name: p.name,
+          item_category: p.category_name || p.cat,
+          item_brand: p.brand,
+          price: unitPrice,
+          quantity: qty,
+        },
+      ],
+    });
   };
 
   const onSignOut = async () => {

@@ -11,6 +11,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
 import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
+import { gaEvent } from "@/lib/ga";
 
 function getSeoSuffix(cat?: string) {
   switch (cat) {
@@ -117,6 +118,20 @@ function ProductPage() {
         userData: { email: user?.email },
       },
     );
+    gaEvent("view_item", {
+      currency: "PKR",
+      value: getUnitPrice(product),
+      items: [
+        {
+          item_id: product.id,
+          item_name: product.name,
+          item_category: product.category_name || product.cat,
+          item_brand: product.brand,
+          price: getUnitPrice(product),
+          quantity: 1,
+        },
+      ],
+    });
   }, [product?.id, user?.email]);
 
   if (!product && !productsLoaded) {

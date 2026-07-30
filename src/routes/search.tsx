@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { type Product, getProductSeoPathSegment } from "@/wcm/data";
+import { type Product, getProductSeoPathSegment, getUnitPrice } from "@/wcm/data";
 import { getSupabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
 import { WellcareLoader } from "@/wcm/loader";
+import { gaEvent } from "@/lib/ga";
 
 const PAGE_SIZE = 24;
 const POPULAR = ["Glucometer", "Wheelchair", "Pulse oximeter", "Nebulizer", "Blood pressure monitor"];
@@ -87,11 +88,42 @@ function SearchPage() {
 
   useEffect(() => { runSearch(); }, [runSearch]);
 
+  useEffect(() => {
+    if (!fetched || results.length === 0) return;
+    gaEvent("view_item_list", {
+      item_list_name: "Search results",
+      items: results.map((p) => ({
+        item_id: p.id,
+        item_name: p.name,
+        item_category: p.category_name || p.cat,
+        item_brand: p.brand,
+        price: getUnitPrice(p),
+      })),
+    });
+    // Fires once per distinct results page (q/cat/sort/page), not on every
+    // `results` reference change — `fetched` flips true→false→true per
+    // search, so gating on it alone would double-fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetched, q, cat, sort, page]);
+
   const setParam = (key: string, value: string | number) =>
     navigate({ to: "/search", search: (prev: Record<string, unknown>) => ({ ...prev, [key]: value, page: 1 }) });
 
-  const openProduct = (p: Product) =>
+  const openProduct = (p: Product) => {
+    gaEvent("select_item", {
+      item_list_name: "Search results",
+      items: [
+        {
+          item_id: p.id,
+          item_name: p.name,
+          item_category: p.category_name || p.cat,
+          item_brand: p.brand,
+          price: getUnitPrice(p),
+        },
+      ],
+    });
     navigate({ to: "/products/$productId", params: { productId: getProductSeoPathSegment(p, results) } });
+  };
 
   const padding = isMobile ? "0" : "0 20px 60px";
 
