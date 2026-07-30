@@ -836,9 +836,20 @@ export function ProductDetail({
     (categoriesLoaded ? categories : CATEGORIES).find((c) => c.id === product.cat)?.name ||
     product.category_name ||
     product.cat;
-  const related = products
-    .filter((p: Product) => p.cat === product.cat && p.id !== product.id)
-    .slice(0, 4);
+  const related = (() => {
+    const others = products.filter((p: Product) => p.id !== product.id);
+    const GENERIC_BRANDS = new Set(["imported"]);
+    const brandKey = (product.brand || "").trim().toLowerCase();
+    const hasRealBrand = brandKey.length > 0 && !GENERIC_BRANDS.has(brandKey);
+    const sameBrand = hasRealBrand
+      ? others.filter((p: Product) => (p.brand || "").trim().toLowerCase() === brandKey)
+      : [];
+    const sameBrandIds = new Set(sameBrand.map((p) => p.id));
+    const sameCat = others.filter(
+      (p: Product) => p.cat === product.cat && !sameBrandIds.has(p.id)
+    );
+    return [...sameBrand, ...sameCat].slice(0, 8);
+  })();
   const detailImages = useMemo(() => {
     const primary = product.image_url ? [product.image_url] : [];
     const extra = Array.isArray(product.gallery_images) ? product.gallery_images : [];
@@ -1592,6 +1603,47 @@ export function ProductDetail({
         </div>
       </div>
 
+      {(!productsLoaded || related.length > 0) && (
+        <div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800, letterSpacing: -0.2 }}>
+              You may also like
+            </h2>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile
+                ? "repeat(auto-fill, minmax(160px, 1fr))"
+                : "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: isMobile ? 8 : 14,
+            }}
+          >
+            {!productsLoaded
+              ? Array.from({ length: 8 }).map((_, i) => (
+                  <ProductCardSkeleton key={i} isMobile={isMobile} />
+                ))
+              : related.map((r) => (
+                  <ProductCard
+                    key={r.id}
+                    p={r}
+                    onAdd={addToCart}
+                    onOpen={openProduct}
+                    cartQty={cart.find((c) => c.id === r.id)?.qty ?? 0}
+                    compact={isMobile}
+                  />
+                ))}
+          </div>
+        </div>
+      )}
+
       <Section style={{ padding: 18 }}>
         <div
           style={{
@@ -1690,47 +1742,6 @@ export function ProductDetail({
           </div>
         )}
       </Section>
-
-      {(!productsLoaded || related.length > 0) && (
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 10,
-            }}
-          >
-            <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800, letterSpacing: -0.2 }}>
-              You may also like
-            </h2>
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile
-                ? "repeat(auto-fill, minmax(160px, 1fr))"
-                : "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: isMobile ? 8 : 14,
-            }}
-          >
-            {!productsLoaded
-              ? Array.from({ length: 4 }).map((_, i) => (
-                  <ProductCardSkeleton key={i} isMobile={isMobile} />
-                ))
-              : related.map((r) => (
-                  <ProductCard
-                    key={r.id}
-                    p={r}
-                    onAdd={addToCart}
-                    onOpen={openProduct}
-                    cartQty={cart.find((c) => c.id === r.id)?.qty ?? 0}
-                    compact={isMobile}
-                  />
-                ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
