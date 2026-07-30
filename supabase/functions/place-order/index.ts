@@ -23,7 +23,7 @@ type RequestBody = {
   ship: ShipDetails;
   pay: string;
   promo_code?: string;
-  meta?: { fbc?: string; fbp?: string };
+  meta?: { fbc?: string; fbp?: string; visitor_id?: string };
 };
 
 type SizeOption = { size: string; price: number };
@@ -157,6 +157,7 @@ async function logMetaEvent(row: {
   geo_city?: string | null;
   geo_region?: string | null;
   geo_country?: string | null;
+  visitor_id?: string | null;
 }) {
   const { error } = await metaEventLogClient
     .from("meta_events")
@@ -203,6 +204,7 @@ async function sendMetaPurchaseEvent(input: {
   phone?: string;
   fbc?: string;
   fbp?: string;
+  visitorId?: string;
   userAgent: string;
   clientIp: string;
   geoCity: string | null;
@@ -226,6 +228,7 @@ async function sendMetaPurchaseEvent(input: {
       currency: "PKR",
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
       geo_city: input.geoCity,
       geo_region: input.geoRegion,
       geo_country: input.geoCountry,
@@ -247,6 +250,7 @@ async function sendMetaPurchaseEvent(input: {
       currency: "PKR",
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
       geo_city: input.geoCity,
       geo_region: input.geoRegion,
       geo_country: input.geoCountry,
@@ -270,6 +274,7 @@ async function sendMetaPurchaseEvent(input: {
       content_ids: input.itemIds,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
       geo_city: input.geoCity,
       geo_region: input.geoRegion,
       geo_country: input.geoCountry,
@@ -308,6 +313,7 @@ async function sendMetaPurchaseEvent(input: {
       event_source_url: input.eventSourceUrl,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
       geo_city: input.geoCity,
       geo_region: input.geoRegion,
       geo_country: input.geoCountry,
@@ -378,6 +384,7 @@ async function sendMetaPurchaseEvent(input: {
       event_source_url: input.eventSourceUrl,
       user_agent: input.userAgent,
       ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
       geo_city: input.geoCity,
       geo_region: input.geoRegion,
       geo_country: input.geoCountry,
@@ -413,6 +420,7 @@ async function sendMetaPurchaseEvent(input: {
     fbtrace_id: responseSummary.fbtrace_id || null,
     user_agent: input.userAgent,
     ip_address: input.clientIp,
+    visitor_id: input.visitorId || null,
     geo_city: input.geoCity,
     geo_region: input.geoRegion,
     geo_country: input.geoCountry,
@@ -853,16 +861,25 @@ Deno.serve(
   // 3. Fetch product prices from DB (server-side — cannot be tampered)
   // ------------------------------------------------------------------
   const productIds = [...new Set(items.map((i) => i.id))];
-  const { data: products, error: productsErr } = await serviceClient
-    .from("products")
-    .select("id, name, price, active, stock, size_options, variant_options")
-    .in("id", productIds);
+  const [{ data: products, error: productsErr }, { data: costRows }] = await Promise.all([
+    serviceClient
+      .from("products")
+      .select("id, name, price, active, stock, size_options, variant_options")
+      .in("id", productIds),
+    // Cost snapshot for the Net Profit Report — see product_costs (admin-only
+    // table, but service-role bypasses RLS). Missing rows default to 0/unknown,
+    // same convention the admin-app profit reports already use.
+    serviceClient.from("product_costs").select("product_id, purchase_price").in("product_id", productIds),
+  ]);
 
   if (productsErr || !products) {
     return json({ error: "Failed to fetch product data" }, 500, origin);
   }
 
   const productMap = new Map<string, ProductRow>(products.map((p) => [p.id, p]));
+  const costMap = new Map<string, number>(
+    (costRows ?? []).map((c) => [c.product_id as string, c.purchase_price as number]),
+  );
 
   // Validate all products exist and are active
   for (const item of items) {
@@ -964,6 +981,7 @@ Deno.serve(
     qty: item.qty,
     ...(item.size ? { size: item.size } : {}),
     unit_price: item.unit_price,
+    cost_price: costMap.get(item.id) ?? 0,
   }));
 
   const { data: insertedOrder, error: insertErr } = await serviceClient
@@ -1055,6 +1073,7 @@ Deno.serve(
     phone: ship.phone,
     fbc: meta?.fbc,
     fbp: meta?.fbp,
+    visitorId: meta?.visitor_id,
     userAgent,
     clientIp,
     geoCity: geo.geo_city,

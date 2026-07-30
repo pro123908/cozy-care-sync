@@ -32,6 +32,7 @@ async function logMetaEvent(row: {
   geo_city?: string | null;
   geo_region?: string | null;
   geo_country?: string | null;
+  visitor_id?: string | null;
 }) {
   const { error } = await logClient.from("meta_events").insert({ source: "client-event", ...row });
   if (error) console.error("[meta-capi] failed to log event", error);
@@ -57,6 +58,7 @@ type Body = {
   event_id?: string;
   event_source_url?: string;
   custom_data?: Record<string, unknown>;
+  visitor_id?: string;
   user_data?: {
     email?: string;
     phone?: string;
@@ -179,6 +181,7 @@ serve(async (req) => {
       event_source_url: body.event_source_url?.trim() || origin,
       user_agent: userAgent,
       ip_address: clientIp,
+      visitor_id: body.visitor_id || null,
       geo_city: geo.geo_city,
       geo_region: geo.geo_region,
       geo_country: geo.geo_country,
@@ -242,6 +245,7 @@ serve(async (req) => {
       event_source_url: eventSourceUrl,
       user_agent: userAgent,
       ip_address: clientIp,
+      visitor_id: body.visitor_id || null,
       geo_city: geo.geo_city,
       geo_region: geo.geo_region,
       geo_country: geo.geo_country,
@@ -278,6 +282,7 @@ serve(async (req) => {
     fbtrace_id: responseSummary.fbtrace_id || null,
     user_agent: userAgent,
     ip_address: clientIp,
+    visitor_id: body.visitor_id || null,
     geo_city: geo.geo_city,
     geo_region: geo.geo_region,
     geo_country: geo.geo_country,

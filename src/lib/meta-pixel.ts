@@ -55,6 +55,34 @@ export function getMetaBrowserIds(): { fbc?: string; fbp?: string } {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Anonymous visitor id
+// ---------------------------------------------------------------------------
+//
+// `_fbp`/`_fbc` only exist when Meta's pixel JS has run on this browser, which
+// isn't reliably the case here (events are fired server-side via CAPI). This
+// is our own stable id so admin-side "unique visits" isn't stuck approximating
+// uniqueness from IP address, which both over- and under-counts real people
+// (shared NAT/office wifi vs. one person switching networks).
+
+const VISITOR_ID_KEY = "wcm_visitor_id";
+
+export function getOrCreateVisitorId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    let id = window.localStorage.getItem(VISITOR_ID_KEY);
+    if (!id) {
+      id = crypto.randomUUID();
+      window.localStorage.setItem(VISITOR_ID_KEY, id);
+    }
+    return id;
+  } catch {
+    // storage unavailable (private mode, etc.) — event still fires, just
+    // without a persistent id for this visitor.
+    return undefined;
+  }
+}
+
 // Run once at module load
 initMetaBrowserIds();
 
@@ -92,6 +120,11 @@ async function forwardMetaEvent(
 
   if (options?.eventId) {
     body.event_id = options.eventId;
+  }
+
+  const visitorId = getOrCreateVisitorId();
+  if (visitorId) {
+    body.visitor_id = visitorId;
   }
 
   const email = options?.userData?.email?.trim();
