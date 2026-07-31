@@ -101,12 +101,16 @@ Deno.serve(
     }
 
     // Re-confirm current status is still Delivered (not since Returned etc.)
-    // and pull what send-feedback-request needs.
+    // and pull what send-feedback-request needs. feedback_request_hold_at
+    // lets admin-app staff exclude a specific order (e.g. it's being
+    // returned) without touching status — see
+    // app/feedback-requests/page.tsx in admin-app.
     const { data: orders, error: ordersError } = await supabase
       .from("orders")
       .select("id, order_code, customer_name, phone, eta")
       .in("id", candidateIds)
       .ilike("status", "Delivered")
+      .is("feedback_request_hold_at", null)
       .returns<OrderRow[]>();
     if (ordersError) {
       console.error("[auto-feedback-requests] orders query failed", ordersError.message);
