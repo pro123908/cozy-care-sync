@@ -49,6 +49,35 @@ const SITE_URL = "https://wellcaremart.pk";
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// First-party proxy for GA4 hit collection: gtag.js is configured (see
+// src/lib/ga.ts, transport_url) to send hits here instead of directly to
+// google-analytics.com. Ad/privacy blocklists near-universally target that
+// domain by name; they don't (and structurally can't, without breaking the
+// rest of the site) block an arbitrary path on our own origin. We just
+// relay the request through server-to-server, unmodified, to the real
+// endpoint. Known limitation: GA resolves visitor geography from the IP of
+// whoever calls its collect endpoint, which after this proxy is Vercel's
+// edge IP, not the visitor's — Country/City reports will be inaccurate.
+// Everything else (events, e-commerce, device/browser via UA) is unaffected.
+async function proxyGaCollect(request: Request, pathname: string, search: string): Promise<Response> {
+  const target = `https://www.google-analytics.com${pathname}${search}`;
+  try {
+    await fetch(target, {
+      method: request.method,
+      headers: {
+        "user-agent": request.headers.get("user-agent") || "",
+        "content-type": request.headers.get("content-type") || "text/plain;charset=UTF-8",
+      },
+      body: request.method === "POST" ? await request.text() : undefined,
+    });
+  } catch {
+    // Best-effort — GA's own collect endpoint doesn't surface errors to
+    // callers either, and the client isn't waiting on this response for
+    // anything.
+  }
+  return new Response(null, { status: 204 });
+}
+
 // A few minutes of edge caching is fine for crawler traffic — they don't
 // need second-fresh prices, and it keeps Supabase load negligible since real
 // users never hit this path (they get `next()` below, unchanged).
@@ -458,6 +487,10 @@ ${urls.map((loc) => `  <url><loc>${loc}</loc></url>`).join("\n")}
 
 export default async function middleware(request: Request) {
   const url = new URL(request.url);
+
+  if (url.pathname.startsWith("/g/")) {
+    return proxyGaCollect(request, url.pathname, url.search);
+  }
 
   if (url.pathname === "/sitemap.xml") {
     // Always dynamic regardless of fetcher type — a browser opening this URL

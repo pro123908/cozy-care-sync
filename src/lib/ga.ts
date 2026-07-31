@@ -58,9 +58,17 @@ export function initGaLazy() {
   // (near-instant, full detail) instead of/in addition to Realtime, which
   // has more processing lag and is easy to misread as "nothing arrived" —
   // dev-only, never set in production so it doesn't skew real reports.
+  //
+  // transport_url (production only) routes hit collection through our own
+  // domain — middleware.ts proxies /g/* through to google-analytics.com
+  // server-to-server — instead of gtag.js's default of calling
+  // google-analytics.com directly from the browser, which ad/privacy
+  // blockers near-universally target by domain name. Skipped in DEV since
+  // the local Vite server doesn't run middleware.ts, so hits would just
+  // 404 against localhost instead of reaching Google's DebugView.
   window.gtag!("config", GA_MEASUREMENT_ID, {
     send_page_view: false,
-    ...(import.meta.env.DEV ? { debug_mode: true } : {}),
+    ...(import.meta.env.DEV ? { debug_mode: true } : { transport_url: window.location.origin }),
   });
 
   const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "scroll", "touchstart"];
