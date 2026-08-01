@@ -35,6 +35,48 @@ const HOMEPAGE_TOP_CATEGORIES_MOBILE = 10;
 // Show 15 categories: 8 in row 1, 7 in row 2 + view-all button
 const HOMEPAGE_TOP_CATEGORIES_DESKTOP = 15;
 
+// Small play-triangle overlay for video thumbnails — browsers already render
+// a video element's first frame as its poster, this just signals it's a
+// clip rather than a photo.
+function PlayBadge() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          background: "rgba(0,0,0,0.55)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div
+          style={{
+            width: 0,
+            height: 0,
+            borderTop: "5px solid transparent",
+            borderBottom: "5px solid transparent",
+            borderLeft: "8px solid #fff",
+            marginLeft: 2,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function useRecentlyViewed() {
   const [ids, setIds] = useState<string[]>(() => {
     try {
@@ -830,6 +872,11 @@ export function ProductDetail({
   }, [product.id, trackView]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  const heroVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Starts muted — browsers block autoplay-with-sound otherwise — the
+  // speaker button lets the shopper opt in to audio afterward, which
+  // counts as a user gesture so unmuting is always allowed.
+  const [heroVideoMuted, setHeroVideoMuted] = useState(true);
   const inCart = cart.find((c) => c.id === product.id && (!variantKey || c.size === variantKey));
   const isSaved = wishlist.includes(product.id);
   const cat =
@@ -850,18 +897,29 @@ export function ProductDetail({
     );
     return [...sameBrand, ...sameCat].slice(0, 8);
   })();
-  const detailImages = useMemo(() => {
+  const detailMedia = useMemo(() => {
     const primary = product.image_url ? [product.image_url] : [];
     const extra = Array.isArray(product.gallery_images) ? product.gallery_images : [];
-    return Array.from(new Set([...primary, ...extra].filter((src): src is string => Boolean(src))));
+    const images = Array.from(new Set([...primary, ...extra].filter((src): src is string => Boolean(src))));
+    const videos = Array.isArray(product.gallery_videos)
+      ? product.gallery_videos.filter((src): src is string => Boolean(src))
+      : [];
+    return [
+      ...images.map((src) => ({ type: "image" as const, src })),
+      ...videos.map((src) => ({ type: "video" as const, src })),
+    ];
   }, [product]);
-  const hasMultipleImages = detailImages.length > 1;
-  const activeImageSrc = detailImages[activeView] ?? detailImages[0] ?? null;
-  const thumbIndexes = detailImages.map((_, i) => i);
+  const hasMultipleImages = detailMedia.length > 1;
+  const activeMedia = detailMedia[activeView] ?? detailMedia[0] ?? null;
+  const thumbIndexes = detailMedia.map((_, i) => i);
 
   useEffect(() => {
     setActiveView(0);
-  }, [product.id, detailImages.length]);
+  }, [product.id, detailMedia.length]);
+
+  useEffect(() => {
+    setHeroVideoMuted(true);
+  }, [product.id]);
 
   useEffect(() => {
     if (!hasSelectableOptions) {
@@ -874,8 +932,8 @@ export function ProductDetail({
   }, [hasSelectableOptions, isOrthoBelt, selectedSize, selectableOptions]);
 
   const cycleView = (dir: 1 | -1) => {
-    if (detailImages.length <= 1) return;
-    setActiveView((v) => (v + dir + detailImages.length) % detailImages.length);
+    if (detailMedia.length <= 1) return;
+    setActiveView((v) => (v + dir + detailMedia.length) % detailMedia.length);
   };
   return (
     <div className="wcm-pdp-wrap" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -902,6 +960,7 @@ export function ProductDetail({
         <Section className="wcm-detail-media" style={{ padding: 18 }}>
           <div
             className="wcm-detail-media-hero"
+            style={{ position: "relative" }}
             onTouchStart={(e) => {
               touchStartX.current = e.changedTouches[0]?.clientX ?? null;
             }}
@@ -915,20 +974,98 @@ export function ProductDetail({
               cycleView(delta < 0 ? 1 : -1);
             }}
           >
-            {activeImageSrc ? (
-              <ProductPhoto
-                src={activeImageSrc}
-                alt={product.name}
-                loading="eager"
-                containerStyle={{
-                  width: "100%",
-                  aspectRatio: "1/1",
-                  borderRadius: 12,
-                  border: "1px solid var(--line)",
-                  background: "var(--bg-elev)",
-                }}
-                imgStyle={{ objectPosition: "center center" }}
-              />
+            {activeMedia ? (
+              activeMedia.type === "video" ? (
+                <>
+                  <video
+                    key={activeMedia.src}
+                    ref={heroVideoRef}
+                    src={activeMedia.src}
+                    autoPlay
+                    muted={heroVideoMuted}
+                    loop
+                    playsInline
+                    style={{
+                      width: "100%",
+                      aspectRatio: "1/1",
+                      borderRadius: 12,
+                      border: "1px solid var(--line)",
+                      background: "var(--bg-elev)",
+                      objectFit: "contain",
+                    }}
+                  />
+                  <div style={{ position: "absolute", bottom: 12, right: 12, display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setHeroVideoMuted((m) => !m)}
+                      aria-label={heroVideoMuted ? "Unmute video" : "Mute video"}
+                      title={heroVideoMuted ? "Unmute" : "Mute"}
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        border: "none",
+                        background: "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {heroVideoMuted ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                          <line x1="23" y1="9" x2="17" y2="15" strokeLinecap="round" />
+                          <line x1="17" y1="9" x2="23" y2="15" strokeLinecap="round" />
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" strokeLinecap="round" />
+                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" strokeLinecap="round" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => heroVideoRef.current?.requestFullscreen()}
+                      aria-label="View video fullscreen"
+                      title="Fullscreen"
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        border: "none",
+                        background: "rgba(0,0,0,0.55)",
+                        color: "#fff",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <ProductPhoto
+                  src={activeMedia.src}
+                  alt={product.name}
+                  loading="eager"
+                  containerStyle={{
+                    width: "100%",
+                    aspectRatio: "1/1",
+                    borderRadius: 12,
+                    border: "1px solid var(--line)",
+                    background: "var(--bg-elev)",
+                  }}
+                  imgStyle={{ objectPosition: "center center" }}
+                />
+              )
             ) : (
               <ProductImage product={product} />
             )}
@@ -938,7 +1075,7 @@ export function ProductDetail({
               className="wcm-detail-thumbs-desktop"
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4,1fr)",
+                gridTemplateColumns: `repeat(${Math.max(thumbIndexes.length, 4)},1fr)`,
                 gap: 8,
                 marginTop: 12,
               }}
@@ -947,8 +1084,9 @@ export function ProductDetail({
                 <button
                   key={i}
                   onClick={() => setActiveView(i)}
-                  aria-label={`Show image ${i + 1}`}
+                  aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
                   style={{
+                    position: "relative",
                     aspectRatio: "1/1",
                     borderRadius: 9,
                     border: "1px solid var(--line)",
@@ -967,11 +1105,30 @@ export function ProductDetail({
                       : {}),
                   }}
                 >
-                  <ProductPhoto
-                    src={detailImages[i]}
-                    alt={`${product.name} thumbnail ${i + 1}`}
-                    containerStyle={{ width: "100%", height: "100%" }}
-                  />
+                  {detailMedia[i].type === "video" ? (
+                    <>
+                      <video
+                        src={detailMedia[i].src}
+                        muted
+                        preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          // 0.1s still lands inside a fade-in on edited
+                          // clips (title card fading in from black); 1.5s
+                          // reliably clears that without needing per-video
+                          // tuning. Browsers clamp the seek for shorter clips.
+                          e.currentTarget.currentTime = Math.min(1.5, e.currentTarget.duration / 2 || 1.5);
+                        }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <PlayBadge />
+                    </>
+                  ) : (
+                    <ProductPhoto
+                      src={detailMedia[i].src}
+                      alt={`${product.name} thumbnail ${i + 1}`}
+                      containerStyle={{ width: "100%", height: "100%" }}
+                    />
+                  )}
                 </button>
               ))}
             </div>
@@ -1502,8 +1659,9 @@ export function ProductDetail({
                 <button
                   key={`mobile-thumb-${i}`}
                   onClick={() => setActiveView(i)}
-                  aria-label={`Show image ${i + 1}`}
+                  aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
                   style={{
+                    position: "relative",
                     aspectRatio: "1/1",
                     borderRadius: 9,
                     border: "1px solid var(--line)",
@@ -1522,11 +1680,30 @@ export function ProductDetail({
                       : {}),
                   }}
                 >
-                  <ProductPhoto
-                    src={detailImages[i]}
-                    alt={`${product.name} thumbnail ${i + 1}`}
-                    containerStyle={{ width: "100%", height: "100%" }}
-                  />
+                  {detailMedia[i].type === "video" ? (
+                    <>
+                      <video
+                        src={detailMedia[i].src}
+                        muted
+                        preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          // 0.1s still lands inside a fade-in on edited
+                          // clips (title card fading in from black); 1.5s
+                          // reliably clears that without needing per-video
+                          // tuning. Browsers clamp the seek for shorter clips.
+                          e.currentTarget.currentTime = Math.min(1.5, e.currentTarget.duration / 2 || 1.5);
+                        }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <PlayBadge />
+                    </>
+                  ) : (
+                    <ProductPhoto
+                      src={detailMedia[i].src}
+                      alt={`${product.name} thumbnail ${i + 1}`}
+                      containerStyle={{ width: "100%", height: "100%" }}
+                    />
+                  )}
                 </button>
               ))}
             </div>

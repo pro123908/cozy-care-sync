@@ -1322,6 +1322,7 @@
   }
   .wcm-detail-info {
     gap: 10px !important;
+    min-width: 0;
   }
   .wcm-detail-price-card {
     width: 100%;
@@ -1361,6 +1362,8 @@
   }
   .wcm-detail-thumbs-mobile {
     display: flex;
+    width: 100%;
+    min-width: 0;
     gap: 8px;
     overflow-x: auto;
     padding: 2px 1px 2px;
