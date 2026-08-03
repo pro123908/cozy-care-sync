@@ -77,12 +77,21 @@ function ProductPage() {
   const { productId } = Route.useParams();
   const { addToCart, cart, products, productsLoaded, user } = useWcm();
   const navigate = useNavigate();
-  const resolvedProductId =
-    resolveProductIdFromParam(productId, products) ||
-    resolveProductIdFromParam(productId, PRODUCTS);
-  const product =
-    (resolvedProductId ? products.find((p) => p.id === resolvedProductId) : undefined) ||
-    (resolvedProductId ? PRODUCTS.find((p) => p.id === resolvedProductId) : undefined);
+  // Resolve strictly against the live catalog, and only once it's actually
+  // loaded — never fall back to the bundled placeholder PRODUCTS array, and
+  // never resolve against `products` while it still holds its pre-load
+  // placeholder value. That array's demo entries can share an id with an
+  // unrelated real product (e.g. "Torch" and "Lifecare Alcohol Pads" both
+  // used id oth-013), which used to cause a URL slug that only matched a
+  // fake demo product's name to briefly render that fake product, then flip
+  // to a real but completely unrelated one once the live catalog loaded.
+  // Gating on `productsLoaded` also stops it from rendering the fake product
+  // at all during that pre-load window — the loading spinner below covers it
+  // instead. If the live fetch ever fails, `products` in context already
+  // falls back to PRODUCTS itself (see context.tsx), so this doesn't lose
+  // any real resilience.
+  const resolvedProductId = productsLoaded ? resolveProductIdFromParam(productId, products) : undefined;
+  const product = resolvedProductId ? products.find((p) => p.id === resolvedProductId) : undefined;
 
   useEffect(() => {
     const readableFallbackName = productId
