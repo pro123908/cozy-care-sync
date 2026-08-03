@@ -69,6 +69,33 @@ export type Database = {
         }
         Relationships: []
       }
+      courier_cities: {
+        Row: {
+          allow_as_destination: boolean
+          allow_as_origin: boolean
+          leopards_id: number
+          name: string
+          shipment_type: string[]
+          synced_at: string
+        }
+        Insert: {
+          allow_as_destination?: boolean
+          allow_as_origin?: boolean
+          leopards_id: number
+          name: string
+          shipment_type?: string[]
+          synced_at?: string
+        }
+        Update: {
+          allow_as_destination?: boolean
+          allow_as_origin?: boolean
+          leopards_id?: number
+          name?: string
+          shipment_type?: string[]
+          synced_at?: string
+        }
+        Relationships: []
+      }
       homepage_banners: {
         Row: {
           active: boolean

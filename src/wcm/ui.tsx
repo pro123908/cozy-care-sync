@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Icons } from "./icons";
@@ -499,6 +499,36 @@ export type SelectOption = {
   color?: { bg: string; color: string };
 };
 
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const dp = new Array<number>(b.length + 1);
+  for (let j = 0; j <= b.length; j++) dp[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = dp[j];
+      dp[j] = a[i - 1] === b[j - 1] ? prev : 1 + Math.min(prev, dp[j], dp[j - 1]);
+      prev = temp;
+    }
+  }
+  return dp[b.length];
+}
+
+// Smallest edit distance between the query and either the whole label or any
+// single word in it (so "momen" still finds "Kot Momin" without needing the
+// "Kot " prefix typed too).
+function closestMatchDistance(query: string, label: string): number {
+  let best = levenshtein(query, label);
+  for (const word of label.split(/\s+/)) {
+    if (word.length === 0) continue;
+    best = Math.min(best, levenshtein(query, word));
+  }
+  return best;
+}
+
 // Theme-aware dropdown (ported from the admin app) used instead of a native
 // <select> or datalist so styling stays consistent with the rest of the UI.
 // The trigger's box styling (padding/border/background) comes from `style`;
@@ -539,8 +569,20 @@ export function Select({
   const highlightRef = useRef<HTMLButtonElement | null>(null);
 
   const q = query.trim().toLowerCase();
-  const filtered =
-    searchable && q ? options.filter((opt) => opt.label.toLowerCase().includes(q)) : options;
+  const filtered = useMemo(() => {
+    if (!searchable || !q) return options;
+    const exact = options.filter((opt) => opt.label.toLowerCase().includes(q));
+    if (exact.length > 0) return exact;
+    // No substring match — likely a typo. Fall back to the closest-spelled
+    // options by edit distance rather than showing "no matches" outright.
+    const threshold = Math.min(3, Math.max(1, Math.round(q.length * 0.34)));
+    return options
+      .map((opt) => ({ opt, dist: closestMatchDistance(q, opt.label.toLowerCase()) }))
+      .filter(({ dist }) => dist <= threshold)
+      .sort((a, b) => a.dist - b.dist || a.opt.label.localeCompare(b.opt.label))
+      .slice(0, 8)
+      .map(({ opt }) => opt);
+  }, [searchable, q, options]);
 
   // Position the menu as a fixed-position overlay anchored to the trigger. This
   // keeps it out of any scrollable ancestor (e.g. the checkout form column), so

@@ -13,6 +13,7 @@ import {
 import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row, Select, useToasts } from "./ui";
 import type { SelectOption } from "./ui";
+import { getSupabase } from "@/integrations/supabase/client";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
@@ -479,6 +480,30 @@ export function CheckoutContent({
     city: "Karachi",
     landmark: "",
   });
+  const [cityOptions, setCityOptions] = useState<SelectOption[]>(CITY_OPTIONS);
+  // PAKISTAN_CITIES is a static ~120-city list that's missing real Leopards
+  // destination cities (e.g. "Kot Momin"). courier_cities mirrors Leopards'
+  // full ~827-city list, so merge it in once fetched — starting from the
+  // static list means the dropdown still works instantly if this fails.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase
+        .from("courier_cities")
+        .select("name")
+        .eq("allow_as_destination", true)
+        .order("name", { ascending: true });
+      if (cancelled || error || !data) return;
+      const names = new Set(PAKISTAN_CITIES);
+      for (const row of data) names.add(row.name);
+      const merged = Array.from(names).sort((a, b) => a.localeCompare(b));
+      setCityOptions(merged.map((city) => ({ value: city, label: city })));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [pay, setPay] = useState<"cod" | "bank">("cod");
   const [errs, setErrs] = useState<Record<string, string>>({});
   const [promo, setPromo] = useState("");
@@ -827,7 +852,7 @@ export function CheckoutContent({
                     emptyLabel="No matching city"
                     value={ship.city}
                     placeholder="Select city"
-                    options={CITY_OPTIONS}
+                    options={cityOptions}
                     onChange={(city) => {
                       setShip({ ...ship, city });
                       if (errs.city) setErrs({ ...errs, city: "" });
