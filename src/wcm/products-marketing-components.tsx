@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { type Category } from "./data";
 import { Icons } from "./icons";
 import { Btn } from "./ui";
@@ -36,6 +36,13 @@ type HeroBanner = {
     sub: string;
   };
 };
+
+// Desktop-only swap for slot 0 (Azadi/Independence Day sale, Aug 2026) — the
+// mobile <img> below stays on the regular grand-opening /hero-banner.webp,
+// only the (min-width) <source> gets this. Temporary/seasonal; revert to
+// undefined here (or delete this const + its one usage below) once the sale
+// period ends and slot 0 should go back to grand-opening on all breakpoints.
+const GRAND_OPENING_DESKTOP_OVERRIDE = "/azadi-banner.webp";
 
 const HERO_BANNERS: HeroBanner[] = [
   {
@@ -122,6 +129,50 @@ function loadBannerCache(): HomepageBannerRow[] {
   } catch {
     return [];
   }
+}
+
+// Plain <img> everywhere except slot 0 while GRAND_OPENING_DESKTOP_OVERRIDE
+// is set — that one gets a <picture> so desktop (>=769px, matches this
+// file's other mobile/desktop breakpoints) gets the seasonal banner while
+// mobile keeps the regular grand-opening image, same alt text either way.
+function HeroBannerImage({
+  src,
+  desktopSrc,
+  alt,
+  className,
+  style,
+  fetchPriority,
+}: {
+  src: string;
+  desktopSrc?: string;
+  alt: string;
+  className?: string;
+  style?: CSSProperties;
+  fetchPriority?: "high" | "auto";
+}) {
+  if (!desktopSrc) {
+    return (
+      <img className={className} src={src} alt={alt} loading="eager" decoding="async" fetchPriority={fetchPriority} style={style} />
+    );
+  }
+  // <picture> is inline by default and would otherwise sit outside the width/
+  // flex-basis chain the caller's `style` sets up (both call sites here are
+  // flex-track items relying on an explicit width) — putting the same style
+  // on <picture> itself (blockified anyway once it's a flex item) and having
+  // the <img> just fill it keeps the layout identical to a plain <img>.
+  return (
+    <picture className={className} style={style}>
+      <source media="(min-width: 769px)" srcSet={desktopSrc} />
+      <img
+        src={src}
+        alt={alt}
+        loading="eager"
+        decoding="async"
+        fetchPriority={fetchPriority}
+        style={{ width: "100%", height: "100%", display: "block" }}
+      />
+    </picture>
+  );
 }
 
 function saveBannerCache(rows: HomepageBannerRow[]) {
@@ -255,13 +306,12 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
               }}
             >
               {banners.map((b, i) => (
-                <img
+                <HeroBannerImage
                   key={`${b.imageUrl}-${i}`}
                   className="wcm-hero-image"
-                  src={b.imageUrl}
+                  src={b.imageUrl!}
+                  desktopSrc={i === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
                   alt={b.imageAlt || `Homepage banner ${i + 1}`}
-                  loading="eager"
-                  decoding="async"
                   fetchPriority={i === 0 ? "high" : "auto"}
                   style={{
                     width: `${100 / banners.length}%`,
@@ -274,13 +324,12 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             </div>
           </div>
         ) : (
-          <img
+          <HeroBannerImage
             className="wcm-hero-image"
             key={`hero-slide-${slideTick}-${active}`}
-            src={banner.imageUrl}
+            src={banner.imageUrl!}
+            desktopSrc={active === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
             alt={banner.imageAlt || "Homepage banner"}
-            loading="eager"
-            decoding="async"
             fetchPriority={active === 0 ? "high" : "auto"}
             style={{
               width: "100%",
