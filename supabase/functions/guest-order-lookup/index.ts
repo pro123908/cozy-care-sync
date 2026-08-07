@@ -101,7 +101,7 @@ Deno.serve(
   // after a cancelled attempt) — take the most recently synced one.
   const { data: courierRows } = await supabase
     .from("courier_bookings")
-    .select("tracking_number, status, status_history")
+    .select("tracking_number, status, status_history, courier")
     .eq("order_id", orderId)
     .order("synced_at", { ascending: false })
     .limit(1);
@@ -141,6 +141,7 @@ Deno.serve(
               trackingNumber: courierRow.tracking_number,
               status: courierRow.status,
               statusHistory: courierRow.status_history ?? null,
+              provider: courierRow.courier,
             }
           : null,
       },

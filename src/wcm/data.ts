@@ -2604,5 +2604,6 @@ export type Order = {
     trackingNumber: string;
     status: string;
     statusHistory?: Array<{ status: string; statusWithCity: string; at: string }> | null;
+    provider: string;
   } | null;
 };

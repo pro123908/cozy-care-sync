@@ -373,12 +373,13 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       trackingNumber: string;
       status: string;
       statusHistory: Array<{ status: string; statusWithCity: string; at: string }> | null;
+      provider: string;
     };
     const courierMap: Record<string, CourierInfo> = {};
     if (mergedOrders.length > 0) {
       const { data: courierRows } = await supabase
         .from("courier_bookings")
-        .select("order_id, tracking_number, status, status_history, synced_at")
+        .select("order_id, tracking_number, status, status_history, synced_at, courier")
         .in("order_id", mergedOrders.map((o) => o.order_code))
         .order("synced_at", { ascending: true });
       // Rows are ascending by synced_at, so the last write per order_id wins —
@@ -389,6 +390,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
           trackingNumber: c.tracking_number,
           status: c.status,
           statusHistory: c.status_history as Array<{ status: string; statusWithCity: string; at: string }> | null,
+          provider: c.courier,
         };
       }
     }

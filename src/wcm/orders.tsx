@@ -7,10 +7,38 @@ import { getSupabase } from "@/integrations/supabase/client";
 
 const STATUSES = ["Order placed", "Order confirmed", "Processing", "Out for delivery", "Delivered"];
 
+// Hidden per request 2026-08-07 — flip back to true to re-show the "Track on
+// [courier]'s website" link under the "Out for delivery" step. Logic/URLs
+// (courierTrackingUrl below) are untouched, this only gates the render.
+const SHOW_COURIER_TRACKING_LINK = false;
+
 // Same Facebook Page reviews link the order-delivered-email edge function
 // sends — supabase/functions/order-delivered-email/index.ts. Kept in sync
 // manually since the two run in different deploy targets.
 const FACEBOOK_REVIEW_URL = "https://www.facebook.com/profile.php?id=61564545159068&sk=reviews";
+
+// Courier tracking events (both Leopards' "Activity_datetime" and PostEx's
+// reformatted "updatedAt" — see app/api/postex/bookings/route.ts) arrive as
+// a plain "YYYY-MM-DD HH:MM:SS" string, no timezone. Parsed manually (not
+// `new Date(raw)`) since that space-separated format isn't reliably parsed
+// as local time across browsers — some read it as UTC, some reject it
+// outright. Falls back to the raw string if it doesn't match.
+function formatTrackingEventTime(raw: string): string {
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) return raw;
+  const [, y, mo, d, h, mi] = m;
+  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
+  return date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+// Both confirmed live 2026-08-07 by actually driving each courier's public
+// tracking page (not from docs): Leopards' is a plain query-string GET,
+// PostEx's is a client-rendered page but reads `?cn=` on load and
+// auto-searches — neither is documented anywhere, found via Playwright.
+function courierTrackingUrl(provider: string, trackingNumber: string): string {
+  if (provider === "postex") return `https://postex.pk/tracking?cn=${encodeURIComponent(trackingNumber)}`;
+  return `https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(trackingNumber)}`;
+}
 
 function statusToStep(status: string): number {
   const map: Record<string, number> = {
@@ -536,7 +564,10 @@ function trackingDate(order: Order, i: number) {
   if (i === 1) return order.placed + " · 12:00 PM";
   if (i === 2) return order.placed + " · 03:48 PM";
   if (i === 3) {
-    if (order.courier) return `${order.courier.status} · Leopards Courier (${order.courier.trackingNumber})`;
+    if (order.courier) {
+      const providerLabel = order.courier.provider === "postex" ? "PostEx" : "Leopards Courier";
+      return `${order.courier.status} · ${providerLabel} (${order.courier.trackingNumber})`;
+    }
     return "Preparing for dispatch";
   }
   if (i === 4) return order.eta + " · 02:18 PM";
@@ -837,6 +868,16 @@ export function OrderDetail({
                     <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
                       {done ? trackingDate(order, i) : "Pending"}
                     </div>
+                    {SHOW_COURIER_TRACKING_LINK && i === 3 && done && order.courier && (
+                      <a
+                        href={courierTrackingUrl(order.courier.provider, order.courier.trackingNumber)}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ fontSize: 12, color: "var(--blue-600)", fontWeight: 600, marginTop: 2, display: "inline-block" }}
+                      >
+                        Track on {order.courier.provider === "postex" ? "PostEx" : "Leopards"}'s website ↗
+                      </a>
+                    )}
                     {current && order.status === "Out for delivery" && !order.rider && (
                       <div
                         style={{
@@ -923,7 +964,7 @@ export function OrderDetail({
                               <span
                                 style={{ fontSize: 11.5, color: "var(--ink-4)", whiteSpace: "nowrap" }}
                               >
-                                {event.at}
+                                {formatTrackingEventTime(event.at)}
                               </span>
                             </div>
                           ))}
