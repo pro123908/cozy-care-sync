@@ -6,7 +6,6 @@ export const Route = createFileRoute("/products")({
 
     throw redirect({
       to: "/",
-      search: { category: "all" },
     });
   },
 });

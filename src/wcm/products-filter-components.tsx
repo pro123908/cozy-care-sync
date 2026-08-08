@@ -1,4 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+
+export const paginationBtnStyle: CSSProperties = {
+  padding: "9px 12px",
+  borderRadius: 11,
+  border: "1px solid var(--line)",
+  background: "var(--card)",
+  color: "var(--ink)",
+  fontSize: 13,
+  fontWeight: 700,
+  fontFamily: "inherit",
+  cursor: "pointer",
+};
+
+export const paginationEllipsisStyle: CSSProperties = {
+  minWidth: 24,
+  textAlign: "center",
+  color: "var(--ink-4)",
+  fontSize: 13,
+  fontWeight: 700,
+};
 
 export const SORT_OPTIONS = [
   { value: "popular", label: "Most popular" },

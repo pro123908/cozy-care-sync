@@ -7,7 +7,10 @@ import { gaEvent } from "@/lib/ga";
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>) => ({
-    category: typeof search.category === "string" ? search.category : "all",
+    category:
+      typeof search.category === "string" && search.category !== "all"
+        ? search.category
+        : undefined,
   }),
   component: IndexPage,
   head: () => ({

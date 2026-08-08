@@ -89,7 +89,7 @@ function CategoriesPage() {
         style={{
           display: "grid",
           gridTemplateColumns: isMobile
-            ? "repeat(2, minmax(0, 1fr))"
+            ? "repeat(auto-fill, minmax(120px, 1fr))"
             : "repeat(auto-fill, minmax(160px, 1fr))",
           gap: isMobile ? 10 : 12,
         }}
@@ -155,8 +155,9 @@ function CategoriesPage() {
               </span>
               <span
                 style={{
-                  width: isMobile ? 112 : 128,
-                  height: isMobile ? 112 : 128,
+                  width: "78%",
+                  aspectRatio: "1",
+                  maxWidth: isMobile ? 140 : 160,
                   borderRadius: 999,
                   overflow: "hidden",
                   border: "2px solid var(--card)",
@@ -189,7 +190,7 @@ function CategoriesPage() {
                   <span style={{ color: "var(--ink-4)", fontSize: 22 }}>{Icons.pkg}</span>
                 )}
               </span>
-              <div>
+              <div style={{ width: "100%" }}>
                 <div
                   style={{
                     lineHeight: 1.2,
@@ -201,7 +202,7 @@ function CategoriesPage() {
                     fontSize: 13.5,
                     fontWeight: 700,
                     color: "var(--ink-2)",
-                    maxWidth: isMobile ? 120 : 138,
+                    width: "100%",
                     textTransform: "capitalize",
                   }}
                 >

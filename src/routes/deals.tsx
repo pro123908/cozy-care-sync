@@ -1,10 +1,16 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
 import { PKR, getProductSeoPathSegment } from "@/wcm/data";
 import { Icons } from "@/wcm/icons";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
+import {
+  PRODUCTS_PAGE_SIZE,
+  getVisiblePaginationItems,
+  paginationBtnStyle,
+  paginationEllipsisStyle,
+} from "@/wcm/products-filter-components";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -38,6 +44,18 @@ function DealsPage() {
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
 
   const totalSaved = dealProducts.reduce((sum, p) => sum + (p.was! - p.price), 0);
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(dealProducts.length / PRODUCTS_PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+  const pageStart = (page - 1) * PRODUCTS_PAGE_SIZE;
+  const pageProducts = dealProducts.slice(pageStart, pageStart + PRODUCTS_PAGE_SIZE);
+  const visiblePaginationItems = useMemo(
+    () => getVisiblePaginationItems(page, totalPages),
+    [page, totalPages],
+  );
 
   return (
     <div style={{ padding: isMobile ? "16px 0 24px" : "24px 0 32px" }}>
@@ -143,7 +161,7 @@ function DealsPage() {
             animation: "fadeInUp 0.25s ease",
           }}
         >
-          {dealProducts.map((p) => (
+          {pageProducts.map((p) => (
             <ProductCard
               key={p.id}
               p={p}
@@ -158,6 +176,79 @@ function DealsPage() {
               compact={isMobile}
             />
           ))}
+        </div>
+      )}
+
+      {productsLoaded && dealProducts.length > 0 && totalPages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            marginTop: 18,
+          }}
+        >
+          <button
+            onClick={() => {
+              setPage((p) => Math.max(1, p - 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page === 1}
+            style={{
+              ...paginationBtnStyle,
+              opacity: page === 1 ? 0.5 : 1,
+              cursor: page === 1 ? "default" : "pointer",
+            }}
+          >
+            Previous
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {visiblePaginationItems.map((item, index) => {
+              if (item === "ellipsis") {
+                return (
+                  <span key={`ellipsis-${index}`} style={paginationEllipsisStyle}>
+                    ...
+                  </span>
+                );
+              }
+
+              const activePage = item === page;
+              return (
+                <button
+                  key={item}
+                  onClick={() => {
+                    setPage(item);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  style={{
+                    ...paginationBtnStyle,
+                    minWidth: 40,
+                    background: activePage ? "var(--ink)" : "var(--card)",
+                    color: activePage ? "var(--card)" : "var(--ink-2)",
+                    borderColor: activePage ? "var(--ink)" : "var(--line)",
+                  }}
+                >
+                  {item}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => {
+              setPage((p) => Math.min(totalPages, p + 1));
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            disabled={page === totalPages}
+            style={{
+              ...paginationBtnStyle,
+              opacity: page === totalPages ? 0.5 : 1,
+              cursor: page === totalPages ? "default" : "pointer",
+            }}
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

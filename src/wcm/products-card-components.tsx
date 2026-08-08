@@ -27,21 +27,15 @@ export function CategoryRail({
   const visibleCategories = categories;
 
   return (
-    <>
-      <style>{`.cat-rail::-webkit-scrollbar{display:none}`}</style>
-      <div
-        className="cat-rail"
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          padding: "3px 2px",
-          justifyContent: "center",
-          overflowX: "visible",
-          overflowY: "visible",
-          scrollbarWidth: "none",
-        }}
-      >
+    <div
+      className="cat-rail"
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 120 : 180}px, 1fr))`,
+        gap: 10,
+        padding: "3px 2px",
+      }}
+    >
         {visibleCategories.map((c) => {
           const on = c.id === active;
           const categoryImage = typeof c.image_url === "string" ? c.image_url.trim() : "";
@@ -55,8 +49,7 @@ export function CategoryRail({
                 position: "relative",
                 padding: "2px 2px 6px",
                 borderRadius: 14,
-                minWidth: 135,
-                width: 135,
+                width: "100%",
                 background: "transparent",
                 color: "var(--ink-2)",
                 border: "none",
@@ -69,7 +62,6 @@ export function CategoryRail({
                 justifyContent: "flex-start",
                 gap: 12,
                 textAlign: "center",
-                flexShrink: 0,
                 transition: "transform .2s ease",
               }}
             >
@@ -102,8 +94,9 @@ export function CategoryRail({
               {showAllCollage ? (
                 <span
                   style={{
-                    width: 104,
-                    height: 104,
+                    width: "78%",
+                    aspectRatio: "1",
+                    maxWidth: 140,
                     borderRadius: 999,
                     overflow: "hidden",
                     border: on ? "3px solid #0f766e" : "2px solid var(--card)",
@@ -111,7 +104,6 @@ export function CategoryRail({
                     gridTemplateColumns: "1fr 1fr",
                     gridTemplateRows: "1fr 1fr",
                     gap: 2,
-                    flexShrink: 0,
                     background: "#f7f7f7",
                     boxShadow: on
                       ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
@@ -140,13 +132,13 @@ export function CategoryRail({
               ) : categoryImage ? (
                 <span
                   style={{
-                    width: 104,
-                    height: 104,
+                    width: "78%",
+                    aspectRatio: "1",
+                    maxWidth: 140,
                     borderRadius: 999,
                     overflow: "hidden",
                     border: on ? "3px solid #0f766e" : "2px solid var(--card)",
                     display: "inline-flex",
-                    flexShrink: 0,
                     background: "#ffffff",
                     boxShadow: on
                       ? "0 0 0 3px rgba(15,118,110,.18), 0 12px 22px rgba(15,23,42,.18)"
@@ -175,8 +167,9 @@ export function CategoryRail({
               ) : (
                 <span
                   style={{
-                    width: 104,
-                    height: 104,
+                    width: "78%",
+                    aspectRatio: "1",
+                    maxWidth: 140,
                     borderRadius: 999,
                     border: on ? "3px solid #0f766e" : "2px solid var(--card)",
                     background: "#e2e8f0",
@@ -204,7 +197,7 @@ export function CategoryRail({
                   fontSize: 13.5,
                   fontWeight: on ? 800 : 700,
                   color: on ? "var(--ink)" : "var(--ink-2)",
-                  maxWidth: 138,
+                  width: "100%",
                   textTransform: "capitalize",
                 }}
               >
@@ -220,8 +213,7 @@ export function CategoryRail({
             style={{
               padding: "2px 2px 6px",
               borderRadius: 14,
-              minWidth: 135,
-              width: 135,
+              width: "100%",
               background: "transparent",
               color: "var(--ink-2)",
               border: "none",
@@ -234,14 +226,14 @@ export function CategoryRail({
               justifyContent: "flex-start",
               gap: 12,
               textAlign: "center",
-              flexShrink: 0,
               transition: "transform .2s ease",
             }}
           >
             <span
               style={{
-                width: 104,
-                height: 104,
+                width: "78%",
+                aspectRatio: "1",
+                maxWidth: 140,
                 borderRadius: 999,
                 border: "2px dashed var(--blue-300)",
                 background: "var(--card)",
@@ -261,7 +253,7 @@ export function CategoryRail({
                 fontSize: 13.5,
                 fontWeight: 700,
                 color: "var(--blue-700)",
-                maxWidth: 138,
+                width: "100%",
               }}
             >
               View all
@@ -269,7 +261,6 @@ export function CategoryRail({
           </button>
         )}
       </div>
-    </>
   );
 }
 
@@ -850,7 +841,7 @@ export function RecentlyViewedRail({
       >
         <style>{`.wcm-rv-rail::-webkit-scrollbar{display:none}`}</style>
         {viewed.map((p) => (
-          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 110 : 130 }}>
+          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 150 : 160 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}
@@ -959,7 +950,7 @@ export function DealsRail({
       >
         <style>{`.wcm-deals-rail::-webkit-scrollbar{display:none}`}</style>
         {deals.map((p) => (
-          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 130 : 160 }}>
+          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 150 : 160 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}

@@ -139,14 +139,21 @@ function PrescriptionPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div style={eyebrowStyle}>{Icons.filePlus} Prescription / Instant order</div>
-          <h1 style={{ margin: "14px 0 0", fontSize: 34, lineHeight: 1.05, letterSpacing: -0.6 }}>
+          <h1
+            style={{
+              margin: "14px 0 0",
+              fontSize: isMobile ? 23 : 34,
+              lineHeight: 1.15,
+              letterSpacing: -0.4,
+            }}
+          >
             Upload your prescription and we’ll help you place the order.
           </h1>
           <p
             style={{
               margin: "10px 0 0",
               color: "var(--ink-4)",
-              fontSize: 15,
+              fontSize: isMobile ? 13.5 : 15,
               maxWidth: 760,
               lineHeight: 1.6,
             }}

@@ -288,6 +288,26 @@ function WhatsAppFloatingChat() {
   const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
   const message = "Hi, I'd like to inquire about your products.";
   const isMobile = useIsMobile();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isProductDetail = pathname.startsWith("/products/");
+
+  // Fade out while the user is actively scrolling so the fixed button doesn't
+  // sit on top of product-card tap targets (heart / add buttons) mid-scroll.
+  const [scrolling, setScrolling] = useState(false);
+  useEffect(() => {
+    if (!isMobile) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      setScrolling(true);
+      clearTimeout(timer);
+      timer = setTimeout(() => setScrolling(false), 350);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(timer);
+    };
+  }, [isMobile]);
 
   const openWhatsApp = () => {
     const cleanPhone = phone.replace(/\D/g, "");
@@ -295,6 +315,10 @@ function WhatsAppFloatingChat() {
     trackMetaEvent("Contact");
     window.open(url, "_blank", "noopener,noreferrer");
   };
+
+  // On the product detail page, a sticky "Add to cart" bar occupies the same
+  // bottom-right corner (see .wcm-pdp-sticky-cta in styles.css) — clear it.
+  const mobileBottom = isProductDetail ? 140 : 64;
 
   return (
     <button
@@ -305,7 +329,7 @@ function WhatsAppFloatingChat() {
       style={{
         position: "fixed",
         right: 16,
-        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isMobile ? 64 : 16}px)`,
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${isMobile ? mobileBottom : 16}px)`,
         zIndex: 70,
         display: "inline-flex",
         alignItems: "center",
@@ -323,6 +347,10 @@ function WhatsAppFloatingChat() {
         boxShadow: "0 14px 30px rgba(18, 140, 126, 0.28)",
         cursor: "pointer",
         fontFamily: "inherit",
+        opacity: isMobile && scrolling ? 0 : 1,
+        transform: isMobile && scrolling ? "scale(0.85)" : "scale(1)",
+        pointerEvents: isMobile && scrolling ? "none" : "auto",
+        transition: "opacity .2s ease, transform .2s ease, bottom .2s ease",
       }}
     >
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
@@ -379,10 +407,15 @@ function Header({
   onSignIn: () => void;
   onSignOut: () => Promise<void>;
 }) {
+  const isMobile = useIsMobile();
   const announcementSlides = [
     { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
     { icon: "🚚", text: "Free delivery in Karachi", chip: "KHI" },
-    { icon: "📦", text: "Orders delivered within 3 to 5 working days", chip: "SHIP" },
+    {
+      icon: "📦",
+      text: isMobile ? "Delivered in 3–5 working days" : "Orders delivered within 3 to 5 working days",
+      chip: "SHIP",
+    },
     { icon: "🏷", text: "Flat 20% off on all items", chip: "SALE" },
   ];
   const [menuOpen, setMenuOpen] = useState(false);
@@ -566,7 +599,7 @@ function Header({
               flexShrink: 1,
               fontWeight: 700,
               textTransform: "uppercase",
-              letterSpacing: 0.55,
+              letterSpacing: isMobile ? 0.3 : 0.55,
               whiteSpace: "nowrap",
               textOverflow: "ellipsis",
             }}

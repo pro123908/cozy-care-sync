@@ -27,6 +27,8 @@ import {
   SORT_OPTIONS,
   SortDropdown,
   getVisiblePaginationItems,
+  paginationBtnStyle,
+  paginationEllipsisStyle,
 } from "./products-filter-components";
 
 const RECENTLY_VIEWED_KEY = "wcm_recently_viewed";
@@ -785,26 +787,6 @@ export function ProductsPage({
     </div>
   );
 }
-
-const paginationBtnStyle: React.CSSProperties = {
-  padding: "9px 12px",
-  borderRadius: 11,
-  border: "1px solid var(--line)",
-  background: "var(--card)",
-  color: "var(--ink)",
-  fontSize: 13,
-  fontWeight: 700,
-  fontFamily: "inherit",
-  cursor: "pointer",
-};
-
-const paginationEllipsisStyle: React.CSSProperties = {
-  minWidth: 24,
-  textAlign: "center",
-  color: "var(--ink-4)",
-  fontSize: 13,
-  fontWeight: 700,
-};
 
 const qtyBtn: React.CSSProperties = {
   width: 42,
