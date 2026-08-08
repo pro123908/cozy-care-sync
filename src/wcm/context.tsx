@@ -403,6 +403,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         status: r.status,
         progress: r.progress,
         address: r.address,
+        city: r.city || undefined,
+        landmark: r.landmark || undefined,
         customerName: r.customer_name || undefined,
         payment: r.payment,
         items:

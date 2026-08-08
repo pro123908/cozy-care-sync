@@ -2591,6 +2591,8 @@ export type Order = {
   status: string;
   progress: number;
   address: string;
+  city?: string;
+  landmark?: string;
   customerName?: string;
   payment: string;
   items: OrderItem[];

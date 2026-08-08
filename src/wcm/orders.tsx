@@ -594,6 +594,19 @@ export function OrderDetail({
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
+  const [showFullHistory, setShowFullHistory] = useState(false);
+  const [copiedOrderId, setCopiedOrderId] = useState(false);
+
+  const copyOrderId = async () => {
+    try {
+      if (typeof navigator === "undefined" || !navigator.clipboard) return;
+      await navigator.clipboard.writeText(order.id);
+      setCopiedOrderId(true);
+      window.setTimeout(() => setCopiedOrderId(false), 1200);
+    } catch {
+      // noop: order id remains visible even if clipboard API is blocked
+    }
+  };
   const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
   const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
 
@@ -730,7 +743,7 @@ export function OrderDetail({
       )}
 
       <div
-        className="wcm-order-detail-head"
+        className={`wcm-order-detail-head wcm-track-in${order.status === "Delivered" ? " wcm-delivered-glow" : ""}`}
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -744,6 +757,8 @@ export function OrderDetail({
             style={{
               display: "flex",
               alignItems: "center",
+              flexWrap: "wrap",
+              rowGap: 2,
               gap: 8,
               color: "var(--ink-4)",
               fontSize: 13,
@@ -754,12 +769,30 @@ export function OrderDetail({
                 fontFamily: "JetBrains Mono, monospace",
                 fontWeight: 700,
                 color: "var(--ink-2)",
+                whiteSpace: "nowrap",
               }}
             >
               {order.id}
             </span>
-            <span>·</span>
-            <span>Placed {order.placed}</span>
+            <button
+              type="button"
+              onClick={copyOrderId}
+              className="wcm-copy-id"
+              aria-label="Copy order ID"
+              title="Copy order ID"
+            >
+              {copiedOrderId ? (
+                <span className="wcm-copy-check" style={{ display: "inline-flex" }}>
+                  {Icons.check}
+                </span>
+              ) : (
+                Icons.copy
+              )}
+            </button>
+            <span className="wcm-desktop-only" aria-hidden="true">
+              ·
+            </span>
+            <span style={{ whiteSpace: "nowrap" }}>Placed {order.placed}</span>
           </div>
           <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 800, letterSpacing: -0.4 }}>
             {order.status === "Delivered"
@@ -771,15 +804,54 @@ export function OrderDetail({
                   : "We're on it!"}
           </h1>
         </div>
-        <div className="wcm-order-detail-status-pill">
+        <div className="wcm-order-detail-status-pill wcm-track-in" style={{ animationDelay: "0.05s" }}>
           <Pill tone={statusTone(order.status)}>
-            {Icons.dot} {displayStatus(order.status)}
+            {["Delivered", "Cancelled", "Returned"].includes(order.status) ? (
+              Icons.dot
+            ) : (
+              <span style={{ display: "inline-flex", animation: "wcmPulse 1.6s ease-in-out infinite" }}>
+                {Icons.dot}
+              </span>
+            )}{" "}
+            {displayStatus(order.status)}
           </Pill>
         </div>
       </div>
 
+      {statusToStep(order.status) >= 0 && (
+        <div
+          className="wcm-track-in"
+          style={{ animationDelay: "0.08s" }}
+          role="progressbar"
+          aria-valuenow={statusToStep(order.status)}
+          aria-valuemin={0}
+          aria-valuemax={STATUSES.length - 1}
+          aria-label={`Order progress: ${displayStatus(order.status)}`}
+        >
+          <div
+            style={{
+              height: 6,
+              borderRadius: 99,
+              background: "var(--chip)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              className="wcm-track-progress-fill"
+              style={{
+                height: "100%",
+                borderRadius: 99,
+                width: `${(statusToStep(order.status) / (STATUSES.length - 1)) * 100}%`,
+                background:
+                  order.status === "Delivered" ? "var(--green-500)" : "var(--blue-600)",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="wcm-order-cols" style={{ display: "grid", gap: 14 }}>
-        <Section style={{ padding: 22 }}>
+        <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 22, animationDelay: "0.1s" }}>
           <div
             style={{
               fontSize: 11,
@@ -799,6 +871,7 @@ export function OrderDetail({
               return (
                 <div
                   key={s}
+                  className="wcm-track-step"
                   style={{
                     display: "grid",
                     gridTemplateColumns: "32px 1fr",
@@ -815,45 +888,71 @@ export function OrderDetail({
                         top: 30,
                         bottom: 0,
                         width: 2,
-                        background:
-                          i < statusToStep(order.status) ? "var(--green-500)" : "var(--chip)",
+                        background: "var(--chip)",
                       }}
-                    />
-                  )}
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 99,
-                      background: done
-                        ? current
-                          ? "var(--blue-600)"
-                          : "var(--green-500)"
-                        : "var(--chip)",
-                      border: done ? "none" : "2px solid var(--line)",
-                      color: "#fff",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      boxShadow: current ? "0 0 0 4px var(--pill-info-bg)" : "none",
-                      transition: "all .2s",
-                      zIndex: 1,
-                    }}
-                  >
-                    {done ? (
-                      current ? (
-                        <span
+                    >
+                      {i < statusToStep(order.status) && (
+                        <div
+                          className="wcm-track-line-fill"
                           style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 99,
-                            background: "var(--card)",
+                            width: "100%",
+                            height: "100%",
+                            background: "var(--green-500)",
+                            animationDelay: `${0.15 + i * 0.12}s`,
                           }}
                         />
-                      ) : (
-                        Icons.check
-                      )
-                    ) : null}
+                      )}
+                    </div>
+                  )}
+                  <div style={{ position: "relative", width: 32, height: 32, zIndex: 1 }}>
+                    {current && (
+                      <span
+                        className="wcm-track-ping"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          borderRadius: 99,
+                          background: "var(--blue-600)",
+                        }}
+                      />
+                    )}
+                    <div
+                      className={done ? "wcm-track-step-in" : undefined}
+                      style={{
+                        position: "relative",
+                        width: 32,
+                        height: 32,
+                        borderRadius: 99,
+                        background: done
+                          ? current
+                            ? "var(--blue-600)"
+                            : "var(--green-500)"
+                          : "var(--chip)",
+                        border: done ? "none" : "2px solid var(--line)",
+                        color: "#fff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: current ? "0 0 0 4px var(--pill-info-bg)" : "none",
+                        transition: "all .2s",
+                        animationDelay: `${i * 0.12}s`,
+                      }}
+                    >
+                      {done ? (
+                        current ? (
+                          <span
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 99,
+                              background: "var(--card)",
+                            }}
+                          />
+                        ) : (
+                          Icons.check
+                        )
+                      ) : null}
+                    </div>
                   </div>
                   <div>
                     <div
@@ -880,6 +979,7 @@ export function OrderDetail({
                     )}
                     {current && order.status === "Out for delivery" && !order.rider && (
                       <div
+                        className="wcm-track-inset-box"
                         style={{
                           marginTop: 10,
                           padding: "10px 12px",
@@ -896,6 +996,7 @@ export function OrderDetail({
                     )}
                     {current && order.rider && (
                       <div
+                        className="wcm-track-inset-box"
                         style={{
                           marginTop: 10,
                           padding: "10px 12px",
@@ -940,36 +1041,82 @@ export function OrderDetail({
                     {i === 3 &&
                       done &&
                       order.courier?.statusHistory &&
-                      order.courier.statusHistory.length > 0 && (
-                        <div
-                          style={{
-                            marginTop: 10,
-                            padding: "10px 12px",
-                            borderRadius: 11,
-                            background: "var(--bg-elev)",
-                            border: "1px solid var(--line)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                          }}
-                        >
-                          {[...order.courier.statusHistory].reverse().map((event, eventIndex) => (
-                            <div
-                              key={eventIndex}
-                              style={{ display: "flex", justifyContent: "space-between", gap: 10 }}
-                            >
-                              <span style={{ fontSize: 12.5, color: "var(--ink)" }}>
-                                {event.statusWithCity || event.status}
-                              </span>
-                              <span
-                                style={{ fontSize: 11.5, color: "var(--ink-4)", whiteSpace: "nowrap" }}
+                      order.courier.statusHistory.length > 0 &&
+                      (() => {
+                        const fullHistory = [...order.courier.statusHistory].reverse();
+                        const COLLAPSED_COUNT = 3;
+                        const visibleHistory = showFullHistory
+                          ? fullHistory
+                          : fullHistory.slice(0, COLLAPSED_COUNT);
+                        const hiddenCount = fullHistory.length - COLLAPSED_COUNT;
+                        return (
+                          <div
+                            className="wcm-track-inset-box"
+                            style={{
+                              marginTop: 10,
+                              padding: "10px 12px",
+                              borderRadius: 11,
+                              background: "var(--bg-elev)",
+                              border: "1px solid var(--line)",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 8,
+                            }}
+                          >
+                            {visibleHistory.map((event, eventIndex) => (
+                              <div
+                                key={eventIndex}
+                                className={`wcm-track-history-item${eventIndex >= COLLAPSED_COUNT ? " wcm-track-history-row" : ""}`}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                  animationDelay: `${(eventIndex - COLLAPSED_COUNT) * 0.04}s`,
+                                }}
                               >
-                                {formatTrackingEventTime(event.at)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                                <span style={{ fontSize: 12.5, color: "var(--ink)" }}>
+                                  {event.statusWithCity || event.status}
+                                </span>
+                                <span
+                                  className="wcm-track-history-time"
+                                  style={{ fontSize: 11.5, color: "var(--ink-4)", whiteSpace: "nowrap" }}
+                                >
+                                  {formatTrackingEventTime(event.at)}
+                                </span>
+                              </div>
+                            ))}
+                            {hiddenCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setShowFullHistory((v) => !v)}
+                                className="wcm-track-toggle"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  marginTop: 2,
+                                  padding: 0,
+                                  border: "none",
+                                  background: "none",
+                                  color: "var(--blue-600)",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  alignSelf: "flex-start",
+                                }}
+                              >
+                                {showFullHistory ? "Show less" : `Show ${hiddenCount} more update${hiddenCount === 1 ? "" : "s"}`}
+                                <span
+                                  className={`wcm-track-chevron${showFullHistory ? " open" : ""}`}
+                                  style={{ display: "inline-flex" }}
+                                >
+                                  {Icons.chevD}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                   </div>
                 </div>
               );
@@ -978,7 +1125,7 @@ export function OrderDetail({
         </Section>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Section style={{ padding: 18 }}>
+          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.15s" }}>
             <div
               style={{
                 fontSize: 11,
@@ -1007,17 +1154,32 @@ export function OrderDetail({
               >
                 {Icons.pin}
               </div>
-              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
                 {order.customerName && (
-                  <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 2 }}>
+                  <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
                     {order.customerName}
                   </div>
                 )}
-                {order.address}
+                <div>
+                  <span style={{ color: "var(--ink-4)" }}>Address: </span>
+                  {order.address}
+                </div>
+                {order.landmark && (
+                  <div>
+                    <span style={{ color: "var(--ink-4)" }}>Landmark: </span>
+                    {order.landmark}
+                  </div>
+                )}
+                {order.city && (
+                  <div>
+                    <span style={{ color: "var(--ink-4)" }}>City: </span>
+                    {order.city}
+                  </div>
+                )}
               </div>
             </div>
           </Section>
-          <Section style={{ padding: 18 }}>
+          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.2s" }}>
             <div
               style={{
                 fontSize: 11,
@@ -1238,7 +1400,7 @@ export function OrderDetail({
               </div>
             )}
           </Section>
-          <Section style={{ padding: 18 }}>
+          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.25s" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <Row label="Subtotal" value={PKR(order.subtotal)} />
               <Row
@@ -1261,7 +1423,7 @@ export function OrderDetail({
         </div>
       </div>
 
-      <Section style={{ padding: 18 }}>
+      <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.3s" }}>
         <div
           style={{
             fontSize: 11,

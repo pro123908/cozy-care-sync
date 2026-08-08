@@ -111,12 +111,14 @@ function TrackOrderPage() {
 
   return (
     <div style={{ maxWidth: 980, margin: "0 auto", padding: "30px 20px 90px" }}>
-      <div style={{ marginBottom: 16 }}>
-        <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.4 }}>Track your order</h1>
-        <p style={{ margin: "6px 0 0", color: "var(--ink-4)", fontSize: 14 }}>
-          Enter the order ID and phone used at checkout.
-        </p>
-      </div>
+      {!order && (
+        <div style={{ marginBottom: 16 }}>
+          <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.4 }}>Track your order</h1>
+          <p style={{ margin: "6px 0 0", color: "var(--ink-4)", fontSize: 14 }}>
+            Enter the order ID and phone used at checkout.
+          </p>
+        </div>
+      )}
 
       {autoLookingUp && !order && <WellcareLoader label="Loading your order" />}
 

@@ -320,6 +320,159 @@
   }
 }
 
+/* ============ Order tracking page: entrance + timeline interactions ============ */
+@keyframes wcmGrowLine {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes wcmRadarPing {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+@keyframes wcmCheckPop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes wcmProgressFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes wcmDeliveredGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+@keyframes wcmCopyPop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.wcm-track-progress-fill {
+  transform-origin: left;
+  animation: wcmProgressFill 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+.wcm-delivered-glow {
+  animation: wcmDeliveredGlow 1.6s ease-out 0.3s;
+  border-radius: 12px;
+}
+.wcm-copy-id {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-4);
+  border-radius: 6px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.wcm-copy-id:hover {
+  color: var(--blue-600);
+  background: var(--pill-info-bg);
+}
+.wcm-copy-check {
+  animation: wcmCopyPop 0.2s ease both;
+}
+
+.wcm-track-in {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.wcm-track-step-in {
+  animation: wcmCheckPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.wcm-track-line-fill {
+  transform-origin: top;
+  animation: wcmGrowLine 0.5s ease-out both;
+}
+.wcm-track-ping {
+  animation: wcmRadarPing 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+.wcm-hover-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.wcm-hover-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow);
+}
+.wcm-track-history-row {
+  animation: fadeIn 0.3s ease both;
+}
+.wcm-track-toggle {
+  transition:
+    color 0.15s ease,
+    gap 0.15s ease;
+}
+.wcm-track-toggle:hover {
+  gap: 8px;
+}
+.wcm-track-chevron {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.wcm-track-chevron.open {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wcm-track-in,
+  .wcm-track-step-in,
+  .wcm-track-line-fill,
+  .wcm-track-ping,
+  .wcm-track-history-row,
+  .wcm-hover-card,
+  .wcm-track-progress-fill,
+  .wcm-delivered-glow,
+  .wcm-copy-check {
+    animation: none !important;
+    transition: none !important;
+  }
+  .wcm-hover-card:hover {
+    transform: none;
+  }
+  .wcm-track-progress-fill {
+    transform: scaleX(1) !important;
+  }
+}
+
 /* ============ Layout helpers ============ */
 .wcm-main {
   padding: 24px 20px 96px;
@@ -1002,6 +1155,33 @@
   }
   .wcm-co-summary {
     position: static;
+  }
+  /* Tracking-page cards use fairly generous desktop padding (18-22px)
+     inline — on a narrow phone that stacks with .wcm-main's own side
+     padding to eat a big chunk of the already-small viewport width. */
+  .wcm-track-card {
+    padding: 14px !important;
+  }
+  /* Timeline step's 32px dot column + 14px gap is fixed overhead that
+     doesn't shrink with viewport width — tighten the gap on mobile. */
+  .wcm-track-step {
+    gap: 8px !important;
+  }
+  /* Nested boxes (rider-assigned banner, rider card, courier history)
+     sit inside an already-narrowed text column on mobile. */
+  .wcm-track-inset-box {
+    padding: 8px 10px !important;
+  }
+  /* Courier history rows were side-by-side (status | date), which on a
+     narrow column left so little room for the status text it wrapped
+     to 3 lines. Stack instead — status gets the full row width. */
+  .wcm-track-history-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1px !important;
+  }
+  .wcm-track-history-time {
+    font-size: 10.5px !important;
   }
   .wcm-footer-cols {
     grid-template-columns: 1fr 1fr;
