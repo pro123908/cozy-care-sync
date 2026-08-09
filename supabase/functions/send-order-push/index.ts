@@ -4,7 +4,6 @@
 // admin/staff device so the order shows up as a phone/desktop notification.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { captureError } from "../_shared/sentry.ts";
 import webpush from "npm:web-push@3.6.7";
 
 type OrdersRow = {
@@ -47,7 +46,6 @@ function json(body: unknown, status = 200) {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
@@ -106,7 +104,15 @@ Deno.serve(
   };
   const notificationPayload = JSON.stringify(notification);
 
+  // recipientsSent used to be derived as "total - staleIds.length", which
+  // silently counted any non-404/410 failure (timeout, rate limit,
+  // transient push-service error) as a successful send — the only trace was
+  // a server-side console.error nobody sees. Tracked as three disjoint
+  // buckets now so a real, non-permanent delivery failure actually shows up
+  // in notification_log instead of being indistinguishable from success.
   const staleIds: string[] = [];
+  let sentCount = 0;
+  let failedCount = 0;
 
   await Promise.all(
     (subscriptions as PushSubscriptionRow[]).map(async (sub) => {
@@ -118,11 +124,13 @@ Deno.serve(
           },
           notificationPayload,
         );
+        sentCount++;
       } catch (err) {
         const statusCode = (err as { statusCode?: number })?.statusCode;
         if (statusCode === 404 || statusCode === 410) {
           staleIds.push(sub.id);
         } else {
+          failedCount++;
           console.error("[send-order-push] send failed", { id: sub.id, statusCode, err });
         }
       }
@@ -139,7 +147,6 @@ Deno.serve(
     }
   }
 
-  const recipientsSent = subscriptions.length - staleIds.length;
   const { error: logError } = await client.from("notification_log").insert({
     type: payload.type,
     title: notification.title,
@@ -147,12 +154,13 @@ Deno.serve(
     url: notification.url,
     order_id: order?.id ?? null,
     order_code: order?.order_code ?? null,
-    recipients_sent: recipientsSent,
+    recipients_sent: sentCount,
     recipients_removed: staleIds.length,
+    recipients_failed: failedCount,
   });
   if (logError) {
     console.error("[send-order-push] failed to write notification_log", logError);
   }
 
-  return json({ ok: true, sent: recipientsSent, removed: staleIds.length });
+  return json({ ok: true, sent: sentCount, removed: staleIds.length, failed: failedCount });
 });

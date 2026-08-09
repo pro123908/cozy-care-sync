@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { captureError } from "../_shared/sentry.ts";
 
 // Called server-to-server by admin-app's WhatsApp Messages page to show
 // Meta's own per-template performance (sent/delivered/read/clicked, daily) —
@@ -64,7 +63,6 @@ function json(body: unknown, status = 200) {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
@@ -193,7 +191,18 @@ Deno.serve(
       }
       const extracted = extractPoints(data);
       points.push(...extracted.points);
-      nextUrl = extracted.next;
+      if (extracted.next) {
+        // Meta's own `paging.next` URL doesn't reliably carry our access_token
+        // forward (confirmed live 2026-08-03: hop 2 401'd with an
+        // OAuthException "Authentication Error" for every template, every
+        // time — not the older intermittent 3rd-hop issue). Force our token
+        // onto every follow-up hop rather than trusting Meta's cursor URL.
+        const next = new URL(extracted.next);
+        next.searchParams.set("access_token", WHATSAPP_ACCESS_TOKEN);
+        nextUrl = next.toString();
+      } else {
+        nextUrl = null;
+      }
     }
     return points;
   }

@@ -18,7 +18,6 @@
 // the auto-sender actually chose for the same order.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { captureError } from "../_shared/sentry.ts";
 
 const AUTO_FEEDBACK_REQUESTS_SECRET = Deno.env.get("AUTO_FEEDBACK_REQUESTS_SECRET") || "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
@@ -53,7 +52,6 @@ function daysBetween(a: Date, b: Date): number {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return json({ error: "Internal error" }, 500);
     },
   },

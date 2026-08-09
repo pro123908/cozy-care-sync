@@ -1,5 +1,4 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { captureError } from "../_shared/sentry.ts";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -282,7 +281,6 @@ function ackTwiml(): Response {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },

@@ -16,7 +16,6 @@
 // this account, confirmed via a separate `?fields=currency` call — NOT PKR,
 // despite the business being Pakistan-based).
 
-import { captureError } from "../_shared/sentry.ts";
 
 const SHIPMENT_NOTIFY_SECRET = Deno.env.get("SHIPMENT_NOTIFY_SECRET") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
@@ -39,7 +38,6 @@ function json(body: unknown, status = 200) {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },

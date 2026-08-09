@@ -33,7 +33,7 @@ function loadGaScript() {
 
 // Loads the real gtag.js network request after first interaction (or a
 // short idle fallback), not on initial page load — keeps it off the
-// critical rendering path alongside Sentry/the PWA service worker already
+// critical rendering path alongside the PWA service worker already
 // running here. Call once from main.tsx.
 export function initGaLazy() {
   if (!GA_MEASUREMENT_ID || typeof window === "undefined") return;

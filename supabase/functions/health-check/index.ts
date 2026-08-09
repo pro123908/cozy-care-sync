@@ -13,7 +13,6 @@
 // restriction) is the channel actually guaranteed to arrive. A monitoring
 // system whose only alert channel can silently fail to deliver would repeat
 // the exact class of bug it exists to catch.
-import { captureError } from "../_shared/sentry.ts";
 
 const HEALTH_CHECK_SECRET = Deno.env.get("HEALTH_CHECK_SECRET") || "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
@@ -143,7 +142,6 @@ async function sendEmailAlert(subject: string, text: string): Promise<void> {
 Deno.serve(
   {
     onError: (err) => {
-      captureError(err);
       return new Response(JSON.stringify({ error: "Internal error" }), {
         status: 500,
         headers: { "Content-Type": "application/json" },
