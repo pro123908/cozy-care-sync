@@ -24,7 +24,7 @@ function WishlistPage() {
       style={{
         maxWidth: 800,
         margin: "40px auto",
-        padding: "0 20px 80px",
+        padding: "0 0 80px",
         display: "flex",
         flexDirection: "column",
         gap: 24,

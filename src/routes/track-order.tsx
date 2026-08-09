@@ -110,7 +110,7 @@ function TrackOrderPage() {
   }, []);
 
   return (
-    <div style={{ maxWidth: 980, margin: "0 auto", padding: "30px 20px 90px" }}>
+    <div style={{ maxWidth: 980, margin: "0 auto", padding: "30px 0 90px" }}>
       {!order && (
         <div style={{ marginBottom: 16 }}>
           <h1 style={{ margin: 0, fontSize: 28, letterSpacing: -0.4 }}>Track your order</h1>

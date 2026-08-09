@@ -88,7 +88,7 @@ function PoliciesPage() {
       style={{
         maxWidth: 720,
         margin: "40px auto",
-        padding: "0 20px 100px",
+        padding: "0 0 100px",
         display: "flex",
         flexDirection: "column",
         gap: 32,

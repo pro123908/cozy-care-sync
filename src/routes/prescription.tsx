@@ -135,7 +135,7 @@ function PrescriptionPage() {
   };
 
   return (
-    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "30px 20px 90px" }}>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "30px 0 90px" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <div>
           <div style={eyebrowStyle}>{Icons.filePlus} Prescription / Instant order</div>

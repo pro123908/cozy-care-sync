@@ -24,7 +24,7 @@ export const Route = createFileRoute("/about")({
 
 function AboutPage() {
   return (
-    <main style={{ maxWidth: 980, margin: "0 auto", padding: "28px 20px 70px" }}>
+    <main style={{ maxWidth: 980, margin: "0 auto", padding: "28px 0 70px" }}>
       <div style={{ marginBottom: 14 }}>
         <Link
           to="/"
