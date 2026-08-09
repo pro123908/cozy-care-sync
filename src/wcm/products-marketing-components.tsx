@@ -7,6 +7,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 type HomepageBannerRow = {
   id: string;
   image_url: string;
+  mobile_image_url: string | null;
   alt_text: string;
   sort_order: number;
 };
@@ -21,6 +22,7 @@ type HeroBanner = {
   secondaryTarget: "products" | "orders";
   gradient: string;
   imageUrl?: string;
+  mobileImageUrl?: string;
   imageAlt?: string;
   artCard: {
     kicker: string;
@@ -131,13 +133,13 @@ function loadBannerCache(): HomepageBannerRow[] {
   }
 }
 
-// Plain <img> everywhere except slot 0 while GRAND_OPENING_DESKTOP_OVERRIDE
-// is set — that one gets a <picture> so desktop (>=769px, matches this
-// file's other mobile/desktop breakpoints) gets the seasonal banner while
-// mobile keeps the regular grand-opening image, same alt text either way.
+// Plain <img> unless a desktop and/or mobile override is set — then it's a
+// <picture> so (max-width:768px) can get a purpose-built mobile crop and/or
+// (min-width:769px) can get a seasonal desktop swap, same alt text either way.
 function HeroBannerImage({
   src,
   desktopSrc,
+  mobileSrc,
   alt,
   className,
   style,
@@ -145,12 +147,13 @@ function HeroBannerImage({
 }: {
   src: string;
   desktopSrc?: string;
+  mobileSrc?: string;
   alt: string;
   className?: string;
   style?: CSSProperties;
   fetchPriority?: "high" | "auto";
 }) {
-  if (!desktopSrc) {
+  if (!desktopSrc && !mobileSrc) {
     return (
       <img className={className} src={src} alt={alt} loading="eager" decoding="async" fetchPriority={fetchPriority} style={style} />
     );
@@ -162,7 +165,8 @@ function HeroBannerImage({
   // the <img> just fill it keeps the layout identical to a plain <img>.
   return (
     <picture className={className} style={style}>
-      <source media="(min-width: 769px)" srcSet={desktopSrc} />
+      {mobileSrc && <source media="(max-width: 768px)" srcSet={mobileSrc} />}
+      {desktopSrc && <source media="(min-width: 769px)" srcSet={desktopSrc} />}
       <img
         src={src}
         alt={alt}
@@ -196,6 +200,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
         ...HERO_BANNERS[index % HERO_BANNERS.length],
         // Keep the local static image for slot 0 — prevents src change after Supabase returns
         imageUrl: index === 0 ? "/hero-banner.webp" : row.image_url,
+        mobileImageUrl: row.mobile_image_url || undefined,
         imageAlt: row.alt_text || `Homepage banner ${index + 1}`,
       }))
     : HERO_BANNERS;
@@ -219,7 +224,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       const supabase = await getSupabase();
       const { data, error } = await supabase
         .from("homepage_banners")
-        .select("id, image_url, alt_text, sort_order")
+        .select("id, image_url, mobile_image_url, alt_text, sort_order")
         .eq("active", true)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
@@ -311,6 +316,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
                   className="wcm-hero-image"
                   src={b.imageUrl!}
                   desktopSrc={i === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
+                  mobileSrc={b.mobileImageUrl}
                   alt={b.imageAlt || `Homepage banner ${i + 1}`}
                   fetchPriority={i === 0 ? "high" : "auto"}
                   style={{
@@ -329,6 +335,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             key={`hero-slide-${slideTick}-${active}`}
             src={banner.imageUrl!}
             desktopSrc={active === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
+            mobileSrc={banner.mobileImageUrl}
             alt={banner.imageAlt || "Homepage banner"}
             fetchPriority={active === 0 ? "high" : "auto"}
             style={{
