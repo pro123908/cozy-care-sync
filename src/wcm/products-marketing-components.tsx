@@ -45,6 +45,14 @@ type HeroBanner = {
 // undefined here (or delete this const + its one usage below) once the sale
 // period ends and slot 0 should go back to grand-opening on all breakpoints.
 const GRAND_OPENING_DESKTOP_OVERRIDE = "/azadi-banner.webp";
+// Same idea as above, but for the mobile <source> — a bundled local file
+// instead of the dynamic Supabase mobile_image_url. Slot 0 is the LCP
+// element on first paint, so keeping it off the Supabase round trip (fetch
+// homepage_banners → resolve mobile_image_url → fetch from Storage) matters
+// for load time; the other 3 slots stay dynamic since they're never LCP.
+// Revert alongside GRAND_OPENING_DESKTOP_OVERRIDE (and the index.html
+// preload hints below) once the sale period ends.
+const GRAND_OPENING_MOBILE_OVERRIDE = "/azadi-banner-mobile.webp";
 
 const HERO_BANNERS: HeroBanner[] = [
   {
@@ -372,7 +380,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
                   className="wcm-hero-image"
                   src={b.imageUrl!}
                   desktopSrc={i === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
-                  mobileSrc={b.mobileImageUrl}
+                  mobileSrc={i === 0 ? GRAND_OPENING_MOBILE_OVERRIDE : b.mobileImageUrl}
                   alt={b.imageAlt || `Homepage banner ${i + 1}`}
                   fetchPriority={i === 0 ? "high" : "auto"}
                   style={{
@@ -391,7 +399,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             key={`hero-slide-${slideTick}-${active}`}
             src={banner.imageUrl!}
             desktopSrc={active === 0 ? GRAND_OPENING_DESKTOP_OVERRIDE : undefined}
-            mobileSrc={banner.mobileImageUrl}
+            mobileSrc={active === 0 ? GRAND_OPENING_MOBILE_OVERRIDE : banner.mobileImageUrl}
             alt={banner.imageAlt || "Homepage banner"}
             fetchPriority={active === 0 ? "high" : "auto"}
             style={{
