@@ -355,7 +355,7 @@ function WhatsAppFloatingChat() {
     >
       <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
         <img
-          src="/whatsapp_icon.png"
+          src="/whatsapp_icon.webp"
           alt=""
           style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
         />
@@ -683,7 +683,7 @@ function Header({
             }}
           >
             <img
-              src="/logo_updated.png"
+              src="/logo_updated.webp"
               alt="Wellcare Mart"
               width={76}
               height={38}
@@ -1025,7 +1025,7 @@ function Header({
               }}
             >
               <img
-                src="/whatsapp_icon.png"
+                src="/whatsapp_icon.webp"
                 alt=""
                 style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
               />
