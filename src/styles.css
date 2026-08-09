@@ -1299,17 +1299,6 @@
     width: calc(100% + 28px);
     border-radius: 0;
   }
-  /* The uploaded banner images aren't a consistent aspect ratio (the AI image
-     tool that generated them didn't honor the requested 4:5 — actual files
-     range ~1.65:1 to 2.1:1 tall), so height:auto would render each one at a
-     different, often near-full-screen height. Force a fixed crop instead. */
-  .wcm-hero-image-only .wcm-hero-image {
-    aspect-ratio: 3 / 4;
-  }
-  .wcm-hero-image-only .wcm-hero-image img {
-    object-fit: cover;
-    object-position: center top;
-  }
   .wcm-trust-ribbon {
     top: 60px;
     margin: -8px 0 10px;
