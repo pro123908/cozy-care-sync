@@ -1182,6 +1182,7 @@ function Header({
             ) : (
               <button
                 onClick={onSignIn}
+                aria-label="Sign in"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
