@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { type Category } from "./data";
 import { Icons } from "./icons";
 import { Btn } from "./ui";
@@ -192,6 +192,9 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
   const [bannersResolved, setBannersResolved] = useState(cachedOnLoad);
   const [slideTick, setSlideTick] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isSettledInView, setIsSettledInView] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   const hasDynamicBanners = dynamicImages.length > 0;
 
@@ -261,15 +264,60 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
     setActive(0);
   }, [active, banners.length]);
 
+  // Touch devices have no hover state, so treat "visible on screen and the
+  // page has stopped scrolling" as the mobile equivalent of a mouse hover —
+  // the user is reading the banner even though their finger isn't on it.
+  // Skipped on mouse/trackpad devices, which already pause via onMouseEnter.
+  useEffect(() => {
+    const node = heroRef.current;
+    if (!node) return;
+    if (!window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+
+    let inView = false;
+    let idleTimer: number | undefined;
+
+    const markSettled = () => {
+      if (inView) setIsSettledInView(true);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        inView = entries[0]?.isIntersecting ?? false;
+        window.clearTimeout(idleTimer);
+        if (!inView) {
+          setIsSettledInView(false);
+        } else {
+          idleTimer = window.setTimeout(markSettled, 250);
+        }
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(node);
+
+    const handleScroll = () => {
+      if (!inView) return;
+      setIsSettledInView(false);
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(markSettled, 250);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", handleScroll);
+      window.clearTimeout(idleTimer);
+    };
+  }, []);
+
   useEffect(() => {
     if (banners.length < 2) return;
     if (!hasDynamicBanners) return;
-    if (isPaused) return;
+    if (isPaused || isHovered || isSettledInView) return;
     const timer = window.setInterval(() => {
       setActive((current) => (current + 1) % banners.length);
     }, 4500);
     return () => window.clearInterval(timer);
-  }, [banners.length, hasDynamicBanners, isPaused]);
+  }, [banners.length, hasDynamicBanners, isPaused, isHovered, isSettledInView]);
 
   useEffect(() => {
     if (!imageOnlyBannerEnabled) return;
@@ -278,6 +326,14 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
 
   return (
     <div
+      ref={heroRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onFocus={() => setIsHovered(true)}
+      onBlur={() => setIsHovered(false)}
+      onTouchStart={() => setIsHovered(true)}
+      onTouchEnd={() => setIsHovered(false)}
+      onTouchCancel={() => setIsHovered(false)}
       style={{
         position: "relative",
         overflow: "hidden",
