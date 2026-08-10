@@ -503,6 +503,9 @@
   align-items: center;
   gap: 10px;
 }
+.wcm-scroll-anchor {
+  scroll-margin-top: 100px;
+}
 
 .wcm-hero {
   padding: 28px;
@@ -1210,6 +1213,9 @@
     left: 10px;
     bottom: auto;
     align-items: stretch;
+  }
+  .wcm-scroll-anchor {
+    scroll-margin-top: 110px;
   }
 }
 

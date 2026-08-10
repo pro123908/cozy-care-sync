@@ -154,7 +154,7 @@ export function ProductsPage({
     if (active !== "all") arr = arr.filter((p) => p.cat === active);
     if (inStockOnly) arr = arr.filter((p) => p.stock !== "Out of stock");
     if (sort === "popular")
-      arr = [...arr].sort((a, b) => (b.sales_count ?? 0) - (a.sales_count ?? 0));
+      arr = [...arr].sort((a, b) => (b.delivered_sales_count ?? 0) - (a.delivered_sales_count ?? 0));
     if (sort === "low") arr = [...arr].sort((a, b) => a.price - b.price);
     if (sort === "high") arr = [...arr].sort((a, b) => b.price - a.price);
     if (sort === "rating") arr = [...arr].sort((a, b) => b.rating - a.rating);
@@ -183,7 +183,7 @@ export function ProductsPage({
       hasMountedPaginationRef.current = true;
       return;
     }
-    listingTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    productsTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [page, productsLoaded]);
 
   useEffect(() => {
@@ -408,12 +408,7 @@ export function ProductsPage({
           isMobile={isMobile}
           onViewAll={() => navigate({ to: "/categories" })}
           active={active}
-          setActive={(v) => {
-            shouldScrollToProductsRef.current = true;
-            setActive(v);
-            setGridKey((k) => k + 1);
-            onCategoryChange?.(v);
-          }}
+          setActive={(v) => navigate({ to: "/categories/$categoryId", params: { categoryId: v } })}
         />
         {/* Row 2: In stock only, item count, sort */}
         <div
@@ -434,29 +429,6 @@ export function ProductsPage({
               {Icons.filter} Filters {activeFilterCount > 0 ? `(${activeFilterCount})` : ""}
             </button>
           )}
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--ink-3)",
-              userSelect: "none",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={inStockOnly}
-              onChange={(e) => {
-                setInStockOnly(e.target.checked);
-                setGridKey((k) => k + 1);
-              }}
-              style={{ width: 15, height: 15, accentColor: "var(--blue-600)", cursor: "pointer" }}
-            />
-            In stock only
-          </label>
           <span style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}>
             {!productsLoaded ? (
               <span
@@ -574,7 +546,7 @@ export function ProductsPage({
         </div>
       )}
 
-      <div ref={productsTopRef} />
+      <div ref={productsTopRef} className="wcm-scroll-anchor" />
       {(() => {
         const cartSubtotal = cart.reduce((s, c) => {
           const p = products.find((pr) => pr.id === c.id);

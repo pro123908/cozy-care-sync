@@ -1502,12 +1502,12 @@ function Footer() {
           {
             h: "Shop",
             links: [
-              { label: "Glucometers", href: "/?category=glucometers" },
-              { label: "BP Monitors", href: "/?category=bp-digital" },
-              { label: "Wheel Chairs", href: "/?category=wheelchairs" },
-              { label: "Nebulizers", href: "/?category=nebulizer" },
-              { label: "Hearing Aids", href: "/?category=hearing-aids" },
-              { label: "Massagers", href: "/?category=massagers" },
+              { label: "Glucometers", href: "/categories/glucometers" },
+              { label: "BP Monitors", href: "/categories/bp-digital" },
+              { label: "Wheel Chairs", href: "/categories/wheelchairs" },
+              { label: "Nebulizers", href: "/categories/nebulizer" },
+              { label: "Hearing Aids", href: "/categories/hearing-aids" },
+              { label: "Massagers", href: "/categories/massagers" },
             ],
           },
           {
