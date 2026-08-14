@@ -3,8 +3,9 @@ import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { Pill, ProductImageFallback } from "./ui";
 import { useWcm, WcmProvider } from "./context";
-import { type Product, getProductBadge, getProductSeoPathSegment } from "./data";
+import { type Product, getProductBadge, getProductSeoPathSegment, resolveProductIdFromParam } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
+import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -284,12 +285,31 @@ function AppLayout() {
   );
 }
 
+// If the user is on a product detail page, resolve which product so the
+// WhatsApp inquiry names it instead of the generic "your products" text.
+function getCurrentProductFromPath(pathname: string, products: Product[]): Product | undefined {
+  if (!pathname.startsWith("/products/")) return undefined;
+  const rawParam = decodeURIComponent(pathname.slice("/products/".length).split("/")[0]);
+  const resolvedId = resolveProductIdFromParam(rawParam, products);
+  return resolvedId ? products.find((p) => p.id === resolvedId) : undefined;
+}
+
+function buildWhatsappInquiryMessage(product: Product | undefined, products: Product[]): string {
+  if (!product) return "Hi, I'd like to inquire about your products.";
+  // Build from the canonical production domain (not window.location.href) so the
+  // link stays linkifiable by WhatsApp even when tested from localhost or a preview URL.
+  const url = `${SITE_URL}/products/${getProductSeoPathSegment(product, products)}`;
+  return `Hi, I'd like to inquire about *${product.name}*.\n${url}`;
+}
+
 function WhatsAppFloatingChat() {
   const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
-  const message = "Hi, I'd like to inquire about your products.";
+  const { products } = useWcm();
   const isMobile = useIsMobile();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isProductDetail = pathname.startsWith("/products/");
+  const currentProduct = getCurrentProductFromPath(pathname, products);
+  const message = buildWhatsappInquiryMessage(currentProduct, products);
 
   // Fade out while the user is actively scrolling so the fixed button doesn't
   // sit on top of product-card tap targets (heart / add buttons) mid-scroll.
@@ -999,7 +1019,8 @@ function Header({
             <button
               onClick={() => {
                 const phone = "923291557509"; // Replace with actual WhatsApp number
-                const message = "Hi, I'd like to inquire about your products.";
+                const currentProduct = getCurrentProductFromPath(pathname, products);
+                const message = buildWhatsappInquiryMessage(currentProduct, products);
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
                 trackMetaEvent("Contact");
                 window.open(url, "_blank");
