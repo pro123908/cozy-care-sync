@@ -465,9 +465,9 @@ export function CheckoutContent({
   const [step, setStep] = useState(1);
   const isMobile = useIsMobile();
   const { push } = useToasts();
-  // Scroll to top on mobile when moving to step 2 or 3
+  // Scroll to top on mobile when moving to the review step.
   React.useEffect(() => {
-    if (isMobile && (step === 2 || step === 3)) {
+    if (isMobile && step === 2) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [step, isMobile]);
@@ -561,7 +561,6 @@ export function CheckoutContent({
     const e: Record<string, string> = {};
     if (!ship.name.trim()) e.name = "Required";
     if (!isValidPkPhone(ship.phone)) e.phone = "Enter a valid Pakistani mobile number";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) e.email = "Enter a valid email";
     if (!ship.address.trim()) e.address = "Required";
     if (!ship.city.trim()) e.city = "Required";
     setErrs(e);
@@ -665,7 +664,7 @@ export function CheckoutContent({
             Checkout
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 5 : 6, flexShrink: 0 }}>
-            {[1, 2, 3].map((n) => (
+            {[1, 2].map((n) => (
               <React.Fragment key={n}>
                 <div
                   style={{
@@ -685,7 +684,7 @@ export function CheckoutContent({
                 >
                   {step > n ? "✓" : n}
                 </div>
-                {n < 3 && (
+                {n < 2 && (
                   <div
                     style={{
                       width: isMobile ? 16 : 32,
@@ -699,7 +698,7 @@ export function CheckoutContent({
             ))}
           </div>
           <div className="wcm-co-step-label">
-            {step === 1 ? "Delivery details" : step === 2 ? "Payment" : "Review & place order"}
+            {step === 1 ? "Delivery & payment" : "Review & place order"}
           </div>
         </div>
         <button
@@ -808,22 +807,6 @@ export function CheckoutContent({
                 />
               </div>
               <TextField
-                id="field-email"
-                label="Email"
-                value={ship.email}
-                onChange={(e) => {
-                  setShip({ ...ship, email: e.target.value });
-                  if (errs.email) setErrs({ ...errs, email: "" });
-                }}
-                onBlur={() => {
-                  if (ship.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ship.email.trim())) {
-                    setErrs((prev) => ({ ...prev, email: "Enter a valid email" }));
-                  }
-                }}
-                error={errs.email}
-                hint="Required for order confirmation and tracking updates."
-              />
-              <TextField
                 id="field-address"
                 label="Street address"
                 value={ship.address}
@@ -905,8 +888,8 @@ export function CheckoutContent({
               </div>
             </div>
           )}
-          {step === 2 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {step === 1 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
                 How would you like to pay?
               </h3>
@@ -1024,7 +1007,7 @@ export function CheckoutContent({
               )}
             </div>
           )}
-          {step === 3 && (
+          {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
                 Review your order
@@ -1305,7 +1288,7 @@ export function CheckoutContent({
                 Back
               </Btn>
             )}
-            {step < 3 ? (
+            {step < 2 ? (
               <Btn full size="lg" onClick={next} iconRight={Icons.chev}>
                 Continue
               </Btn>
@@ -1329,13 +1312,13 @@ export function CheckoutContent({
         </div>
         <Btn
           size="lg"
-          onClick={step < 3 ? next : place}
-          disabled={step === 3 && placing}
-          iconRight={step < 3 ? Icons.chev : undefined}
-          icon={step === 3 ? Icons.check : undefined}
+          onClick={step < 2 ? next : place}
+          disabled={step === 2 && placing}
+          iconRight={step < 2 ? Icons.chev : undefined}
+          icon={step === 2 ? Icons.check : undefined}
           style={{ flexShrink: 0 }}
         >
-          {step < 3 ? "Continue" : placing ? "Placing…" : "Place order"}
+          {step < 2 ? "Continue" : placing ? "Placing…" : "Place order"}
         </Btn>
       </div>
     </div>

@@ -11,7 +11,7 @@ type OrderItem = { id: string; qty: number; size?: string };
 type ShipDetails = {
   name: string;
   phone: string;
-  email: string;
+  email?: string;
   address: string;
   city: string;
   landmark: string;
@@ -457,7 +457,7 @@ async function sendOrderNotificationEmail(input: {
     `Payment: ${input.pay}`,
     "",
     `Customer: ${input.ship.name}`,
-    `${input.ship.phone} · ${input.ship.email}`,
+    input.ship.email ? `${input.ship.phone} · ${input.ship.email}` : input.ship.phone,
     `${input.ship.address}, ${input.ship.city}${input.ship.landmark ? ` (${input.ship.landmark})` : ""}`,
     "",
     "Items:",
@@ -522,7 +522,7 @@ async function sendOrderNotificationEmail(input: {
         <td style="padding:12px 28px">
           <div style="background:#fafaf7;border:1px solid #eeece5;border-radius:12px;padding:14px 16px">
             <div style="font-size:14px;font-weight:600;color:#1e293b">${escapeHtml(input.ship.name)}</div>
-            <div style="font-size:13px;color:#475569;margin-top:4px">${escapeHtml(input.ship.phone)} · ${escapeHtml(input.ship.email)}</div>
+            <div style="font-size:13px;color:#475569;margin-top:4px">${escapeHtml(input.ship.phone)}${input.ship.email ? ` · ${escapeHtml(input.ship.email)}` : ""}</div>
             <div style="font-size:13px;color:#475569;margin-top:4px">${escapeHtml(input.ship.address)}, ${escapeHtml(input.ship.city)}${input.ship.landmark ? ` (${escapeHtml(input.ship.landmark)})` : ""}</div>
           </div>
         </td>
@@ -577,7 +577,7 @@ async function sendOrderNotificationEmail(input: {
       body: JSON.stringify({
         from: ORDER_NOTIFY_FROM,
         to: recipients,
-        reply_to: input.ship.email,
+        ...(input.ship.email ? { reply_to: input.ship.email } : {}),
         subject: `New order ${input.orderId} - Rs ${input.total}`,
         text,
         html,
@@ -841,12 +841,15 @@ Deno.serve(
     }
     item.qty = qty; // normalise
   }
-  if (!ship?.address || !ship?.city || !ship?.name || !ship?.phone || !ship?.email) {
+  if (!ship?.address || !ship?.city || !ship?.name || !ship?.phone) {
     return json({ error: "Missing required shipping fields" }, 400, origin);
   }
 
-  const normalizedEmail = normalizeEmail(ship.email);
-  if (!isValidEmail(normalizedEmail)) {
+  // Email is optional (checkout no longer asks for it) — validate the format
+  // only when a caller actually supplies one, e.g. a logged-in user's account
+  // email carried through silently from the client.
+  const normalizedEmail = ship.email ? normalizeEmail(ship.email) : "";
+  if (normalizedEmail && !isValidEmail(normalizedEmail)) {
     return json({ error: "Invalid email" }, 400, origin);
   }
   ship.email = normalizedEmail;

@@ -613,6 +613,10 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         ],
       });
       push(`Added ${p.name} to cart`);
+      // Surface the cart instead of leaving the shopper on the product page
+      // with nothing but a toast — the drawer's own "Checkout" button is the
+      // next step toward actually completing the order.
+      setCartOpen(true);
     }
 
     if (hitLimit) {

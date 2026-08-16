@@ -210,12 +210,12 @@ function CheckoutPage() {
       }
 
       if (!res.ok) {
-        push(payload?.error ?? `Could not place order (${res.status}). Please try again.`);
+        push(payload?.error ?? `Could not place order (${res.status}). Please try again.`, { tone: "red" });
         return;
       }
 
       if (!payload?.order?.id) {
-        push("Order was created, but the response was invalid. Please check Orders.");
+        push("Order was created, but the response was invalid. Please check Orders.", { tone: "red" });
         navigate({ to: "/orders" });
         return;
       }
@@ -263,7 +263,7 @@ function CheckoutPage() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
-      push(`Could not place order. ${message}`);
+      push(`Could not place order. ${message}`, { tone: "red" });
     } finally {
       setPlacing(false);
     }
