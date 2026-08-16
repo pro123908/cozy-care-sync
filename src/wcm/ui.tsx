@@ -4,12 +4,6 @@ import { createPortal } from "react-dom";
 import { Icons } from "./icons";
 import type { Product } from "./data";
 
-function getCloudinaryPlaceholderSrc(src: string) {
-  if (!src.includes("/image/upload/")) return null;
-
-  return src.replace("/image/upload/", "/image/upload/f_auto,q_1,w_48,e_blur:1200/");
-}
-
 type ProductPhotoProps = {
   src: string;
   alt: string;
@@ -31,11 +25,14 @@ export function ProductPhoto({
 }: ProductPhotoProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const placeholderSrc = getCloudinaryPlaceholderSrc(src);
+  const imgRef = useRef<HTMLImageElement>(null);
 
-  useEffect(() => {
-    setIsLoaded(false);
+  useLayoutEffect(() => {
     setHasError(false);
+    // Browser may have resolved a cached image (e.g. service-worker image
+    // cache) before this handler attaches, so the `load` event never fires —
+    // check `.complete` directly or the image stays stuck at its blurred state.
+    setIsLoaded(!!imgRef.current?.complete);
   }, [src]);
 
   return (
@@ -47,25 +44,6 @@ export function ProductPhoto({
         ...containerStyle,
       }}
     >
-      {placeholderSrc && !hasError && (
-        <img
-          src={placeholderSrc}
-          alt=""
-          aria-hidden="true"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            display: "block",
-            position: "absolute",
-            inset: 0,
-            filter: "blur(12px)",
-            transform: "scale(1.08)",
-            opacity: isLoaded ? 0 : 1,
-            transition: "opacity .25s ease",
-          }}
-        />
-      )}
       {!isLoaded && !hasError && (
         <div
           aria-hidden="true"
@@ -75,12 +53,12 @@ export function ProductPhoto({
             background:
               "linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,.08), rgba(255,255,255,.35))",
             animation: "wcmPulse 1.4s ease-in-out infinite",
-            opacity: placeholderSrc ? 0.35 : 1,
           }}
         />
       )}
       {!hasError && (
         <img
+          ref={imgRef}
           src={src}
           alt={alt}
           loading={loading}
@@ -97,8 +75,8 @@ export function ProductPhoto({
             display: "block",
             position: "relative",
             zIndex: 1,
-            opacity: isLoaded ? 1 : placeholderSrc ? 0 : 0.72,
-            filter: isLoaded ? "blur(0px)" : placeholderSrc ? "blur(0px)" : "blur(18px)",
+            opacity: isLoaded ? 1 : 0.72,
+            filter: isLoaded ? "blur(0px)" : "blur(18px)",
             transform: isLoaded ? "scale(1)" : "scale(1.04)",
             transition: "opacity .25s ease, filter .35s ease, transform .35s ease",
             ...imgStyle,
