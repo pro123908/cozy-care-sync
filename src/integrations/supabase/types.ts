@@ -244,6 +244,8 @@ export type Database = {
           phone: string
           placed: string
           progress: number
+          replaces_order_id: string | null
+          replacement_balance_due: number | null
           rider: Json | null
           shipping: number
           status: string
@@ -266,6 +268,8 @@ export type Database = {
           phone?: string
           placed: string
           progress?: number
+          replaces_order_id?: string | null
+          replacement_balance_due?: number | null
           rider?: Json | null
           shipping?: number
           status?: string
@@ -288,6 +292,8 @@ export type Database = {
           phone?: string
           placed?: string
           progress?: number
+          replaces_order_id?: string | null
+          replacement_balance_due?: number | null
           rider?: Json | null
           shipping?: number
           status?: string

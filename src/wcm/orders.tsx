@@ -1419,6 +1419,25 @@ export function OrderDetail({
                 value={<span style={{ fontSize: 18, fontWeight: 800 }}>{PKR(order.total)}</span>}
               />
             </div>
+            {order.replacesOrderId != null && order.replacementBalanceDue != null && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: order.replacementBalanceDue === 0 ? "var(--pill-success-bg)" : "var(--pill-warn-bg)",
+                  color: order.replacementBalanceDue === 0 ? "var(--pill-success-fg)" : "var(--pill-warn-fg)",
+                  fontSize: 13,
+                  fontWeight: 700,
+                }}
+              >
+                {order.replacementBalanceDue === 0
+                  ? "This is a replacement order — no extra payment needed, it's an even swap."
+                  : order.replacementBalanceDue > 0
+                    ? `Rs ${(order.total - order.replacementBalanceDue).toLocaleString()} of this is already covered by your original order — you'll pay just Rs ${order.replacementBalanceDue.toLocaleString()} more on delivery.`
+                    : `This replacement order includes a refund — Rs ${Math.abs(order.replacementBalanceDue).toLocaleString()} will be returned to you.`}
+              </div>
+            )}
           </Section>
         </div>
       </div>

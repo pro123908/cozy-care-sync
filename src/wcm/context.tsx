@@ -412,6 +412,8 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         subtotal: r.subtotal,
         shipping: r.shipping,
         total: r.total,
+        replacesOrderId: r.replaces_order_id,
+        replacementBalanceDue: r.replacement_balance_due,
         rider: (r.rider as { name?: string; phone?: string } | undefined) || undefined,
         product_reviews: reviewMap[r.order_code] || {},
         courier: courierMap[r.order_code] || null,

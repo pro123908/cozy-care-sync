@@ -2599,6 +2599,13 @@ export type Order = {
   subtotal: number;
   shipping: number;
   total: number;
+  // Set when this order was created to replace item(s) from an earlier
+  // order (a faulty-product swap). replacementBalanceDue is what the
+  // customer actually still owes beyond what they already paid on that
+  // original order — `total` alone overstates it, since it's the full
+  // value of this new order, not the incremental amount.
+  replacesOrderId?: string | null;
+  replacementBalanceDue?: number | null;
   rider?: { name: string; phone: string };
   product_reviews?: Record<string, OrderReview>;
   review?: OrderReview;

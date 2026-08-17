@@ -68,7 +68,7 @@ Deno.serve(
   const { data: row, error } = await supabase
     .from("orders")
     .select(
-      "order_code, placed, eta, status, progress, address, city, landmark, customer_name, payment, items, subtotal, shipping, total, rider, phone, user_id",
+      "order_code, placed, eta, status, progress, address, city, landmark, customer_name, payment, items, subtotal, shipping, total, rider, phone, user_id, replaces_order_id, replacement_balance_due",
     )
     .eq("order_code", orderId)
     .maybeSingle();
@@ -134,6 +134,8 @@ Deno.serve(
         subtotal: row.subtotal,
         shipping: row.shipping,
         total: row.total,
+        replacesOrderId: row.replaces_order_id,
+        replacementBalanceDue: row.replacement_balance_due,
         rider: row.rider,
         product_reviews: productReviews,
         courier: courierRow
