@@ -2,8 +2,16 @@ import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { Pill, ProductImageFallback } from "./ui";
-import { useWcm, WcmProvider } from "./context";
-import { type Product, getProductBadge, getProductSeoPathSegment, resolveProductIdFromParam } from "./data";
+import { useWcm, WcmProvider, type CheckoutState } from "./context";
+import {
+  type Product,
+  getProductBadge,
+  getProductSeoPathSegment,
+  resolveProductIdFromParam,
+  getUnitPrice,
+  computeShipping,
+  PKR,
+} from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
@@ -302,14 +310,65 @@ function buildWhatsappInquiryMessage(product: Product | undefined, products: Pro
   return `Hi, I'd like to inquire about *${product.name}*.\n${url}`;
 }
 
+type CheckoutLine = { id: string; qty: number; size?: string; p: Product };
+
+// On the checkout page, prefer the exact snapshot the user is reviewing
+// (context.checkoutData, set when "Checkout" is tapped from the cart drawer).
+// After a page reload that snapshot is gone, so fall back to recomputing it
+// from the persisted cart against the live catalog — mirrors the fallback in
+// routes/checkout.tsx so the WhatsApp message always matches what's on screen.
+function resolveCheckoutSnapshot(
+  checkoutData: CheckoutState | null,
+  cart: { id: string; qty: number; size?: string }[],
+  products: Product[],
+  productsLoaded: boolean,
+): CheckoutState | null {
+  if (checkoutData) return checkoutData;
+  if (!productsLoaded || cart.length === 0) return null;
+  const items: CheckoutLine[] = cart
+    .map((line) => ({ ...line, p: products.find((p) => p.id === line.id) }))
+    .filter((item): item is CheckoutLine => Boolean(item.p));
+  if (items.length === 0) return null;
+  const subtotal = items.reduce((sum, item) => sum + getUnitPrice(item.p, item.size) * item.qty, 0);
+  const shipping = computeShipping(subtotal, "Karachi");
+  return { items, subtotal, shipping, total: subtotal + shipping };
+}
+
+function buildCartWhatsappMessage(snapshot: CheckoutState): string {
+  const lines = snapshot.items.map((item: Partial<CheckoutLine>) => {
+    const name = item.p?.name ?? "Item";
+    const qty = item.qty ?? 1;
+    const size = item.size ? ` (${item.size})` : "";
+    const lineTotal = item.p ? getUnitPrice(item.p, item.size) * qty : 0;
+    return `• ${qty} x ${name}${size} — ${PKR(lineTotal)}`;
+  });
+  return [
+    "Hi, I'd like help with my order:",
+    "",
+    ...lines,
+    "",
+    `Subtotal: ${PKR(snapshot.subtotal)}`,
+    snapshot.shipping > 0 ? `Delivery: ${PKR(snapshot.shipping)}` : "Delivery: Free",
+    `Total: ${PKR(snapshot.total)}`,
+    "",
+    `${SITE_URL}/checkout`,
+  ].join("\n");
+}
+
 function WhatsAppFloatingChat() {
   const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
-  const { products } = useWcm();
+  const { products, cart, productsLoaded, checkoutData } = useWcm();
   const isMobile = useIsMobile();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isProductDetail = pathname.startsWith("/products/");
+  const isCheckout = pathname.startsWith("/checkout");
+  const checkoutSnapshot = isCheckout
+    ? resolveCheckoutSnapshot(checkoutData, cart, products, productsLoaded)
+    : null;
   const currentProduct = getCurrentProductFromPath(pathname, products);
-  const message = buildWhatsappInquiryMessage(currentProduct, products);
+  const message = checkoutSnapshot
+    ? buildCartWhatsappMessage(checkoutSnapshot)
+    : buildWhatsappInquiryMessage(currentProduct, products);
 
   // Fade out while the user is actively scrolling so the fixed button doesn't
   // sit on top of product-card tap targets (heart / add buttons) mid-scroll.
@@ -446,7 +505,7 @@ function Header({
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { wishlist, products } = useWcm();
+  const { wishlist, products, cart, productsLoaded, checkoutData } = useWcm();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isProducts = pathname === "/" || pathname.startsWith("/products");
   const isCategories = pathname.startsWith("/categories");
@@ -1019,8 +1078,15 @@ function Header({
             <button
               onClick={() => {
                 const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
-                const currentProduct = getCurrentProductFromPath(pathname, products);
-                const message = buildWhatsappInquiryMessage(currentProduct, products);
+                const checkoutSnapshot = pathname.startsWith("/checkout")
+                  ? resolveCheckoutSnapshot(checkoutData, cart, products, productsLoaded)
+                  : null;
+                const message = checkoutSnapshot
+                  ? buildCartWhatsappMessage(checkoutSnapshot)
+                  : buildWhatsappInquiryMessage(
+                      getCurrentProductFromPath(pathname, products),
+                      products,
+                    );
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
                 trackMetaEvent("Contact");
                 window.open(url, "_blank");
