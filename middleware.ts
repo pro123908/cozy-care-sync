@@ -317,7 +317,7 @@ function renderPolicies(): string {
 <h2>Terms &amp; Conditions</h2>
 <p>By using the Wellcare Mart website or placing an order, customers agree that product prices and availability may change without prior notice; product images are for reference and may slightly differ from the actual product; customers are responsible for providing accurate contact and delivery details; Wellcare Mart reserves the right to cancel any order due to stock unavailability, pricing errors, or delivery limitations; medical equipment and healthcare products should be used according to manufacturer instructions or professional guidance; and Wellcare Mart is not responsible for misuse of any product after delivery.</p>
 <h2>Contact Us</h2>
-<p>Wellcare Mart<br>40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society<br>+92 329 1557509<br>danialansari998@gmail.com</p>`,
+<p>Wellcare Mart<br>40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society<br>+92 344 2345500<br>danialansari998@gmail.com</p>`,
   });
 }
 

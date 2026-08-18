@@ -303,7 +303,7 @@ function buildWhatsappInquiryMessage(product: Product | undefined, products: Pro
 }
 
 function WhatsAppFloatingChat() {
-  const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
+  const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
   const { products } = useWcm();
   const isMobile = useIsMobile();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -1018,7 +1018,7 @@ function Header({
             {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
             <button
               onClick={() => {
-                const phone = "923291557509"; // Replace with actual WhatsApp number
+                const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
                 const currentProduct = getCurrentProductFromPath(pathname, products);
                 const message = buildWhatsappInquiryMessage(currentProduct, products);
                 const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;

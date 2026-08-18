@@ -22,7 +22,7 @@ const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const WHATSAPP_GRAPH_VERSION = Deno.env.get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 // Meta echoes this back during webhook setup (GET) to prove we own the endpoint.
 const WHATSAPP_WEBHOOK_VERIFY_TOKEN = Deno.env.get("WHATSAPP_WEBHOOK_VERIFY_TOKEN") || "";
-const SUPPORT_NUMBER = Deno.env.get("WHATSAPP_SUPPORT_NUMBER") || "+92 329 1557509";
+const SUPPORT_NUMBER = Deno.env.get("WHATSAPP_SUPPORT_NUMBER") || "+92 344 2345500";
 
 // Don't re-send the same redirect to someone mid-conversation.
 const AUTO_REPLY_COOLDOWN_HOURS = 6;

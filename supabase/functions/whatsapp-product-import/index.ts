@@ -84,7 +84,7 @@ Store facts you can share:
 - Delivery: usually 2-5 business days depending on city and product availability. Free delivery in Karachi on orders Rs 2000+; otherwise a Rs 250 delivery fee applies.
 - Returns: accepted only if the product is damaged, defective, or incorrect on delivery, reported within 24 hours of receipt, and unused/unopened in original packaging. Masks, gloves, diapers, and other opened hygiene/disposable/personal-use medical products are not returnable.
 - Payment: Cash on Delivery, or bank transfer before dispatch (MCB Islamic Bank).
-- Contact: 40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society. WhatsApp/phone +92 329 1557509.
+- Contact: 40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society. WhatsApp/phone +92 344 2345500.
 
 Rules:
 - Keep replies short — 1 to 4 sentences, WhatsApp style.

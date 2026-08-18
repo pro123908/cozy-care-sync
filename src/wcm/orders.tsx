@@ -608,7 +608,7 @@ export function OrderDetail({
     }
   };
   const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
-  const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
+  const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
 
   useEffect(() => {
     setLocalProductReviews(order.product_reviews || {});
@@ -1330,7 +1330,7 @@ export function OrderDetail({
                           as the transfer reference.
                         </div>
                         <a
-                          href={`https://wa.me/923291557509?text=${encodeURIComponent(`Hi, I'm sending the payment receipt for order ${order.id}.`)}`}
+                          href={`https://wa.me/${whatsappPhone}?text=${encodeURIComponent(`Hi, I'm sending the payment receipt for order ${order.id}.`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{
