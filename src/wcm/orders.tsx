@@ -560,9 +560,7 @@ function OrderCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
 }
 
 function trackingDate(order: Order, i: number) {
-  if (i === 0) return order.placed + " · 11:24 AM";
-  if (i === 1) return order.placed + " · 12:00 PM";
-  if (i === 2) return order.placed + " · 03:48 PM";
+  if (i === 0 || i === 1 || i === 2) return order.placed;
   if (i === 3) {
     if (order.courier) {
       const providerLabel = order.courier.provider === "postex" ? "PostEx" : "Leopards Courier";
@@ -570,7 +568,7 @@ function trackingDate(order: Order, i: number) {
     }
     return "Preparing for dispatch";
   }
-  if (i === 4) return order.eta + " · 02:18 PM";
+  if (i === 4) return order.eta;
   return "";
 }
 
