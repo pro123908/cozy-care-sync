@@ -282,10 +282,10 @@ function PoliciesPage() {
           <div>
             📞{" "}
             <a
-              href="tel:+923442345500"
+              href="tel:+923291557509"
               style={{ color: "var(--ink-2)", textDecoration: "none", fontWeight: 600 }}
             >
-              +92 344 2345500
+              +92 329 1557509
             </a>
           </div>
           <div>
@@ -331,7 +331,7 @@ function PoliciesPage() {
             Email us
           </a>
           <a
-            href="https://wa.me/923442345500"
+            href="https://wa.me/923291557509"
             target="_blank"
             rel="noopener noreferrer"
             style={{

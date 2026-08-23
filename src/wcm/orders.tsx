@@ -606,7 +606,7 @@ export function OrderDetail({
     }
   };
   const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
-  const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
+  const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
 
   useEffect(() => {
     setLocalProductReviews(order.product_reviews || {});

@@ -356,7 +356,7 @@ function buildCartWhatsappMessage(snapshot: CheckoutState): string {
 }
 
 function WhatsAppFloatingChat() {
-  const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
+  const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
   const { products, cart, productsLoaded, checkoutData } = useWcm();
   const isMobile = useIsMobile();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -1077,7 +1077,7 @@ function Header({
             {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
             <button
               onClick={() => {
-                const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
+                const phone = import.meta.env.WHATSAPP_NUMBER || "923291557509";
                 const checkoutSnapshot = pathname.startsWith("/checkout")
                   ? resolveCheckoutSnapshot(checkoutData, cart, products, productsLoaded)
                   : null;
