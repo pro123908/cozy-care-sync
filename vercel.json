@@ -1,6 +1,13 @@
 {
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/products/accu-check-active-blood-glucose-meter", "destination": "/products/accu-chek-active-blood-glucose-meter", "permanent": true },
+    { "source": "/products/accu-check-instant-blood-glucose-meter", "destination": "/products/accu-chek-instant-blood-glucose-meter", "permanent": true },
+    { "source": "/products/accu-check-instant-s-blood-glucose-meter", "destination": "/products/accu-chek-instant-s-blood-glucose-meter", "permanent": true },
+    { "source": "/products/accu-check-active-sugar-strips", "destination": "/products/accu-chek-active-sugar-strips", "permanent": true },
+    { "source": "/products/accu-check-instant-sugar-strips", "destination": "/products/accu-chek-instant-sugar-strips", "permanent": true }
+  ],
   "rewrites": [{ "source": "/((?!.*\\..*).*)", "destination": "/index.html" }],
   "headers": [
     {
