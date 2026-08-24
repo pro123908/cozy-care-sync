@@ -858,9 +858,15 @@ export function ProductDetail({
     const videos = Array.isArray(product.gallery_videos)
       ? product.gallery_videos.filter((src): src is string => Boolean(src))
       : [];
+    // Main image first, then video(s), then the rest of the gallery — a demo
+    // video is worth surfacing right after the hero shot rather than buried
+    // behind every gallery photo, which is where a plain images-then-videos
+    // concat would otherwise put it.
+    const [mainImage, ...restImages] = images;
     return [
-      ...images.map((src) => ({ type: "image" as const, src })),
+      ...(mainImage ? [{ type: "image" as const, src: mainImage }] : []),
       ...videos.map((src) => ({ type: "video" as const, src })),
+      ...restImages.map((src) => ({ type: "image" as const, src })),
     ];
   }, [product]);
   const hasMultipleImages = detailMedia.length > 1;
