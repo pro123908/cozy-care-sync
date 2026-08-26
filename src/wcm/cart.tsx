@@ -1012,7 +1012,7 @@ export function CheckoutContent({
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
                 Review your order
               </h3>
-              <Section style={{ padding: 16 }}>
+              <Section style={{ padding: isMobile ? 12 : 16 }}>
                 <div
                   style={{
                     display: "flex",
@@ -1046,7 +1046,7 @@ export function CheckoutContent({
                   </button>
                 </div>
               </Section>
-              <Section style={{ padding: 16 }}>
+              <Section style={{ padding: isMobile ? 12 : 16 }}>
                 <div>
                   <div
                     style={{
@@ -1062,7 +1062,7 @@ export function CheckoutContent({
                   <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3 }}>{payLabel}</div>
                 </div>
               </Section>
-              <Section style={{ padding: 16 }}>
+              <Section style={{ padding: isMobile ? 12 : 16 }}>
                 <div
                   style={{
                     fontSize: 11,
@@ -1284,16 +1284,28 @@ export function CheckoutContent({
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
             {step > 1 && (
-              <Btn variant="outline" onClick={() => setStep((s) => s - 1)} icon={Icons.chevL}>
+              <Btn
+                variant="outline"
+                onClick={() => setStep((s) => s - 1)}
+                icon={Icons.chevL}
+                style={{ flexShrink: 0 }}
+              >
                 Back
               </Btn>
             )}
             {step < 2 ? (
-              <Btn full size="lg" onClick={next} iconRight={Icons.chev}>
+              <Btn full size="lg" onClick={next} iconRight={Icons.chev} style={{ flex: 1 }}>
                 Continue
               </Btn>
             ) : (
-              <Btn full size="lg" onClick={place} icon={Icons.check} disabled={placing}>
+              <Btn
+                full
+                size="lg"
+                onClick={place}
+                icon={Icons.check}
+                disabled={placing}
+                style={{ flex: 1 }}
+              >
                 {placing ? "Placing order…" : `Place order · ${PKR(finalTotal)}`}
               </Btn>
             )}
