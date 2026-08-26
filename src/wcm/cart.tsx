@@ -729,7 +729,7 @@ export function CheckoutContent({
           overflow: isMobile ? undefined : "hidden",
         }}
       >
-        <div style={{ padding: 24, overflowY: isMobile ? undefined : "auto" }}>
+        <div style={{ padding: isMobile ? 14 : 24, overflowY: isMobile ? undefined : "auto" }}>
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
@@ -1113,7 +1113,7 @@ export function CheckoutContent({
         <div
           className="wcm-co-summary"
           style={{
-            padding: 24,
+            padding: isMobile ? 14 : 24,
             background: "var(--card)",
             overflowY: "auto",
             display: "flex",
