@@ -33,8 +33,10 @@ export type Product = {
 // counts every order ever placed regardless of outcome (including
 // cancelled/still-in-transit ones), which overstates real demand; a product
 // with lots of cancellations isn't actually "hot".
+export const CURATED_TAGS = new Set(["Best seller", "Top rated", "Deal"]);
+
 export function getProductBadge(p: Pick<Product, "tags" | "delivered_sales_count">): { label: string; tone: string } | null {
-  const curatedTag = p.tags.find((tag) => ["Best seller", "Top rated", "Deal"].includes(tag));
+  const curatedTag = p.tags.find((tag) => CURATED_TAGS.has(tag));
   const label = (p.delivered_sales_count ?? 0) >= 10 && !p.tags.includes("Best seller") ? "🔥 Hot" : curatedTag || "";
   if (!label) return null;
   const tone =
