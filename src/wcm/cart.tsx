@@ -1306,7 +1306,7 @@ export function CheckoutContent({
                 disabled={placing}
                 style={{ flex: 1 }}
               >
-                {placing ? "Placing order…" : `Place order · ${PKR(finalTotal)}`}
+                {placing ? "Placing…" : "Place order"}
               </Btn>
             )}
           </div>
