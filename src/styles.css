@@ -986,11 +986,6 @@
 .wcm-detail-stock-pill {
   align-self: flex-end;
 }
-.wcm-detail-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
 .wcm-detail-thumbs-mobile {
   display: none;
 }
@@ -1490,9 +1485,6 @@
   .wcm-product-badges {
     grid-template-columns: 1fr !important;
   }
-  .wcm-detail-meta-grid {
-    grid-template-columns: 1fr !important;
-  }
   .wcm-pdp-wrap {
     gap: 12px;
   }
@@ -1617,6 +1609,102 @@
   /* Hide checkout step label text on small phones to avoid overflow */
   .wcm-co-step-label {
     display: none;
+  }
+
+  /* PDP "immersive sheet" — full-bleed hero photo with the info column
+     pulled up over it as a rounded card, instead of a padded square image
+     sitting above a separate info block. The compact trust ribbon and the
+     standalone back/save controls are replaced by controls overlaid on the
+     photo itself; the 3-icon badge grid further down still covers the same
+     trust messaging, so the ribbon would just be a duplicate here.
+     Placed last in this media query so it wins over the earlier rules
+     above that target the same selectors at the same specificity. */
+  .wcm-trust-ribbon-compact {
+    display: none;
+  }
+  .wcm-pdp-back {
+    display: none !important;
+  }
+  .wcm-pdp-mobile-fav {
+    display: none !important;
+  }
+  .wcm-pdp-overlay-back,
+  .wcm-pdp-overlay-fav {
+    display: flex !important;
+  }
+  .wcm-detail-media {
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+  }
+  .wcm-detail-media-hero {
+    margin: 0 -14px !important;
+    width: calc(100% + 28px) !important;
+    max-width: calc(100% + 28px) !important;
+    aspect-ratio: 10/11 !important;
+  }
+  /* ProductPhoto/ProductImage's own wrapper div (not just the <img> inside
+     it) carries the rounded-square framing via inline containerStyle —
+     override that wrapper directly since it has no class to hook. */
+  .wcm-detail-media-hero > div:not(.wcm-pdp-overlay-dots):not(.wcm-pdp-overlay-scrim),
+  .wcm-detail-media-hero video {
+    border-radius: 0 !important;
+    border: none !important;
+    aspect-ratio: auto !important;
+    height: 100% !important;
+  }
+  .wcm-detail-info {
+    margin: -26px -14px 0 !important;
+    width: calc(100% + 28px) !important;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    box-shadow: var(--shadow-lg);
+    padding: 10px 14px 22px !important;
+    position: relative;
+    z-index: 2;
+  }
+  .wcm-detail-price-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 4px 0 14px !important;
+  }
+  .wcm-detail-about {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 14px 0 0 !important;
+    border-top: 1px solid var(--line) !important;
+  }
+  /* The 3 trust badges were forced to a single stacked column by the
+     shared ≤880px "collapse to 1 col" rule below — fine for the old
+     padded-card layout, but three full-width rows is a lot of scroll
+     before "You may also like". Back to 3 compact columns, and the
+     badges drop their subtext line (kept above 520px) to stay short. */
+  .wcm-product-badges {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  .wcm-product-badges > div {
+    padding: 10px 4px !important;
+    align-items: center;
+    text-align: center;
+  }
+  .wcm-badge-sub {
+    display: none !important;
+  }
+  /* Nothing on the full-bleed hero itself hinted there was more than one
+     photo (the thumbnail strip only appears once you've scrolled into the
+     sheet) — dots overlaid on the image make the carousel obvious right
+     away, and double as tap targets to jump to a photo. */
+  .wcm-pdp-overlay-scrim {
+    display: block !important;
+  }
+  .wcm-pdp-overlay-dots {
+    display: flex !important;
   }
 }
 

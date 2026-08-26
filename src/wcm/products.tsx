@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect, useCallback } from "react"
 import { useNavigate } from "@tanstack/react-router";
 import {
   CATEGORIES,
+  CURATED_TAGS,
   PKR,
   getSelectableOptions,
   getUnitPrice,
@@ -806,6 +807,7 @@ export function ProductDetail({
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<"Child" | "Adult" | null>(null);
   const [selectedFit, setSelectedFit] = useState<"Adjustable" | "Medium" | null>(null);
+  const [showSizeChart, setShowSizeChart] = useState(false);
   const isOrthoBelt =
     product.cat === "ortho-belts" && product.id !== "belt-003" && product.id !== "belt-004";
   const isPolysling = product.id === "belt-004";
@@ -934,6 +936,115 @@ export function ProductDetail({
               cycleView(delta < 0 ? 1 : -1);
             }}
           >
+            <button
+              type="button"
+              className="wcm-pdp-overlay-back"
+              onClick={onClose}
+              aria-label="Back to products"
+              style={{
+                display: "none",
+                position: "absolute",
+                top: 14,
+                left: 14,
+                zIndex: 3,
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                border: "none",
+                background: "rgba(15,23,42,.42)",
+                backdropFilter: "blur(3px)",
+                color: "#fff",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {Icons.chevL}
+            </button>
+            <button
+              type="button"
+              className="wcm-pdp-overlay-fav"
+              onClick={() => toggleWishlist(product.id)}
+              aria-label={isSaved ? "Remove from saved" : "Save item"}
+              style={{
+                display: "none",
+                position: "absolute",
+                top: 14,
+                right: 14,
+                zIndex: 3,
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                border: "none",
+                background: "rgba(15,23,42,.42)",
+                backdropFilter: "blur(3px)",
+                color: isSaved ? "#fb7185" : "#fff",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill={isSaved ? "currentColor" : "none"}
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
+            {hasMultipleImages && (
+              <div
+                className="wcm-pdp-overlay-scrim"
+                style={{
+                  display: "none",
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 84,
+                  zIndex: 2,
+                  background: "linear-gradient(to top, rgba(15,23,42,.6), transparent)",
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+            {hasMultipleImages && (
+              <div
+                className="wcm-pdp-overlay-dots"
+                style={{
+                  display: "none",
+                  position: "absolute",
+                  bottom: 22,
+                  left: 0,
+                  right: 0,
+                  zIndex: 3,
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                {thumbIndexes.map((i) => (
+                  <button
+                    key={`dot-${i}`}
+                    type="button"
+                    onClick={() => setActiveView(i)}
+                    aria-label={`Show image ${i + 1}`}
+                    style={{
+                      width: i === activeView ? 16 : 6,
+                      height: 6,
+                      borderRadius: 3,
+                      border: "1px solid rgba(15,23,42,.35)",
+                      padding: 0,
+                      background: i === activeView ? "#fff" : "rgba(255,255,255,.8)",
+                      boxShadow: "0 1px 2px rgba(15,23,42,.35)",
+                      transition: "width .2s ease, background .2s ease",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             {activeMedia ? (
               activeMedia.type === "video" ? (
                 <>
@@ -1113,22 +1224,16 @@ export function ProductDetail({
                 <span style={{ fontSize: 12, fontWeight: 700, color: "var(--blue-700)" }}>
                   {product.brand}
                 </span>
-                {product.tags.map((t) => (
-                  <Pill
-                    key={t}
-                    tone={
-                      t === "Best seller"
-                        ? "green"
-                        : t === "Top rated"
-                          ? "blue"
-                          : t === "Deal"
-                            ? "rose"
-                            : "slate"
-                    }
-                  >
-                    {t}
-                  </Pill>
-                ))}
+                {product.tags
+                  .filter((t) => CURATED_TAGS.has(t))
+                  .map((t) => (
+                    <Pill
+                      key={t}
+                      tone={t === "Best seller" ? "green" : t === "Top rated" ? "blue" : "rose"}
+                    >
+                      {t}
+                    </Pill>
+                  ))}
               </div>
               <button
                 className="wcm-pdp-mobile-fav"
@@ -1322,8 +1427,19 @@ export function ProductDetail({
                   {optionLabel}
                   {selectedSize ? `: ${selectedSize}` : ""}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
-                  Select one option
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {product.size_chart_image && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeChart(true)}
+                      style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-teal-fg)", background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      Size chart
+                    </button>
+                  )}
+                  <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                    Select one option
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1384,8 +1500,19 @@ export function ProductDetail({
                 <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-2)" }}>
                   Size{selectedSize ? `: ${selectedSize}` : ""}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
-                  Select one option
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {product.size_chart_image && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeChart(true)}
+                      style={{ fontSize: 12, fontWeight: 700, color: "var(--pill-teal-fg)", background: "none", border: "none", padding: 0, cursor: "pointer", textDecoration: "underline" }}
+                    >
+                      Size chart
+                    </button>
+                  )}
+                  <div style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 600 }}>
+                    Select one option
+                  </div>
                 </div>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -1668,7 +1795,7 @@ export function ProductDetail({
               ))}
             </div>
           )}
-          <Section style={{ padding: 16 }}>
+          <Section className="wcm-detail-about" style={{ padding: 16 }}>
             <div
               style={{
                 fontWeight: 700,
@@ -1684,34 +1811,6 @@ export function ProductDetail({
             <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14, lineHeight: 1.55 }}>
               {product.blurb}
             </p>
-            <div
-              className="wcm-detail-meta-grid"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2,1fr)",
-                gap: 10,
-                marginTop: 12,
-              }}
-            >
-              {[
-                { l: "Brand", v: product.brand },
-                { l: "Category", v: cat },
-                { l: "Returns", v: "3-day easy returns" },
-              ].map((r) => (
-                <div
-                  key={r.l}
-                  style={{
-                    padding: "10px 12px",
-                    border: "1px solid var(--line)",
-                    borderRadius: 11,
-                    background: "var(--bg-elev)",
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 600 }}>{r.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>{r.v}</div>
-                </div>
-              ))}
-            </div>
           </Section>
           <div className="wcm-product-badges">
             {[
@@ -1733,7 +1832,7 @@ export function ProductDetail({
               >
                 <div style={{ color: "var(--blue-700)" }}>{b.i}</div>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{b.t}</div>
-                <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{b.s}</div>
+                <div className="wcm-badge-sub" style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{b.s}</div>
               </div>
             ))}
           </div>
@@ -1879,6 +1978,53 @@ export function ProductDetail({
           </div>
         )}
       </Section>
+      {showSizeChart && product.size_chart_image && (
+        <div
+          onClick={() => setShowSizeChart(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+            zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              maxWidth: 560,
+              width: "100%",
+              maxHeight: "85vh",
+              background: "var(--card)",
+              border: "1px solid var(--line)",
+              borderRadius: 14,
+              padding: 16,
+              overflow: "auto",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>Size chart</div>
+              <button
+                type="button"
+                onClick={() => setShowSizeChart(false)}
+                aria-label="Close size chart"
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, display: "flex" }}
+              >
+                {Icons.close}
+              </button>
+            </div>
+            <img
+              src={product.size_chart_image}
+              alt={`${product.name} size chart`}
+              style={{ width: "100%", height: "auto", borderRadius: 10, display: "block" }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
