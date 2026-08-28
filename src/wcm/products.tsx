@@ -845,6 +845,40 @@ export function ProductDetail({
   }, [product.id, trackView]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
+  // Live finger-tracking for the hero swipe — touchStartX above only ever
+  // fed a release-time delta (see the old onTouchStart/onTouchEnd pair),
+  // so the image jumped straight to the next one with no motion following
+  // the finger during the drag itself. dragX is the raw px the finger has
+  // moved since touchstart; heroTrackWidth is the hero's own measured
+  // width (remeasured each touchstart) used to convert that into a
+  // translateX offset. settling holds which way a released drag is
+  // animating to ("next"/"prev" commit it, "cancel" springs back) — null
+  // means "not currently mid-drag or mid-settle", i.e. resting at rest position.
+  const [dragX, setDragX] = useState(0);
+  const [settling, setSettling] = useState<"next" | "prev" | "cancel" | null>(null);
+  // A ref for synchronous reads inside the touch handlers (no waiting on a
+  // render), mirrored into heroWidth state purely so the resting position —
+  // computed at render time, before any touch has happened — has a non-zero
+  // width to base itself on instead of defaulting to 0.
+  const heroTrackWidth = useRef(0);
+  const [heroWidth, setHeroWidth] = useState(0);
+  const heroContainerRef = useRef<HTMLDivElement | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const dragAxis = useRef<"x" | "y" | null>(null);
+
+  useEffect(() => {
+    const el = heroContainerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      heroTrackWidth.current = w;
+      setHeroWidth(w);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const heroVideoRef = useRef<HTMLVideoElement | null>(null);
   // Starts muted — browsers block autoplay-with-sound otherwise — the
   // speaker button lets the shopper opt in to audio afterward, which
@@ -891,6 +925,13 @@ export function ProductDetail({
   const hasMultipleImages = detailMedia.length > 1;
   const activeMedia = detailMedia[activeView] ?? detailMedia[0] ?? null;
   const thumbIndexes = detailMedia.map((_, i) => i);
+  // Neighbors for the drag track's peek panels — wrap around like cycleView
+  // already does, so dragging past either end of the gallery still shows
+  // something instead of a blank panel.
+  const prevMedia = hasMultipleImages
+    ? detailMedia[(activeView - 1 + detailMedia.length) % detailMedia.length]
+    : null;
+  const nextMedia = hasMultipleImages ? detailMedia[(activeView + 1) % detailMedia.length] : null;
 
   useEffect(() => {
     setActiveView(0);
@@ -913,6 +954,189 @@ export function ProductDetail({
   const cycleView = (dir: 1 | -1) => {
     if (detailMedia.length <= 1) return;
     setActiveView((v) => (v + dir + detailMedia.length) % detailMedia.length);
+  };
+
+  const heroTouchStart = (e: React.TouchEvent) => {
+    if (!hasMultipleImages) return;
+    const t = e.touches[0];
+    if (!t) return;
+    touchStartX.current = t.clientX;
+    touchStartY.current = t.clientY;
+    dragAxis.current = null;
+    setSettling(null);
+    heroTrackWidth.current = e.currentTarget.getBoundingClientRect().width;
+  };
+
+  const heroTouchMove = (e: React.TouchEvent) => {
+    if (!hasMultipleImages || touchStartX.current == null) return;
+    const t = e.touches[0];
+    if (!t) return;
+    const dx = t.clientX - touchStartX.current;
+    const dy = t.clientY - (touchStartY.current ?? t.clientY);
+    if (dragAxis.current == null) {
+      // Deadzone before committing to an axis — a mostly-vertical move
+      // means the shopper is scrolling the page, not swiping the gallery,
+      // so bail out and let that scroll happen natively.
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      dragAxis.current = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+    }
+    if (dragAxis.current !== "x") return;
+    setDragX(dx);
+  };
+
+  const heroTouchEnd = () => {
+    if (!hasMultipleImages || dragAxis.current !== "x") {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      dragAxis.current = null;
+      setDragX(0);
+      return;
+    }
+    const width = heroTrackWidth.current || 1;
+    const threshold = Math.min(60, width * 0.18);
+    const outcome: "next" | "prev" | "cancel" =
+      dragX <= -threshold ? "next" : dragX >= threshold ? "prev" : "cancel";
+    touchStartX.current = null;
+    touchStartY.current = null;
+    dragAxis.current = null;
+    // A reduced-motion viewer never gets the transition, so the
+    // `transitionend` handoff below would never fire and settling would
+    // stay stuck — resolve synchronously instead of animating.
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      if (outcome === "next") cycleView(1);
+      else if (outcome === "prev") cycleView(-1);
+      setDragX(0);
+      return;
+    }
+    setSettling(outcome);
+  };
+
+  // Fires once the settle animation below finishes moving the track fully
+  // onto the neighboring panel — only then do we actually advance
+  // activeView + snap dragX/settling back to their rest values, both in
+  // the same render so the track's transform and its underlying slide data
+  // shift at once (no visible jump — see the transform calc below).
+  const handleHeroSettled = (e: React.TransitionEvent) => {
+    if (e.propertyName !== "transform") return;
+    if (settling === "next") cycleView(1);
+    else if (settling === "prev") cycleView(-1);
+    setSettling(null);
+    setDragX(0);
+  };
+
+  const heroTrackOffset = (() => {
+    const width = heroWidth;
+    if (settling === "next") return -2 * width;
+    if (settling === "prev") return 0;
+    if (settling === "cancel") return -width;
+    return -width + dragX;
+  })();
+
+  // One panel of the swipe track — used for the prev/current/next slots.
+  // Only the active panel actually autoplays its video (with the mute/
+  // fullscreen controls) — a peeking neighbor just shows the video's own
+  // poster frame (`preload="metadata"`, no autoPlay), so a swipe never has
+  // two videos playing/loading at once.
+  const renderHeroPanel = (media: { type: "image" | "video"; src: string } | null, isActive: boolean) => {
+    if (!media) return null;
+    if (media.type === "video") {
+      return (
+        <>
+          <video
+            key={media.src}
+            ref={isActive ? heroVideoRef : undefined}
+            src={media.src}
+            autoPlay={isActive}
+            muted={isActive ? heroVideoMuted : true}
+            loop
+            playsInline
+            preload={isActive ? "auto" : "metadata"}
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: 12,
+              border: "1px solid var(--line)",
+              background: "var(--bg-elev)",
+              objectFit: "contain",
+            }}
+          />
+          {isActive && (
+            <div style={{ position: "absolute", bottom: 12, right: 12, display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setHeroVideoMuted((m) => !m)}
+                aria-label={heroVideoMuted ? "Unmute video" : "Mute video"}
+                title={heroVideoMuted ? "Unmute" : "Mute"}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {heroVideoMuted ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" strokeLinecap="round" />
+                    <line x1="17" y1="9" x2="23" y2="15" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" strokeLinecap="round" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" strokeLinecap="round" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => heroVideoRef.current?.requestFullscreen()}
+                aria-label="View video fullscreen"
+                title="Fullscreen"
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 8,
+                  border: "none",
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </>
+      );
+    }
+    return (
+      <ProductPhoto
+        key={media.src}
+        src={media.src}
+        alt={product.name}
+        loading={isActive ? "eager" : "lazy"}
+        containerStyle={{
+          width: "100%",
+          height: "100%",
+          borderRadius: 12,
+          border: "1px solid var(--line)",
+          background: "var(--bg-elev)",
+        }}
+        imgStyle={{ objectPosition: "center center" }}
+      />
+    );
   };
   return (
     <div className="wcm-pdp-wrap" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -939,19 +1163,11 @@ export function ProductDetail({
         <Section className="wcm-detail-media" style={{ padding: 18 }}>
           <div
             className="wcm-detail-media-hero"
-            style={{ position: "relative" }}
-            onTouchStart={(e) => {
-              touchStartX.current = e.changedTouches[0]?.clientX ?? null;
-            }}
-            onTouchEnd={(e) => {
-              if (!hasMultipleImages) return;
-              const start = touchStartX.current;
-              const end = e.changedTouches[0]?.clientX ?? null;
-              if (start == null || end == null) return;
-              const delta = end - start;
-              if (Math.abs(delta) < 30) return;
-              cycleView(delta < 0 ? 1 : -1);
-            }}
+            ref={heroContainerRef}
+            style={{ position: "relative", touchAction: "pan-y" }}
+            onTouchStart={heroTouchStart}
+            onTouchMove={heroTouchMove}
+            onTouchEnd={heroTouchEnd}
           >
             <button
               type="button"
@@ -1063,99 +1279,34 @@ export function ProductDetail({
               </div>
             )}
             {activeMedia ? (
-              activeMedia.type === "video" ? (
-                <>
-                  <video
-                    key={activeMedia.src}
-                    className="wcm-pdp-hero-media"
-                    ref={heroVideoRef}
-                    src={activeMedia.src}
-                    autoPlay
-                    muted={heroVideoMuted}
-                    loop
-                    playsInline
+              hasMultipleImages ? (
+                <div style={{ width: "100%", aspectRatio: "1/1", borderRadius: 12, overflow: "hidden" }}>
+                  <div
+                    className="wcm-pdp-hero-track"
+                    onTransitionEnd={handleHeroSettled}
                     style={{
-                      width: "100%",
-                      aspectRatio: "1/1",
-                      borderRadius: 12,
-                      border: "1px solid var(--line)",
-                      background: "var(--bg-elev)",
-                      objectFit: "contain",
+                      display: "flex",
+                      width: "300%",
+                      height: "100%",
+                      transform: `translateX(${heroTrackOffset}px)`,
+                      transition: settling ? "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
                     }}
-                  />
-                  <div style={{ position: "absolute", bottom: 12, right: 12, display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => setHeroVideoMuted((m) => !m)}
-                      aria-label={heroVideoMuted ? "Unmute video" : "Mute video"}
-                      title={heroVideoMuted ? "Unmute" : "Mute"}
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 8,
-                        border: "none",
-                        background: "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {heroVideoMuted ? (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                          <line x1="23" y1="9" x2="17" y2="15" strokeLinecap="round" />
-                          <line x1="17" y1="9" x2="23" y2="15" strokeLinecap="round" />
-                        </svg>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" strokeLinecap="round" />
-                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" strokeLinecap="round" />
-                        </svg>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => heroVideoRef.current?.requestFullscreen()}
-                      aria-label="View video fullscreen"
-                      title="Fullscreen"
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 8,
-                        border: "none",
-                        background: "rgba(0,0,0,0.55)",
-                        color: "#fff",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                  >
+                    <div style={{ position: "relative", width: "33.3333%", height: "100%", flexShrink: 0 }}>
+                      {renderHeroPanel(prevMedia, false)}
+                    </div>
+                    <div style={{ position: "relative", width: "33.3333%", height: "100%", flexShrink: 0 }}>
+                      {renderHeroPanel(activeMedia, true)}
+                    </div>
+                    <div style={{ position: "relative", width: "33.3333%", height: "100%", flexShrink: 0 }}>
+                      {renderHeroPanel(nextMedia, false)}
+                    </div>
                   </div>
-                </>
+                </div>
               ) : (
-                <ProductPhoto
-                  key={activeMedia.src}
-                  className="wcm-pdp-hero-media"
-                  src={activeMedia.src}
-                  alt={product.name}
-                  loading="eager"
-                  containerStyle={{
-                    width: "100%",
-                    aspectRatio: "1/1",
-                    borderRadius: 12,
-                    border: "1px solid var(--line)",
-                    background: "var(--bg-elev)",
-                  }}
-                  imgStyle={{ objectPosition: "center center" }}
-                />
+                <div style={{ position: "relative", width: "100%", aspectRatio: "1/1" }}>
+                  {renderHeroPanel(activeMedia, true)}
+                </div>
               )
             ) : (
               <ProductImage product={product} />
