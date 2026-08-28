@@ -252,6 +252,12 @@
     opacity: 1;
   }
 }
+/* PDP hero image/video — remounted (via `key`) on every swipe/thumb/dot
+   change, so this fade masks the instant src-swap that otherwise felt like
+   an abrupt jump on a mobile swipe. */
+.wcm-pdp-hero-media {
+  animation: fadeIn 0.22s ease;
+}
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -461,7 +467,8 @@
   .wcm-hover-card,
   .wcm-track-progress-fill,
   .wcm-delivered-glow,
-  .wcm-copy-check {
+  .wcm-copy-check,
+  .wcm-pdp-hero-media {
     animation: none !important;
     transition: none !important;
   }

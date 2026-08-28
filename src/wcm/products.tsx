@@ -112,6 +112,8 @@ export function ProductsPage({
   goTo,
   category,
   onCategoryChange,
+  page: pageParam,
+  onPageChange,
 }: {
   addToCart: (p: Product) => void;
   openProduct: (p: Product) => void;
@@ -119,6 +121,8 @@ export function ProductsPage({
   goTo: (p: "products" | "orders") => void;
   category?: string;
   onCategoryChange?: (cat: string) => void;
+  page?: number;
+  onPageChange?: (page: number) => void;
 }) {
   const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
   const navigate = useNavigate();
@@ -131,17 +135,31 @@ export function ProductsPage({
   const [mobileDraftActive, setMobileDraftActive] = useState(category ?? "all");
   const [mobileDraftSort, setMobileDraftSort] = useState("popular");
   const [mobileDraftInStockOnly, setMobileDraftInStockOnly] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPageInternal] = useState(pageParam ?? 1);
   const [gridKey, setGridKey] = useState(0);
   const listingTopRef = useRef<HTMLDivElement | null>(null);
   const productsTopRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToProductsRef = useRef(false);
   const hasMountedPaginationRef = useRef(false);
+  const prevFiltersRef = useRef({ active, sort, inStockOnly });
+
+  const setPage = useCallback(
+    (next: number) => {
+      setPageInternal(next);
+      onPageChange?.(next);
+    },
+    [onPageChange],
+  );
 
   // Sync active category when URL param changes (e.g. browser back/forward)
   useEffect(() => {
     setActive(category ?? "all");
   }, [category]);
+
+  // Sync page when URL param changes (e.g. browser back/forward)
+  useEffect(() => {
+    setPageInternal(pageParam ?? 1);
+  }, [pageParam]);
 
   useEffect(() => {
     if (!mobileFiltersOpen) return;
@@ -171,12 +189,16 @@ export function ProductsPage({
   );
 
   useEffect(() => {
-    setPage(1);
+    const prev = prevFiltersRef.current;
+    const changed = prev.active !== active || prev.sort !== sort || prev.inStockOnly !== inStockOnly;
+    prevFiltersRef.current = { active, sort, inStockOnly };
+    if (changed) setPage(1);
   }, [active, sort, inStockOnly]);
 
   useEffect(() => {
+    if (!productsLoaded) return;
     if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  }, [page, totalPages, productsLoaded]);
 
   useEffect(() => {
     if (!productsLoaded) return;
@@ -706,7 +728,7 @@ export function ProductsPage({
           }}
         >
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page === 1}
             style={{
               ...paginationBtnStyle,
@@ -745,7 +767,7 @@ export function ProductsPage({
             })}
           </div>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
             disabled={page === totalPages}
             style={{
               ...paginationBtnStyle,
@@ -790,12 +812,7 @@ export function ProductDetail({
     useWcm();
   const getProductRatings = useProductRatings();
   const { average: personalRating, count: personalReviewCount } = getProductRatings(product.id);
-  const {
-    reviews: publicReviews,
-    loading: reviewsLoading,
-    average: publicAverage,
-    count: publicReviewCount,
-  } = usePublicProductReviews(product.id);
+  const { average: publicAverage, count: publicReviewCount } = usePublicProductReviews(product.id);
   // Real cross-customer aggregate when there is one; otherwise fall back to
   // this shopper's own review (useProductRatings), then the product's static
   // seed rating.
@@ -1050,6 +1067,7 @@ export function ProductDetail({
                 <>
                   <video
                     key={activeMedia.src}
+                    className="wcm-pdp-hero-media"
                     ref={heroVideoRef}
                     src={activeMedia.src}
                     autoPlay
@@ -1124,6 +1142,8 @@ export function ProductDetail({
                 </>
               ) : (
                 <ProductPhoto
+                  key={activeMedia.src}
+                  className="wcm-pdp-hero-media"
                   src={activeMedia.src}
                   alt={product.name}
                   loading="eager"
@@ -1880,104 +1900,6 @@ export function ProductDetail({
         </div>
       )}
 
-      <Section style={{ padding: 18 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            flexWrap: "wrap",
-            marginBottom: 14,
-          }}
-        >
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.2 }}>
-            Customer reviews
-          </h2>
-          {publicReviewCount > 0 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
-              <Stars value={publicAverage} />
-              <span style={{ color: "var(--ink-4)" }}>
-                · {publicReviewCount} review{publicReviewCount !== 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
-        </div>
-        {reviewsLoading ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  height: 54,
-                  borderRadius: 10,
-                  background: "var(--bg-elev)",
-                  animation: "wcmPulse 1.4s ease-in-out infinite",
-                }}
-              />
-            ))}
-          </div>
-        ) : publicReviews.length === 0 ? (
-          <div style={{ padding: "20px 0", textAlign: "center", color: "var(--ink-4)" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink-2)" }}>
-              No reviews yet
-            </div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>
-              Be the first to review this product once your order arrives.
-            </div>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {publicReviews.map((r, i) => (
-              <div
-                key={r.id}
-                style={{
-                  padding: "14px 0",
-                  borderTop: i > 0 ? "1px solid var(--line)" : undefined,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginBottom: r.comment ? 6 : 0,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Stars value={r.rating} showNum={false} />
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "var(--pill-success-fg)",
-                        background: "var(--pill-success-bg)",
-                        borderRadius: 999,
-                        padding: "2px 8px",
-                      }}
-                    >
-                      Verified buyer
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 12, color: "var(--ink-4)" }}>
-                    {new Date(r.created_at).toLocaleDateString("en-PK", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
-                {r.comment && (
-                  <p style={{ margin: 0, fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55 }}>
-                    {r.comment}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Section>
       {showSizeChart && product.size_chart_image && (
         <div
           onClick={() => setShowSizeChart(false)}

@@ -54,7 +54,7 @@ export function CategoryRail({
                 color: "var(--ink-2)",
                 border: "none",
                 fontWeight: 800,
-                fontSize: 13,
+                fontSize: 15,
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -78,7 +78,7 @@ export function CategoryRail({
                     justifyContent: "center",
                     padding: "3px 10px",
                     borderRadius: 999,
-                    fontSize: 10,
+                    fontSize: 11.5,
                     fontWeight: 900,
                     letterSpacing: 0.25,
                     textTransform: "uppercase",
@@ -193,8 +193,8 @@ export function CategoryRail({
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
-                  minHeight: 34,
-                  fontSize: 13.5,
+                  minHeight: 38,
+                  fontSize: 15.5,
                   fontWeight: on ? 800 : 700,
                   color: on ? "var(--ink)" : "var(--ink-2)",
                   width: "100%",
@@ -249,8 +249,8 @@ export function CategoryRail({
             <span
               style={{
                 lineHeight: 1.2,
-                minHeight: 34,
-                fontSize: 13.5,
+                minHeight: 38,
+                fontSize: 15.5,
                 fontWeight: 700,
                 color: "var(--blue-700)",
                 width: "100%",
@@ -459,7 +459,7 @@ export function ProductCard({
               // a dark pill with white text regardless of page theme.
               background: "rgba(15, 23, 42, 0.9)",
               color: "#fff",
-              fontSize: compact ? 10 : 11,
+              fontSize: compact ? 11.5 : 12.5,
               fontWeight: 800,
             }}
           >
@@ -526,7 +526,7 @@ export function ProductCard({
               background: "rgba(15, 23, 42, 0.9)",
               border: "1px solid rgba(255,255,255,.9)",
               color: "#fff",
-              fontSize: compact ? 11 : 12,
+              fontSize: compact ? 12.5 : 13.5,
               fontWeight: 800,
               lineHeight: 1,
               boxShadow: "0 6px 14px -8px rgba(15,23,42,.75)",
@@ -548,7 +548,7 @@ export function ProductCard({
               borderRadius: 999,
               background: "var(--chip-2)",
               border: "1px solid var(--line)",
-              fontSize: compact ? 10 : 11,
+              fontSize: compact ? 11.5 : 12.5,
               color: "var(--ink-3)",
               fontWeight: 700,
               letterSpacing: 0.15,
@@ -568,7 +568,7 @@ export function ProductCard({
         <div
           style={{
             fontWeight: 700,
-            fontSize: compact ? 13 : 14,
+            fontSize: compact ? 15 : 16,
             color: "var(--ink)",
             lineHeight: 1.25,
             display: "-webkit-box",
@@ -585,7 +585,7 @@ export function ProductCard({
               display: "flex",
               alignItems: "center",
               gap: compact ? 5 : 6,
-              fontSize: compact ? 11 : 11.5,
+              fontSize: compact ? 12.5 : 13,
               color: "var(--ink-4)",
             }}
           >
@@ -627,7 +627,7 @@ export function ProductCard({
               alignItems: "baseline",
               gap: 6,
               fontWeight: 800,
-              fontSize: compact ? 14 : 16,
+              fontSize: compact ? 16 : 18,
               color: "var(--ink)",
             }}
           >
@@ -636,7 +636,7 @@ export function ProductCard({
           {p.was && (
             <div
               style={{
-                fontSize: compact ? 10 : 11,
+                fontSize: compact ? 11.5 : 12.5,
                 color: "var(--ink-4)",
                 textDecoration: "line-through",
               }}
@@ -950,7 +950,7 @@ export function DealsRail({
       >
         <style>{`.wcm-deals-rail::-webkit-scrollbar{display:none}`}</style>
         {deals.map((p) => (
-          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 150 : 160 }}>
+          <div key={p.id} style={{ flex: "0 0 auto", width: isMobile ? 175 : 195 }}>
             <ProductCard
               p={p}
               onAdd={onAdd}
