@@ -376,6 +376,7 @@ export type Database = {
           cat: string
           category_id: string | null
           created_at: string
+          daraz_delivered_sales_count: number
           delivered_sales_count: number
           gallery_images: string[]
           gallery_videos: string[]
@@ -387,6 +388,7 @@ export type Database = {
           reviews: number
           sales_count: number
           search_vector: unknown
+          size_chart_image: string | null
           size_options: Json
           sort_order: number
           stock: string
@@ -404,6 +406,7 @@ export type Database = {
           cat?: string
           category_id?: string | null
           created_at?: string
+          daraz_delivered_sales_count?: number
           delivered_sales_count?: number
           gallery_images?: string[]
           gallery_videos?: string[]
@@ -415,6 +418,7 @@ export type Database = {
           reviews?: number
           sales_count?: number
           search_vector?: unknown
+          size_chart_image?: string | null
           size_options?: Json
           sort_order?: number
           stock?: string
@@ -432,6 +436,7 @@ export type Database = {
           cat?: string
           category_id?: string | null
           created_at?: string
+          daraz_delivered_sales_count?: number
           delivered_sales_count?: number
           gallery_images?: string[]
           gallery_videos?: string[]
@@ -443,6 +448,7 @@ export type Database = {
           reviews?: number
           sales_count?: number
           search_vector?: unknown
+          size_chart_image?: string | null
           size_options?: Json
           sort_order?: number
           stock?: string

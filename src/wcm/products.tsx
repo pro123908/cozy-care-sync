@@ -11,8 +11,8 @@ import {
   type Product,
 } from "./data";
 import { Icons } from "./icons";
-import { ProductImage, ProductPhoto, Stars, Pill, Btn, Section } from "./ui";
-import { useWcm, useProductRatings, usePublicProductReviews } from "./context";
+import { ProductImage, ProductPhoto, Pill, Btn, Section } from "./ui";
+import { useWcm } from "./context";
 import type { CartLine } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -810,14 +810,6 @@ export function ProductDetail({
 }) {
   const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } =
     useWcm();
-  const getProductRatings = useProductRatings();
-  const { average: personalRating, count: personalReviewCount } = getProductRatings(product.id);
-  const { average: publicAverage, count: publicReviewCount } = usePublicProductReviews(product.id);
-  // Real cross-customer aggregate when there is one; otherwise fall back to
-  // this shopper's own review (useProductRatings), then the product's static
-  // seed rating.
-  const userRating = publicReviewCount > 0 ? publicAverage : personalRating;
-  const reviewCount = publicReviewCount > 0 ? publicReviewCount : personalReviewCount;
   const isMobile = useIsMobile();
   const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
@@ -1451,20 +1443,15 @@ export function ProductDetail({
             >
               {product.name}
             </h1>
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "center",
-                color: "var(--ink-4)",
-                fontSize: 13,
-              }}
-            >
-              <Stars value={userRating || product.rating} />
-              <span>
-                · {reviewCount || product.reviews} {reviewCount ? "user" : "verified"} reviews
-              </span>
-            </div>
+            {(() => {
+              const totalSold = (product.delivered_sales_count ?? 0) + (product.daraz_delivered_sales_count ?? 0);
+              if (totalSold <= 0) return null;
+              return (
+                <div style={{ display: "flex", alignItems: "center", marginTop: 6 }}>
+                  <Pill tone="green">🔥 {totalSold}+ sold</Pill>
+                </div>
+              );
+            })()}
           </div>
           <Section
             className="wcm-detail-price-card"

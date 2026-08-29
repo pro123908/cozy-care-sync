@@ -11,6 +11,7 @@ export type Product = {
   reviews: number;
   sales_count?: number;
   delivered_sales_count?: number;
+  daraz_delivered_sales_count?: number;
   stock: string;
   tags: string[];
   blurb: string;
@@ -18,6 +19,7 @@ export type Product = {
   image_url?: string | null;
   gallery_images?: string[] | null;
   gallery_videos?: string[] | null;
+  size_chart_image?: string | null;
   size_options?: ProductSizeOption[];
   variant_options?: ProductVariantOption[];
 };

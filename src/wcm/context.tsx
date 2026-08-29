@@ -702,6 +702,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             reviews: r.reviews,
             sales_count: Number(r.sales_count ?? 0),
             delivered_sales_count: Number(r.delivered_sales_count ?? 0),
+            daraz_delivered_sales_count: Number(r.daraz_delivered_sales_count ?? 0),
             stock: r.stock,
             tags: r.tags ?? [],
             blurb: r.blurb,
@@ -709,6 +710,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             image_url: r.image_url ?? undefined,
             gallery_images: Array.isArray(r.gallery_images) ? r.gallery_images : [],
             gallery_videos: Array.isArray(r.gallery_videos) ? r.gallery_videos : [],
+            size_chart_image: r.size_chart_image ?? undefined,
             size_options: normalizeSizeOptions(
               Array.isArray(r.size_options)
                 ? (r.size_options as Array<{ size?: string; price?: number }>)
