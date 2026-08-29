@@ -255,7 +255,9 @@ function renderAbout(): PageContent {
 <h2>What we do</h2>
 <p>We curate practical medical and wellness essentials, keep availability updated, and provide a smooth checkout and order tracking experience.</p>
 <h2>Our promise</h2>
-<p>Reliable products, transparent information, and responsive customer support.</p>`,
+<p>Reliable products, transparent information, and responsive customer support.</p>
+<h2>Serving Karachi and beyond</h2>
+<p>Wellcare Mart ships blood pressure monitors, glucometers, nebulizers, weight scales, orthopedic supports, and other home-care essentials across Pakistan, with free same-day delivery in Karachi on orders above Rs 2,000. If you're unsure which product fits your needs, our team is happy to help — see the <a href="/contact">Contact page</a> for phone, WhatsApp, and email details.</p>`,
   };
 }
 
@@ -274,7 +276,9 @@ function renderContact(): PageContent {
 <h2>Address</h2>
 <p>${escapeHtml(CONTACT.name)}<br>${escapeHtml(CONTACT.streetAddress)}<br>${escapeHtml(CONTACT.addressLocality)}, ${escapeHtml(CONTACT.addressRegion)}, Pakistan</p>
 <h2>Support hours</h2>
-<p>Our team responds to calls, WhatsApp messages, and emails throughout the week to help with orders, product questions, and delivery updates.</p>`,
+<p>Our team responds to calls, WhatsApp messages, and emails throughout the week to help with orders, product questions, and delivery updates.</p>
+<h2>What we can help with</h2>
+<p>Placing or changing an order, tracking a delivery, choosing between similar products (for example, a digital vs. manual blood pressure monitor), reporting a damaged or incorrect item, or asking about bulk orders for a clinic or caregiver. See our <a href="/faqs">FAQs</a> for quick answers to common questions.</p>`,
   };
 }
 

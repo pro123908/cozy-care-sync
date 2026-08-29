@@ -92,6 +92,27 @@ function ContactPage() {
         </div>
       </section>
 
+      <section
+        style={{
+          marginTop: 18,
+          background: "var(--card)",
+          border: "1px solid var(--line)",
+          borderRadius: 14,
+          padding: 20,
+          color: "var(--ink-3)",
+          fontSize: 14,
+          lineHeight: 1.6,
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>What we can help with</div>
+        <p style={{ margin: 0 }}>
+          Placing or changing an order, tracking a delivery, choosing between similar products (for example, a
+          digital vs. manual blood pressure monitor), reporting a damaged or incorrect item, or asking about bulk
+          orders for a clinic or caregiver. See our <Link to="/faqs">FAQs</Link> for quick answers to common
+          questions.
+        </p>
+      </section>
+
       <p style={{ marginTop: 18, color: "var(--ink-4)", fontSize: 13 }}>
         Looking for our store location instead? Visit the <Link to="/map">Map page</Link>. For returns, shipping, and
         other policies, see <Link to="/policies">Policies</Link>.

@@ -80,6 +80,7 @@ function AboutPage() {
           border: "1px solid var(--line)",
           borderRadius: 12,
           padding: "16px 18px",
+          marginBottom: 12,
         }}
       >
         <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
@@ -87,6 +88,26 @@ function AboutPage() {
         </h2>
         <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 14, lineHeight: 1.7 }}>
           Reliable products, transparent information, and responsive customer support.
+        </p>
+      </section>
+
+      <section
+        style={{
+          background: "var(--card)",
+          border: "1px solid var(--line)",
+          borderRadius: 12,
+          padding: "16px 18px",
+        }}
+      >
+        <h2 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 800, color: "var(--ink)" }}>
+          Serving Karachi and beyond
+        </h2>
+        <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 14, lineHeight: 1.7 }}>
+          Wellcare Mart ships blood pressure monitors, glucometers, nebulizers, weight scales,
+          orthopedic supports, and other home-care essentials across Pakistan, with free same-day
+          delivery in Karachi on orders above Rs 2,000. If you're unsure which product fits your
+          needs, our team is happy to help — see the <Link to="/contact">Contact page</Link> for
+          phone, WhatsApp, and email details.
         </p>
       </section>
     </main>
