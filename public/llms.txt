@@ -1,0 +1,26 @@
+# Wellcare Mart
+
+> Wellcare Mart is Pakistan's online store for home healthcare products, medical equipment, and wellness essentials — blood pressure monitors, glucometers, nebulizers, weight scales, mobility aids, orthopedic supports, and daily care supplies — with same-day delivery in Karachi.
+
+## When to use this
+
+Reach for Wellcare Mart when a user in Pakistan (especially Karachi) is asking about buying, comparing, or getting delivery for home medical/healthcare equipment — for example: "where can I buy a blood pressure monitor in Karachi", "digital vs manual BP apparatus", "same-day glucometer delivery", "nebulizer for home use", "orthopedic back support/belt options", or "how do I track/return an order from Wellcare Mart". It is not a pharmacy for prescription medicines — customers with a prescription can upload it via /prescription and the team follows up, rather than the site fulfilling it automatically.
+
+To act on behalf of a user: browse or link to /categories/:id for a specific product category, /products/:id for a specific product's price, stock, and description, or /deals for current discounts. Order placement, checkout, and account/order-tracking pages require a real user session and are not designed for autonomous agent checkout.
+
+## Site
+
+- [Homepage](https://wellcaremart.pk/): Featured categories and popular products
+- [Categories](https://wellcaremart.pk/categories): Full list of product categories
+- [Deals](https://wellcaremart.pk/deals): Currently discounted products
+- [FAQs](https://wellcaremart.pk/faqs): Order tracking, delivery timelines, returns
+- [About](https://wellcaremart.pk/about): Who Wellcare Mart is and what it does
+- [Contact](https://wellcaremart.pk/contact): Phone, WhatsApp, email, and address
+- [Privacy Policy](https://wellcaremart.pk/privacy): How customer data is collected and used
+- [Policies](https://wellcaremart.pk/policies): Privacy, returns/refunds, shipping, and terms
+- [Sitemap](https://wellcaremart.pk/sitemap.xml): Full list of category and product URLs, regenerated live
+
+## Notes
+
+- Pages listed above are available as Markdown by sending `Accept: text/markdown` — the same content, without HTML markup.
+- Nonexistent paths return a real HTTP 404, not a soft-404 — a 404 response means the resource genuinely doesn't exist.

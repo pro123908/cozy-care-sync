@@ -50,9 +50,62 @@
     <noscript>
       <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
     </noscript>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Wellcare Mart",
+        "url": "https://wellcaremart.pk",
+        "description": "Wellcare Mart is Pakistan's online store for home healthcare products, medical equipment, and wellness essentials.",
+        "logo": "https://wellcaremart.pk/favicon-32x32.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+923442345500",
+          "email": "danialansari998@gmail.com",
+          "contactType": "customer service",
+          "areaServed": "PK"
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society",
+          "addressLocality": "Karachi",
+          "addressRegion": "Sindh",
+          "addressCountry": "PK"
+        }
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Real, static fallback content for any client that doesn't execute
+      JavaScript (or inspects only the initial HTML document) — search
+      engines, AI crawlers/agents, and audit tools that deliberately send
+      browser-like headers to test for cloaking. React's createRoot().render()
+      call in main.tsx replaces all of #root's children the instant it mounts
+      (this is a plain client render, not hydrateRoot, so there's no
+      hydration-mismatch risk) — real users never perceive this content, it's
+      overwritten before first paint in practice.
+    -->
+    <div id="root">
+      <main>
+        <h1>Wellcare Mart — Medical Supplies &amp; Equipment</h1>
+        <p>
+          Wellcare Mart is Pakistan's trusted online store for home healthcare products, medical equipment, and
+          wellness essentials. We stock blood pressure monitors, glucometers, nebulizers, weight scales, mobility
+          aids, orthopedic supports, and daily care supplies, with free same-day delivery across Karachi on orders
+          above Rs 2,000.
+        </p>
+        <p>
+          Browse our <a href="/categories">categories</a> to find blood pressure monitors, glucometers, nebulizers,
+          weight scales, and orthopedic supports, or read more <a href="/about">about Wellcare Mart</a>. Need help
+          choosing a product or tracking an order? <a href="/contact">Contact our team</a> — we're happy to help.
+        </p>
+        <p>
+          See our <a href="/faqs">frequently asked questions</a>, <a href="/privacy">privacy policy</a>, and full
+          <a href="/policies"> policies</a> (returns, shipping, and terms) for more details.
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

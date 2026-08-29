@@ -13,11 +13,13 @@ import { Route as WishlistRouteImport } from './routes/wishlist'
 import { Route as TrackOrderRouteImport } from './routes/track-order'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProductsRouteImport } from './routes/products'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PrescriptionRouteImport } from './routes/prescription'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as FaqsRouteImport } from './routes/faqs'
 import { Route as DealsRouteImport } from './routes/deals'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as AboutRouteImport } from './routes/about'
@@ -48,6 +50,11 @@ const ProductsRoute = ProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrescriptionRoute = PrescriptionRouteImport.update({
   id: '/prescription',
   path: '/prescription',
@@ -71,6 +78,11 @@ const FaqsRoute = FaqsRouteImport.update({
 const DealsRoute = DealsRouteImport.update({
   id: '/deals',
   path: '/deals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -124,11 +136,13 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRouteWithChildren
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
@@ -144,11 +158,13 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRouteWithChildren
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
@@ -165,11 +181,13 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/account': typeof AccountRoute
   '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
+  '/privacy': typeof PrivacyRoute
   '/products': typeof ProductsRouteWithChildren
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
@@ -187,11 +205,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/contact'
     | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/privacy'
     | '/products'
     | '/search'
     | '/track-order'
@@ -207,11 +227,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/contact'
     | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/privacy'
     | '/products'
     | '/search'
     | '/track-order'
@@ -227,11 +249,13 @@ export interface FileRouteTypes {
     | '/about'
     | '/account'
     | '/checkout'
+    | '/contact'
     | '/deals'
     | '/faqs'
     | '/map'
     | '/policies'
     | '/prescription'
+    | '/privacy'
     | '/products'
     | '/search'
     | '/track-order'
@@ -248,11 +272,13 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AccountRoute: typeof AccountRoute
   CheckoutRoute: typeof CheckoutRoute
+  ContactRoute: typeof ContactRoute
   DealsRoute: typeof DealsRoute
   FaqsRoute: typeof FaqsRoute
   MapRoute: typeof MapRoute
   PoliciesRoute: typeof PoliciesRoute
   PrescriptionRoute: typeof PrescriptionRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProductsRoute: typeof ProductsRouteWithChildren
   SearchRoute: typeof SearchRoute
   TrackOrderRoute: typeof TrackOrderRoute
@@ -293,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/prescription': {
       id: '/prescription'
       path: '/prescription'
@@ -326,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/deals'
       fullPath: '/deals'
       preLoaderRoute: typeof DealsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout': {
@@ -411,11 +451,13 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AccountRoute: AccountRoute,
   CheckoutRoute: CheckoutRoute,
+  ContactRoute: ContactRoute,
   DealsRoute: DealsRoute,
   FaqsRoute: FaqsRoute,
   MapRoute: MapRoute,
   PoliciesRoute: PoliciesRoute,
   PrescriptionRoute: PrescriptionRoute,
+  PrivacyRoute: PrivacyRoute,
   ProductsRoute: ProductsRouteWithChildren,
   SearchRoute: SearchRoute,
   TrackOrderRoute: TrackOrderRoute,

@@ -9,6 +9,16 @@ import {
   type Category,
   type Product,
 } from "./src/wcm/data";
+import {
+  CONTACT,
+  SITE_URL,
+  buildOrganizationJsonLd,
+  htmlFragmentToMarkdown,
+  isKnownInteractiveOnlyRoute,
+  isNonInteractiveFetcher,
+  notFoundMarkdownBody,
+  prefersMarkdown,
+} from "./src/lib/agentReadiness";
 
 // Human-facing pages (no extension — mirrors vercel.json's SPA rewrite
 // regex), plus /sitemap.xml explicitly since it has one and would otherwise
@@ -19,33 +29,19 @@ export const config = {
 
 // Public content pages with no dynamic id segment — kept in one place so the
 // sitemap and any future full-site listing stay in sync.
-const STATIC_PAGES = ["/", "/about", "/categories", "/prescription", "/faqs", "/policies", "/map", "/deals"];
+const STATIC_PAGES = [
+  "/",
+  "/about",
+  "/contact",
+  "/privacy",
+  "/categories",
+  "/prescription",
+  "/faqs",
+  "/policies",
+  "/map",
+  "/deals",
+];
 
-// Known-crawler UA substrings — kept as a secondary/explicit signal, but not
-// the primary one. A UA allowlist only catches bots that *choose* to
-// self-identify; a plain non-JS HTTP client (curl, python-requests, most
-// generic "fetch this URL" tools) sends a UA that matches none of these and
-// would otherwise fall through to the empty SPA shell, which is exactly the
-// bug this list alone caused (confirmed 2026-07-24: python-requests UA still
-// got the 2.8KB static shell in production).
-const BOT_UA_PATTERN =
-  /bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegrambot|discordbot|slackbot|linkedinbot|twitterbot|pinterest|embedly|quora link preview|redditbot|applebot|bingpreview|gptbot|chatgpt-user|oai-searchbot|perplexitybot|claudebot|anthropic-ai|ccbot|bytespider|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|yandexbot|baiduspider|duckduckbot|sogou|exabot|ia_archiver/i;
-
-// Primary signal: real interactive browsers (Chrome/Firefox/Safari/Edge —
-// all evergreen for years) send Fetch Metadata request headers, including
-// `Sec-Fetch-Mode: navigate`, on every top-level page load. No script, curl,
-// HTTP client library, or headless-fetch tool sends this unless it's
-// deliberately impersonating a browser. Its absence is a much more reliable
-// "this is not a JS-executing browser" signal than any UA string list, so it
-// is treated as sufficient on its own — the UA list above only adds known
-// bots back in on the rare chance a crawler *does* send Sec-Fetch-Mode.
-function isNonInteractiveFetcher(request: Request): boolean {
-  const userAgent = request.headers.get("user-agent") || "";
-  if (!request.headers.get("sec-fetch-mode")) return true;
-  return BOT_UA_PATTERN.test(userAgent);
-}
-
-const SITE_URL = "https://wellcaremart.pk";
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -80,15 +76,19 @@ async function proxyGaCollect(request: Request, pathname: string, search: string
 
 // A few minutes of edge caching is fine for crawler traffic — they don't
 // need second-fresh prices, and it keeps Supabase load negligible since real
-// users never hit this path (they get `next()` below, unchanged).
-const CACHE_HEADERS = {
-  "content-type": "text/html; charset=utf-8",
+// users never hit this path (they get `next()` below, unchanged). `Accept`
+// is in Vary because the same path now serves either HTML or Markdown
+// depending on it (acceptmarkdown.com content negotiation) — without this a
+// CDN could serve a cached HTML response to a caller asking for markdown,
+// or vice versa, depending on which variant happened to populate the cache
+// first.
+const RESPONSE_HEADERS_BASE = {
   "cache-control": "public, max-age=0, s-maxage=600, stale-while-revalidate=86400",
-  // Belt-and-suspenders: makes explicit to any caching layer that this
-  // response must not be reused for a request with a different UA/fetch
-  // signature — a real browser must never be served the non-interactive page.
-  vary: "User-Agent, Sec-Fetch-Mode",
+  vary: "User-Agent, Sec-Fetch-Mode, Accept, Accept-Encoding",
 };
+
+const HTML_HEADERS = { ...RESPONSE_HEADERS_BASE, "content-type": "text/html; charset=utf-8" };
+const MARKDOWN_HEADERS = { ...RESPONSE_HEADERS_BASE, "content-type": "text/markdown; charset=utf-8" };
 
 type LiveProduct = Product;
 
@@ -149,15 +149,25 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function pageShell(opts: {
+// What every render*() function below produces — one structured object per
+// page, rendered to either HTML (pageShell) or Markdown (renderMarkdownDoc)
+// depending on what the caller's Accept header asked for. Keeping content
+// and presentation separate (rather than each render function building a
+// final HTML string, as before) is what makes markdown negotiation possible
+// without duplicating every page's copy in two formats.
+type PageContent = {
   title: string;
   description: string;
   canonical: string;
   ogImage?: string;
+  jsonLd?: unknown | unknown[];
   bodyHtml: string;
-  jsonLd?: unknown;
-}): string {
-  const { title, description, canonical, ogImage, bodyHtml, jsonLd } = opts;
+};
+
+function pageShell(content: PageContent): string {
+  const { title, description, canonical, ogImage, bodyHtml, jsonLd } = content;
+  const jsonLdBlocks = jsonLd == null ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd];
+  const jsonLdHtml = jsonLdBlocks.map((block) => `<script type="application/ld+json">${JSON.stringify(block)}</script>`).join("\n");
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -173,7 +183,7 @@ function pageShell(opts: {
 <meta property="og:image" content="${ogImage || `${SITE_URL}/og-image.png`}" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="robots" content="index, follow" />
-${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ""}
+${jsonLdHtml}
 </head>
 <body>
 <main>
@@ -182,6 +192,10 @@ ${bodyHtml}
 </main>
 </body>
 </html>`;
+}
+
+function renderMarkdownDoc(content: PageContent): string {
+  return `# ${content.title}\n\n${content.description}\n\nSource: ${content.canonical}\n\n${htmlFragmentToMarkdown(content.bodyHtml)}\n`;
 }
 
 function productCardHtml(p: LiveProduct, allProducts: LiveProduct[]): string {
@@ -198,7 +212,7 @@ function productCardHtml(p: LiveProduct, allProducts: LiveProduct[]): string {
 </li>`;
 }
 
-function renderHome(products: LiveProduct[], categories: Category[]): string {
+function renderHome(products: LiveProduct[], categories: Category[]): PageContent {
   const featured = [...products]
     .sort((a, b) => (b.delivered_sales_count ?? 0) - (a.delivered_sales_count ?? 0))
     .slice(0, 16);
@@ -209,27 +223,30 @@ function renderHome(products: LiveProduct[], categories: Category[]): string {
 
   const productsHtml = featured.map((p) => productCardHtml(p, products)).join("");
 
-  return pageShell({
+  return {
     title: "Wellcare Mart — Medical Supplies & Equipment",
     description:
       "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
     canonical: `${SITE_URL}/`,
+    jsonLd: buildOrganizationJsonLd(),
     bodyHtml: `
 <p>Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.</p>
 <h2>Categories</h2>
 <ul>${categoriesHtml}</ul>
 <h2>Popular products</h2>
 <ul>${productsHtml}</ul>`,
-  });
+  };
 }
 
 // Static-content pages (no Supabase lookup) — text mirrors the live
 // src/routes/*.tsx components. Kept as a second copy here rather than a
 // shared import because these are JSX components with inline styling; if
-// the copy wording changes, update both. Low churn risk (about/faqs/map
-// text rarely changes) so the duplication is acceptable for now.
-function renderAbout(): string {
-  return pageShell({
+// the copy wording changes, update both. Contact details (phone/email/
+// address) are pulled from the shared CONTACT constant instead of being
+// hand-typed here, specifically so they can't drift the way the phone
+// number previously did.
+function renderAbout(): PageContent {
+  return {
     title: "About Wellcare Mart",
     description: "Learn about Wellcare Mart — Pakistan's trusted home healthcare products store.",
     canonical: `${SITE_URL}/about`,
@@ -239,7 +256,41 @@ function renderAbout(): string {
 <p>We curate practical medical and wellness essentials, keep availability updated, and provide a smooth checkout and order tracking experience.</p>
 <h2>Our promise</h2>
 <p>Reliable products, transparent information, and responsive customer support.</p>`,
-  });
+  };
+}
+
+function renderContact(): PageContent {
+  return {
+    title: "Contact Wellcare Mart",
+    description: "Get in touch with Wellcare Mart for order support, product questions, or general inquiries.",
+    canonical: `${SITE_URL}/contact`,
+    jsonLd: buildOrganizationJsonLd(),
+    bodyHtml: `
+<p>Have a question about an order, a product, or delivery? Reach Wellcare Mart's team directly using any of the channels below.</p>
+<h2>Phone &amp; WhatsApp</h2>
+<p><a href="tel:${CONTACT.telephone}">${CONTACT.telephone}</a></p>
+<h2>Email</h2>
+<p><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></p>
+<h2>Address</h2>
+<p>${escapeHtml(CONTACT.name)}<br>${escapeHtml(CONTACT.streetAddress)}<br>${escapeHtml(CONTACT.addressLocality)}, ${escapeHtml(CONTACT.addressRegion)}, Pakistan</p>
+<h2>Support hours</h2>
+<p>Our team responds to calls, WhatsApp messages, and emails throughout the week to help with orders, product questions, and delivery updates.</p>`,
+  };
+}
+
+function renderPrivacy(): PageContent {
+  return {
+    title: "Privacy Policy - Wellcare Mart",
+    description: "How Wellcare Mart collects, uses, and protects customer information.",
+    canonical: `${SITE_URL}/privacy`,
+    bodyHtml: `
+<p>Wellcare Mart respects your privacy. We collect basic customer information such as name, phone number, delivery address, and order details only for processing orders, deliveries, customer support, and service improvement.</p>
+<p>We do not sell or misuse customer data. Customer information may only be shared with delivery partners or service providers when required to complete an order.</p>
+<p>We may also collect basic technical information (such as pages visited and device/browser type) to keep the store working correctly and to understand how it's used.</p>
+<p>Customers can contact us anytime for questions related to their personal information using the details on our <a href="/contact">Contact page</a>.</p>
+<h2>Full policies</h2>
+<p>Return/refund, shipping, and terms &amp; conditions are covered on our <a href="/policies">Policies page</a>.</p>`,
+  };
 }
 
 const FAQS: Array<{ q: string; a: string }> = [
@@ -262,7 +313,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
 ];
 
-function renderFaqs(): string {
+function renderFaqs(): PageContent {
   const itemsHtml = FAQS.map((item) => `<h2>${escapeHtml(item.q)}</h2><p>${escapeHtml(item.a)}</p>`).join("\n");
   const jsonLd = {
     "@context": "https://schema.org",
@@ -273,29 +324,29 @@ function renderFaqs(): string {
       acceptedAnswer: { "@type": "Answer", text: item.a },
     })),
   };
-  return pageShell({
+  return {
     title: "FAQs - Wellcare Mart",
     description: "Frequently asked questions about orders, delivery, returns, and products at Wellcare Mart.",
     canonical: `${SITE_URL}/faqs`,
     jsonLd,
     bodyHtml: `<p>Quick answers about orders, shipping, returns, and support.</p>\n${itemsHtml}`,
-  });
+  };
 }
 
-function renderMap(): string {
-  return pageShell({
+function renderMap(): PageContent {
+  return {
     title: "Store Location - Wellcare Mart",
     description: "Find Wellcare Mart's store location and get directions.",
     canonical: `${SITE_URL}/map`,
     bodyHtml: `
 <p>Visit us or use map directions for pickup and support.</p>
-<p><strong>Wellcare Mart</strong><br>Karachi, Pakistan</p>
+<p><strong>${escapeHtml(CONTACT.name)}</strong><br>${escapeHtml(CONTACT.addressLocality)}, Pakistan</p>
 <p><a href="https://www.google.com/maps">Open in Google Maps</a></p>`,
-  });
+  };
 }
 
-function renderPolicies(): string {
-  return pageShell({
+function renderPolicies(): PageContent {
+  return {
     title: "Policies - Wellcare Mart",
     description: "Privacy, return/refund, shipping, and terms & conditions for Wellcare Mart.",
     canonical: `${SITE_URL}/policies`,
@@ -317,32 +368,32 @@ function renderPolicies(): string {
 <h2>Terms &amp; Conditions</h2>
 <p>By using the Wellcare Mart website or placing an order, customers agree that product prices and availability may change without prior notice; product images are for reference and may slightly differ from the actual product; customers are responsible for providing accurate contact and delivery details; Wellcare Mart reserves the right to cancel any order due to stock unavailability, pricing errors, or delivery limitations; medical equipment and healthcare products should be used according to manufacturer instructions or professional guidance; and Wellcare Mart is not responsible for misuse of any product after delivery.</p>
 <h2>Contact Us</h2>
-<p>Wellcare Mart<br>40 Darul Aman, Road 4, Block 3, Delhi Mercantile Society<br>+92 329 1557509<br>danialansari998@gmail.com</p>`,
-  });
+<p>${escapeHtml(CONTACT.name)}<br>${escapeHtml(CONTACT.streetAddress)}<br>${escapeHtml(CONTACT.telephone)}<br>${escapeHtml(CONTACT.email)}</p>`,
+  };
 }
 
-function renderPrescription(): string {
-  return pageShell({
+function renderPrescription(): PageContent {
+  return {
     title: "Upload Prescription — Wellcare Mart",
     description: "Upload your prescription or medicine list and our team will review it and contact you for order confirmation.",
     canonical: `${SITE_URL}/prescription`,
     bodyHtml: `<p>Upload a photo or PDF of your prescription or medicine list, along with your contact details, and our team will review it and reach out to confirm your order.</p>`,
-  });
+  };
 }
 
-function renderCategoriesIndex(categories: Category[]): string {
+function renderCategoriesIndex(categories: Category[]): PageContent {
   const itemsHtml = categories
     .map((c) => `<li><a href="/categories/${c.id}">${escapeHtml(c.name)}</a></li>`)
     .join("");
-  return pageShell({
+  return {
     title: "Shop by Category — Wellcare Mart",
     description: "Browse all product categories at Wellcare Mart.",
     canonical: `${SITE_URL}/categories`,
     bodyHtml: `<ul>${itemsHtml}</ul>`,
-  });
+  };
 }
 
-function renderCategory(rawCategoryId: string, products: LiveProduct[], categories: Category[]): string | null {
+function renderCategory(rawCategoryId: string, products: LiveProduct[], categories: Category[]): PageContent | null {
   const resolvedCategoryId =
     rawCategoryId === "weight-scale-digital" || rawCategoryId === "weight-scale-manual"
       ? "weight-scale"
@@ -365,25 +416,25 @@ function renderCategory(rawCategoryId: string, products: LiveProduct[], categori
   const categoryProducts = products.filter((p) => categoryIds.includes(p.cat));
   const itemsHtml = categoryProducts.map((p) => productCardHtml(p, products)).join("");
 
-  return pageShell({
+  return {
     title: `${category.name} — Wellcare Mart`,
     description: `Browse ${category.name} products at Wellcare Mart.`,
     canonical: `${SITE_URL}/categories/${rawCategoryId}`,
     bodyHtml: categoryProducts.length ? `<ul>${itemsHtml}</ul>` : `<p>No products currently listed in this category.</p>`,
-  });
+  };
 }
 
-function renderDeals(products: LiveProduct[]): string {
+function renderDeals(products: LiveProduct[]): PageContent {
   const deals = products
     .filter((p) => p.was != null && p.was > p.price)
     .sort((a, b) => (1 - b.price / b.was!) - (1 - a.price / a.was!));
   const itemsHtml = deals.map((p) => productCardHtml(p, products)).join("");
-  return pageShell({
+  return {
     title: "Deals & Offers — Wellcare Mart",
     description: "Shop discounted medical supplies and equipment at Wellcare Mart.",
     canonical: `${SITE_URL}/deals`,
     bodyHtml: `<ul>${itemsHtml}</ul>`,
-  });
+  };
 }
 
 function getSeoSuffix(cat?: string): string {
@@ -405,7 +456,7 @@ function getSeoSuffix(cat?: string): string {
   }
 }
 
-function renderProduct(rawProductId: string, products: LiveProduct[]): string | null {
+function renderProduct(rawProductId: string, products: LiveProduct[]): PageContent | null {
   const resolvedId = resolveProductIdFromParam(rawProductId, products);
   const product = resolvedId ? products.find((p) => p.id === resolvedId) : undefined;
   if (!product) return null;
@@ -438,7 +489,7 @@ function renderProduct(rawProductId: string, products: LiveProduct[]): string | 
     },
   };
 
-  return pageShell({
+  return {
     title,
     description,
     canonical,
@@ -451,7 +502,7 @@ ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escape
 ${product.stock === "Out of stock" ? "<p>Out of stock</p>" : "<p>In stock</p>"}
 ${product.brand ? `<p>Brand: ${escapeHtml(product.brand)}</p>` : ""}
 <p>Free same-day delivery in Karachi on orders above Rs 2,000.</p>`,
-  });
+  };
 }
 
 // Regenerated live on every request (edge-cached for an hour) so new/renamed
@@ -487,12 +538,13 @@ ${urls.map((loc) => `  <url><loc>${loc}</loc></url>`).join("\n")}
 
 export default async function middleware(request: Request) {
   const url = new URL(request.url);
+  const pathname = url.pathname;
 
-  if (url.pathname.startsWith("/g/")) {
-    return proxyGaCollect(request, url.pathname, url.search);
+  if (pathname.startsWith("/g/")) {
+    return proxyGaCollect(request, pathname, url.search);
   }
 
-  if (url.pathname === "/sitemap.xml") {
+  if (pathname === "/sitemap.xml") {
     // Always dynamic regardless of fetcher type — a browser opening this URL
     // directly should see the same live list a crawler does. Falls back to
     // the static file (via next()) only if the live data fetch itself fails,
@@ -500,47 +552,69 @@ export default async function middleware(request: Request) {
     return (await renderSitemap()) || next();
   }
 
-  if (!isNonInteractiveFetcher(request)) {
+  const wantsMarkdown = prefersMarkdown(request.headers.get("accept"));
+
+  // Real browsers (Sec-Fetch-Mode present, not asking for markdown) always
+  // get the unchanged SPA shell — none of the logic below ever runs for
+  // them, so none of it can regress the normal app experience.
+  if (!wantsMarkdown && !isNonInteractiveFetcher(request)) {
     return next();
   }
 
-  const pathname = url.pathname;
+  // Real, reachable app routes that just aren't content-bearing for an
+  // anonymous agent (session/account state) — not a 404, still the SPA.
+  if (isKnownInteractiveOnlyRoute(pathname)) {
+    return next();
+  }
+
+  if (pathname === "/products" || pathname === "/products/") {
+    return Response.redirect(`${SITE_URL}/`, 308);
+  }
 
   const productMatch = pathname.match(/^\/products\/([^/]+)\/?$/);
   const categoryMatch = pathname.match(/^\/categories\/([^/]+)\/?$/);
 
-  let html: string | null = null;
+  let content: PageContent | null = null;
 
   if (pathname === "/") {
     const [products, categories] = await Promise.all([fetchProducts(), fetchCategories()]);
-    html = renderHome(products, categories);
+    content = renderHome(products, categories);
   } else if (pathname === "/categories" || pathname === "/categories/") {
-    html = renderCategoriesIndex(await fetchCategories());
+    content = renderCategoriesIndex(await fetchCategories());
   } else if (categoryMatch) {
     const [products, categories] = await Promise.all([fetchProducts(), fetchCategories()]);
-    html = renderCategory(decodeURIComponent(categoryMatch[1]), products, categories);
+    content = renderCategory(decodeURIComponent(categoryMatch[1]), products, categories);
   } else if (pathname === "/deals" || pathname === "/deals/") {
-    html = renderDeals(await fetchProducts());
+    content = renderDeals(await fetchProducts());
   } else if (productMatch) {
-    html = renderProduct(decodeURIComponent(productMatch[1]), await fetchProducts());
+    content = renderProduct(decodeURIComponent(productMatch[1]), await fetchProducts());
   } else if (pathname === "/about") {
-    html = renderAbout();
+    content = renderAbout();
+  } else if (pathname === "/contact") {
+    content = renderContact();
+  } else if (pathname === "/privacy") {
+    content = renderPrivacy();
   } else if (pathname === "/faqs") {
-    html = renderFaqs();
+    content = renderFaqs();
   } else if (pathname === "/map") {
-    html = renderMap();
+    content = renderMap();
   } else if (pathname === "/policies") {
-    html = renderPolicies();
+    content = renderPolicies();
   } else if (pathname === "/prescription") {
-    html = renderPrescription();
-  } else {
-    // Any other route (checkout, account, orders, search, etc.) is either
-    // not content-bearing or has data that shouldn't be rendered for
-    // arbitrary bots — leave it to the normal SPA shell.
-    return next();
+    content = renderPrescription();
+  }
+  // Anything else (unmatched product/category id included, via `content`
+  // staying null) is a genuinely nonexistent path for a non-interactive
+  // fetcher — real HTTP 404 instead of the old soft-404 (200 + empty SPA
+  // shell), so agents probing for resources can tell what actually exists.
+
+  if (!content) {
+    return new Response(notFoundMarkdownBody(pathname), { status: 404, headers: MARKDOWN_HEADERS });
   }
 
-  if (!html) return next();
+  if (wantsMarkdown) {
+    return new Response(renderMarkdownDoc(content), { headers: MARKDOWN_HEADERS });
+  }
 
-  return new Response(html, { headers: CACHE_HEADERS });
+  return new Response(pageShell(content), { headers: HTML_HEADERS });
 }
