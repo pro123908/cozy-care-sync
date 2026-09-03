@@ -38,16 +38,6 @@ type ProductRow = {
 };
 
 // ---------------------------------------------------------------------------
-// Promo codes — single source of truth (keep in sync with cart.tsx UI labels)
-// ---------------------------------------------------------------------------
-
-const PROMOS: Record<string, number> = {
-  WELLCARE10: 0.1,
-  HEALTH20: 0.2,
-  CARE15: 0.15,
-};
-
-// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
@@ -959,10 +949,24 @@ Deno.serve(
         ? 0
         : SHIPPING_COST;
 
-  // Validate promo code if provided (it's optional — a missing/invalid code = no discount)
+  // Validate + atomically redeem the promo code if provided (it's optional —
+  // no code = no discount). redeem_coupon re-validates server-side and
+  // increments coupons.times_used in one guarded UPDATE, so it's the actual
+  // point of truth for whether a code is still usable — never trust the
+  // client's earlier preview_coupon result for this.
   const promoKey = promo_code?.trim().toUpperCase() ?? "";
-  const discountPct = PROMOS[promoKey] ?? 0;
-  const discountAmt = Math.round(subtotal * discountPct);
+  let discountAmt = 0;
+  if (promoKey) {
+    const { data: redeemData, error: redeemErr } = await serviceClient.rpc("redeem_coupon", {
+      p_code: promoKey,
+      p_subtotal: subtotal,
+    });
+    const redeemed = redeemData?.[0];
+    if (redeemErr || !redeemed) {
+      return json({ error: redeemErr?.message ?? "Promo code could not be applied" }, 400, origin);
+    }
+    discountAmt = redeemed.discount_amount;
+  }
   const total = subtotal + shipping - discountAmt;
 
   // ------------------------------------------------------------------
@@ -1005,6 +1009,8 @@ Deno.serve(
       subtotal,
       shipping,
       total,
+      promo_code: promoKey || null,
+      promo_discount: discountAmt,
       // admin-app's manual "Add/Edit order" flow requires this field and
       // only offers "WhatsApp"/"Friends & Family" — every storefront order
       // needs its own recognized value so admin can still edit it later
@@ -1015,6 +1021,14 @@ Deno.serve(
     .single();
 
   if (insertErr) {
+    // redeem_coupon (above) already reserved the slot by incrementing
+    // times_used — a coupon must only count as redeemed once an order
+    // actually exists, so release that reservation before reporting the
+    // failure. Best-effort: if this also fails there's nothing more useful
+    // to do than let the original insert error surface.
+    if (promoKey) {
+      await serviceClient.rpc("release_coupon", { p_code: promoKey });
+    }
     return json({ error: "Failed to create order" }, 500, origin);
   }
 

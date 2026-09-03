@@ -511,11 +511,15 @@ export function CheckoutContent({
   const [promoErr, setPromoErr] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoShake, setPromoShake] = useState(false);
+  // What the applied coupon actually is, per preview_coupon's response —
+  // discountAmt below is the authoritative Rs figure it returned, not
+  // something recomputed client-side from a percentage.
+  const [promoDiscountType, setPromoDiscountType] = useState<"flat" | "percent" | null>(null);
+  const [promoDiscountValue, setPromoDiscountValue] = useState(0);
+  const [promoDiscountAmt, setPromoDiscountAmt] = useState(0);
   const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<string[]>([]);
   const [selectedQuickFill, setSelectedQuickFill] = useState<string | null>(null);
-  const PROMOS: Record<string, number> = { WELLCARE10: 0.1, HEALTH20: 0.2, CARE15: 0.15 };
-  const discountPct = promoApplied ? (PROMOS[promo.trim().toUpperCase()] ?? 0) : 0;
 
   useEffect(() => {
     try {
@@ -527,7 +531,7 @@ export function CheckoutContent({
       // ignore invalid local storage payload
     }
   }, []);
-  const discountAmt = Math.round(subtotal * discountPct);
+  const discountAmt = promoApplied ? promoDiscountAmt : 0;
   // Recompute delivery from the entered city so it stays in sync with what the
   // server actually charges: free only for Karachi orders over the threshold.
   // The `shipping` prop from the cart is just a pre-address estimate.
@@ -536,25 +540,41 @@ export function CheckoutContent({
     effectiveShipping > 0 && subtotal >= FREE_SHIPPING_THRESHOLD && !isKarachiCity(ship.city);
   const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt);
 
-  const applyPromo = () => {
+  const applyPromo = async () => {
     if (!promo.trim()) return;
     setPromoLoading(true);
     setPromoErr("");
-    window.setTimeout(() => {
-      const code = promo.trim().toUpperCase();
-      if (PROMOS[code]) {
+    try {
+      const supabase = await getSupabase();
+      const { data, error } = await supabase.rpc("preview_coupon", {
+        p_code: promo.trim(),
+        p_subtotal: subtotal,
+      });
+      const result = data?.[0];
+      if (!error && result?.valid) {
         setPromoApplied(true);
+        setPromoDiscountType(result.discount_type as "flat" | "percent");
+        setPromoDiscountValue(result.discount_value ?? 0);
+        setPromoDiscountAmt(result.discount_amount ?? 0);
         setPromoErr("");
-        push(`Promo code applied — ${Math.round(PROMOS[code] * 100)}% off!`, { tone: "green" });
+        push(result.message ?? "Promo code applied!", { tone: "green" });
       } else {
-        setPromoErr("Invalid or expired promo code");
+        setPromoErr(
+          error
+            ? "Something went wrong — try again"
+            : (result?.message ?? "Invalid or expired promo code"),
+        );
         setPromoApplied(false);
         setPromoShake(true);
         push("That promo code isn't valid", { tone: "red" });
         window.setTimeout(() => setPromoShake(false), 500);
       }
+    } catch {
+      setPromoErr("Something went wrong — try again");
+      setPromoApplied(false);
+    } finally {
       setPromoLoading(false);
-    }, 500);
+    }
   };
 
   const validateShip = () => {
@@ -1173,7 +1193,7 @@ export function CheckoutContent({
               <Row
                 label={
                   <span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>
-                    Promo ({Math.round(discountPct * 100)}% off)
+                    {`Promo (${promoDiscountType === "flat" ? `${PKR(promoDiscountValue)} off` : `${promoDiscountValue}% off`})`}
                   </span>
                 }
                 value={
@@ -1209,7 +1229,7 @@ export function CheckoutContent({
                   setPromoErr("");
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !promoApplied && !promoLoading) applyPromo();
+                  if (e.key === "Enter" && !promoApplied && !promoLoading) void applyPromo();
                 }}
                 disabled={promoApplied || promoLoading}
                 style={{
@@ -1258,8 +1278,11 @@ export function CheckoutContent({
                       setPromoApplied(false);
                       setPromo("");
                       setPromoErr("");
+                      setPromoDiscountType(null);
+                      setPromoDiscountValue(0);
+                      setPromoDiscountAmt(0);
                     }
-                  : applyPromo
+                  : () => void applyPromo()
               }
               disabled={promoLoading || (!promoApplied && !promo.trim())}
               style={{
