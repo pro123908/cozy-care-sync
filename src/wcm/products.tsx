@@ -15,6 +15,7 @@ import { ProductImage, ProductPhoto, Pill, Btn, Section } from "./ui";
 import { useWcm, useTestimonials } from "./context";
 import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import {
   CategoryRail,
   DealsRail,
@@ -878,11 +879,42 @@ function TestimonialsSection() {
   const { testimonials, loading } = useTestimonials();
   const [lightbox, setLightbox] = useState<string | null>(null);
   const isMobile = useIsMobile();
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const swipeTimeoutRef = useRef<number | null>(null);
+  const sortedRef = useRef<Testimonial[]>([]);
+  const cardWidthRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (swipeTimeoutRef.current) window.clearTimeout(swipeTimeoutRef.current);
+    };
+  }, []);
 
   if (loading || testimonials.length === 0) return null;
 
   const sorted = sortTestimonials(testimonials);
   const cardWidth = isMobile ? 272 : 320;
+  sortedRef.current = sorted;
+  cardWidthRef.current = cardWidth;
+
+  const handleRailScroll = () => {
+    if (swipeTimeoutRef.current) window.clearTimeout(swipeTimeoutRef.current);
+    swipeTimeoutRef.current = window.setTimeout(() => {
+      const rail = railRef.current;
+      if (!rail) return;
+      const list = sortedRef.current;
+      const index = Math.min(
+        list.length - 1,
+        Math.max(0, Math.round(rail.scrollLeft / (cardWidthRef.current + 12))),
+      );
+      const active = list[index];
+      trackMetaEvent("ReviewCarouselSwipe", {
+        content_type: "testimonial_rail",
+        content_ids: active ? [active.product_id] : [],
+        search_string: active?.reviewer_name,
+      });
+    }, 400);
+  };
 
   return (
     <Section className="wcm-detail-reviews" style={{ padding: 16 }}>
@@ -892,6 +924,8 @@ function TestimonialsSection() {
       </div>
 
       <div
+        ref={railRef}
+        onScroll={handleRailScroll}
         className="wcm-testimonial-rail"
         style={{
           display: "flex",
@@ -916,6 +950,14 @@ function TestimonialsSection() {
           return (
             <div
               key={t.id}
+              onClick={() =>
+                trackMetaEvent("ReviewCardClick", {
+                  content_type: "testimonial",
+                  content_category: t.source,
+                  content_ids: [t.product_id],
+                  search_string: t.reviewer_name,
+                })
+              }
               style={{
                 flex: `0 0 ${cardWidth}px`,
                 width: cardWidth,
@@ -967,7 +1009,10 @@ function TestimonialsSection() {
               {t.screenshot_url && (
                 <button
                   type="button"
-                  onClick={() => setLightbox(t.screenshot_url)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLightbox(t.screenshot_url);
+                  }}
                   style={{ marginTop: 5, padding: 0, border: "none", background: "none", cursor: "zoom-in", alignSelf: "flex-start" }}
                 >
                   <img
@@ -984,6 +1029,15 @@ function TestimonialsSection() {
                     href={t.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      trackMetaEvent("ReviewFacebookClick", {
+                        content_type: "testimonial",
+                        content_category: t.source,
+                        content_ids: [t.product_id],
+                        search_string: t.reviewer_name,
+                      });
+                    }}
                     style={{
                       display: "inline-flex",
                       alignItems: "center",

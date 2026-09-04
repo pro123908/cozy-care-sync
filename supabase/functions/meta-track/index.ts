@@ -50,6 +50,18 @@ const ALLOWED_EVENTS = new Set([
   "Contact",
   "CompleteRegistration",
   "TrackOrderLookup",
+  "ReviewCardClick",
+  "ReviewCarouselSwipe",
+  "ReviewFacebookClick",
+]);
+
+// UI-engagement events that should only be logged to meta_events for the
+// admin Live Activity/Meta Events feed — not real conversions, so they are
+// never forwarded to Meta's Conversions API (would pollute the live pixel).
+const LOCAL_ONLY_EVENTS = new Set([
+  "ReviewCardClick",
+  "ReviewCarouselSwipe",
+  "ReviewFacebookClick",
 ]);
 
 type Body = {
@@ -160,6 +172,30 @@ serve(async (req) => {
   const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
   const userAgent = req.headers.get("user-agent") || "";
   const geo = await resolveGeo(clientIp);
+
+  if (LOCAL_ONLY_EVENTS.has(eventName)) {
+    await logMetaEvent({
+      event_name: eventName,
+      event_id: body.event_id || null,
+      status: "skipped",
+      reason: "Local-only event (not forwarded to Meta Conversions API)",
+      value: eventValue,
+      currency: eventCurrency,
+      num_items: eventNumItems,
+      content_ids: eventContentIds,
+      search_string: eventSearchString,
+      has_email: Boolean(body.user_data?.email),
+      has_phone: Boolean(body.user_data?.phone),
+      event_source_url: body.event_source_url?.trim() || origin,
+      user_agent: userAgent,
+      ip_address: clientIp,
+      visitor_id: body.visitor_id || null,
+      geo_city: geo.geo_city,
+      geo_region: geo.geo_region,
+      geo_country: geo.geo_country,
+    });
+    return json({ ok: true, local: true }, 200, origin);
+  }
 
   if (!META_ACCESS_TOKEN || !META_PIXEL_ID) {
     console.info("[meta-capi] missing META_ACCESS_TOKEN or META_PIXEL_ID - skipping event", {
