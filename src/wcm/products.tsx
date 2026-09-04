@@ -12,8 +12,8 @@ import {
 } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Pill, Btn, Section } from "./ui";
-import { useWcm } from "./context";
-import type { CartLine } from "./context";
+import { useWcm, useTestimonials } from "./context";
+import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   CategoryRail,
@@ -794,6 +794,243 @@ const qtyBtn: React.CSSProperties = {
   color: "var(--ink-2)",
   cursor: "pointer",
 };
+
+// Row of small filled/outline stars for one person's actual rating — the
+// shared `Stars` component (single icon + decimal, e.g. "★ 4.5") is built
+// for a computed average and reads oddly applied to one review's whole-
+// number score (a customer didn't give "5.0 stars", they gave 5).
+function ReviewStars({ rating, size = 13 }: { rating: number; size?: number }) {
+  const r = Math.max(0, Math.min(5, Math.round(rating)));
+  return (
+    <span style={{ color: "#f59e0b", fontSize: size, letterSpacing: 1 }} aria-label={`${r} out of 5 stars`}>
+      {"★".repeat(r)}
+      <span style={{ color: "var(--line)" }}>{"★".repeat(5 - r)}</span>
+    </span>
+  );
+}
+
+function testimonialAccent(source: string): string {
+  return source === "facebook" ? "#1877f2" : source === "daraz" ? "#f85a02" : "var(--ink-4)";
+}
+
+// Initials avatar — these are curated from screenshots, not a real profile
+// photo we're allowed to host, so a plain neutral initial stands in instead
+// of faking one. Kept source-neutral (not tinted per platform) — the left
+// border stripe is the only per-source color accent on the card now.
+function ReviewerAvatar({ name, size = 38 }: { name: string; size?: number }) {
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: "var(--bg-elev)",
+        border: "1.5px solid var(--line)",
+        color: "var(--ink-3)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 800,
+        fontSize: size * 0.42,
+        flexShrink: 0,
+        boxSizing: "border-box",
+      }}
+    >
+      {initial}
+    </div>
+  );
+}
+
+// display_order first (nulls last), then review_date/created_at, newest
+// first — same fallback chain the admin app's spec calls for.
+function sortTestimonials(items: Testimonial[]): Testimonial[] {
+  return [...items].sort((a, b) => {
+    if (a.display_order != null && b.display_order != null && a.display_order !== b.display_order) {
+      return a.display_order - b.display_order;
+    }
+    if (a.display_order != null && b.display_order == null) return -1;
+    if (a.display_order == null && b.display_order != null) return 1;
+    const aTime = new Date(a.review_date ?? a.created_at).getTime();
+    const bTime = new Date(b.review_date ?? b.created_at).getTime();
+    return bTime - aTime;
+  });
+}
+
+function formatReviewDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Manually-curated Facebook/Daraz reviews, shown as a site-wide social-proof
+// timeline — every published testimonial, on every product page, NOT
+// filtered to the product being viewed (that's a deliberate pivot from a
+// per-product "Customer Reviews" section: with only a handful of curated
+// reviews total, scoping to one exact product left most PDPs with nothing
+// to show; framed as general testimonials instead of per-product reviews,
+// showing the full pool everywhere is honest rather than misleading).
+// Independent from the sold-count pill above (real order/Daraz sales
+// counters) and from the dormant usePublicProductReviews/order_reviews
+// system (real, order-linked reviews, not wired into the PDP by design —
+// see useTestimonials's own comment). Hides itself entirely when there's
+// nothing published, same "no fake empty state" rule the sold-count pill
+// already follows.
+function TestimonialsSection() {
+  const { testimonials, loading } = useTestimonials();
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+
+  if (loading || testimonials.length === 0) return null;
+
+  const sorted = sortTestimonials(testimonials);
+  const cardWidth = isMobile ? 272 : 320;
+
+  return (
+    <Section className="wcm-detail-reviews" style={{ padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+        <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800, letterSpacing: -0.2 }}>Satisfied customers</h2>
+        <span style={{ fontSize: 12, color: "var(--ink-4)" }}>What customers are saying on Facebook</span>
+      </div>
+
+      <div
+        className="wcm-testimonial-rail"
+        style={{
+          display: "flex",
+          alignItems: "stretch",
+          gap: 12,
+          width: "100%",
+          minWidth: 0,
+          maxWidth: "100%",
+          overflowX: "auto",
+          overflowY: "hidden",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+          touchAction: "pan-x pan-y",
+          scrollSnapType: "x mandatory",
+          paddingBottom: 6,
+          scrollbarWidth: "none",
+        }}
+      >
+        <style>{`.wcm-testimonial-rail::-webkit-scrollbar{display:none}`}</style>
+        {sorted.map((t) => {
+          const accent = testimonialAccent(t.source);
+          return (
+            <div
+              key={t.id}
+              style={{
+                flex: `0 0 ${cardWidth}px`,
+                width: cardWidth,
+                scrollSnapAlign: "start",
+                borderTop: "1px solid var(--line)",
+                borderRight: "1px solid var(--line)",
+                borderBottom: "1px solid var(--line)",
+                borderLeft: `6px solid ${accent}`,
+                padding: 10,
+                background: "var(--card)",
+                boxShadow: "var(--shadow-sm)",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <ReviewerAvatar name={t.reviewer_name} size={26} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    By {t.reviewer_name}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{formatReviewDate(t.review_date ?? t.created_at)}</div>
+                </div>
+              </div>
+
+              {t.rating != null && (
+                <div style={{ marginTop: 6 }}>
+                  <ReviewStars rating={t.rating} size={13} />
+                </div>
+              )}
+
+              {t.review_text && (
+                <p
+                  style={{
+                    margin: "6px 0 0",
+                    fontSize: 13,
+                    lineHeight: 1.4,
+                    color: "var(--ink-2)",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 4,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {t.review_text}
+                </p>
+              )}
+
+              {t.screenshot_url && (
+                <button
+                  type="button"
+                  onClick={() => setLightbox(t.screenshot_url)}
+                  style={{ marginTop: 5, padding: 0, border: "none", background: "none", cursor: "zoom-in", alignSelf: "flex-start" }}
+                >
+                  <img
+                    src={t.screenshot_url}
+                    alt={`${t.reviewer_name}'s review screenshot`}
+                    style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid var(--line)", display: "block" }}
+                  />
+                </button>
+              )}
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto", paddingTop: 6, flexWrap: "wrap" }}>
+                {t.source_url && (
+                  <a
+                    href={t.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "3px 0",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "var(--ink-2)",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 2,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    View on {t.source === "facebook" ? "Facebook" : "Daraz"}
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 1000 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "relative", maxWidth: 560, width: "100%", maxHeight: "85vh", background: "var(--card)", border: "1px solid var(--line)", borderRadius: 14, padding: 16, overflow: "auto" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 10 }}>
+              <button
+                onClick={() => setLightbox(null)}
+                aria-label="Close review screenshot"
+                style={{ border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer" }}
+              >
+                {Icons.close}
+              </button>
+            </div>
+            <img src={lightbox} alt="Review screenshot" style={{ width: "100%", height: "auto", borderRadius: 10, display: "block" }} />
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
 
 export function ProductDetail({
   product,
@@ -1996,6 +2233,8 @@ export function ProductDetail({
           </div>
         </div>
       </div>
+
+      <TestimonialsSection />
 
       {(!productsLoaded || related.length > 0) && (
         <div>

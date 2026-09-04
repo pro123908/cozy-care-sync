@@ -1672,7 +1672,8 @@
     background: transparent !important;
     padding: 4px 0 14px !important;
   }
-  .wcm-detail-about {
+  .wcm-detail-about,
+  .wcm-detail-reviews {
     border: none !important;
     box-shadow: none !important;
     background: transparent !important;

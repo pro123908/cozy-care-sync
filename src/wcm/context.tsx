@@ -203,6 +203,80 @@ export function usePublicProductReviews(productId: string | undefined) {
   return { reviews, loading, average, count };
 }
 
+export type Testimonial = {
+  id: string;
+  source: string;
+  reviewer_name: string;
+  product_id: string;
+  rating: number | null;
+  review_text: string | null;
+  screenshot_url: string | null;
+  source_url: string | null;
+  review_date: string | null;
+  display_order: number | null;
+  created_at: string;
+};
+
+// Manually-curated Facebook/Daraz reviews (product_reviews table, entered by
+// hand from screenshots in the admin app's /product-reviews page) — a
+// deliberately separate, independent source from usePublicProductReviews
+// above (real, order-linked reviews). Kept unmerged on purpose: the two
+// have different rating semantics (a Facebook review is often a thumbs-up
+// with no star rating at all) and mixing them would change the "real"
+// average rating math site-wide. Do not combine these two hooks without
+// re-checking that decision.
+//
+// Shown as a site-wide "Testimonials" timeline (every published row, on
+// every product page) rather than filtered to the product being viewed —
+// product_id is kept for a small "on: <product>" attribution tag, not as a
+// display filter. Fetched once and cached module-scope (same shape as
+// lib/hooks/useProducts.ts in the admin app) since the exact same list
+// renders on every PDP — without this, navigating from product to product
+// would needlessly refetch identical data every time.
+const TESTIMONIALS_CACHE_TTL_MS = 60_000;
+let testimonialsCache: { data: Testimonial[]; fetchedAt: number } | null = null;
+let testimonialsInFlight: Promise<Testimonial[]> | null = null;
+
+async function fetchTestimonials(): Promise<Testimonial[]> {
+  if (testimonialsInFlight) return testimonialsInFlight;
+  testimonialsInFlight = (async () => {
+    const supabase = await getSupabase();
+    const { data, error } = await supabase
+      .from("product_reviews")
+      .select(
+        "id, source, reviewer_name, product_id, rating, review_text, screenshot_url, source_url, review_date, display_order, created_at",
+      )
+      .eq("is_published", true);
+    testimonialsInFlight = null;
+    if (error || !data) return testimonialsCache?.data ?? [];
+    const result = data as unknown as Testimonial[];
+    testimonialsCache = { data: result, fetchedAt: Date.now() };
+    return result;
+  })();
+  return testimonialsInFlight;
+}
+
+export function useTestimonials() {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(() => testimonialsCache?.data ?? []);
+  const [loading, setLoading] = useState(() => !testimonialsCache);
+
+  useEffect(() => {
+    if (testimonialsCache && Date.now() - testimonialsCache.fetchedAt < TESTIMONIALS_CACHE_TTL_MS) return;
+    let cancelled = false;
+    fetchTestimonials().then((data) => {
+      if (!cancelled) {
+        setTestimonials(data);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { testimonials, loading };
+}
+
 export function WcmProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<string>("light");
   useEffect(() => {
