@@ -992,6 +992,12 @@ function Header({
               <div style={{ position: "relative" }}>
                 <button
                   onClick={() => setMenuOpen((o: boolean) => !o)}
+                  // rr-block: session replay (src/lib/pdpRecording.ts) fully
+                  // excludes this element — it's the one place real account
+                  // PII (name/initials) renders, and the header is on-screen
+                  // for the whole PDP recording even though it isn't part of
+                  // ProductDetail itself.
+                  className="rr-block"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1047,7 +1053,8 @@ function Header({
                         overflow: "hidden",
                       }}
                     >
-                      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+                      {/* rr-block: real name + raw email, see the trigger button above */}
+                      <div className="rr-block" style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
                           {user.firstName} {user.lastName}
                         </div>

@@ -145,6 +145,67 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
   return new Response(null, { status: 204 });
 }
 
+// Same-origin relay for self-hosted PDP session-replay chunks (see
+// src/lib/pdpRecording.ts) — same reasoning and secret-key usage as
+// proxyPdpTrack above (this is server-side only, the browser never sees
+// SUPABASE_SECRET_KEY). Uploads the chunk as its own Storage object at
+// `<session_id>/<chunk_index>.json` (not appended to a growing file —
+// Supabase Storage has no append primitive, and the admin viewer already
+// expects to fetch and concatenate `chunk_count` separate chunk files), then
+// upserts session_recordings so the admin list view has something to show
+// without ever touching Storage until a specific recording is opened.
+// chunk_count/approx_size are set directly from the client's own
+// monotonically-increasing counters (chunk_index + 1, and a running total),
+// not incremented server-side — see the plan's note on the resulting
+// (harmless) out-of-order-arrival edge case.
+async function proxyPdpRecording(request: Request): Promise<Response> {
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) return new Response(null, { status: 204 });
+  try {
+    const body = (await request.json()) as {
+      session_id?: string;
+      product_id?: string;
+      chunk_index?: number;
+      approx_size?: number;
+      events?: unknown[];
+    };
+    const { session_id, product_id, chunk_index, approx_size, events } = body;
+    if (!session_id || !product_id || typeof chunk_index !== "number" || !Array.isArray(events) || events.length === 0) {
+      return new Response(null, { status: 204 });
+    }
+
+    const headers = {
+      apikey: SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    await fetch(
+      `${SUPABASE_URL}/storage/v1/object/session-recordings/${encodeURIComponent(session_id)}/${chunk_index}.json`,
+      {
+        method: "POST",
+        headers: { ...headers, "x-upsert": "true" },
+        body: JSON.stringify({ events }),
+      },
+    );
+
+    await fetch(`${SUPABASE_URL}/rest/v1/session_recordings?on_conflict=session_id`, {
+      method: "POST",
+      headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({
+        session_id,
+        product_id,
+        chunk_count: chunk_index + 1,
+        approx_size: typeof approx_size === "number" ? approx_size : 0,
+        ended_at: new Date().toISOString(),
+      }),
+    });
+  } catch {
+    // Best-effort, same as proxyPdpTrack — a dropped chunk isn't worth
+    // surfacing to the client, which isn't waiting on this response.
+  }
+  return new Response(null, { status: 204 });
+}
+
 // First-party proxy for GA4 hit collection: gtag.js is configured (see
 // src/lib/ga.ts, transport_url) to send hits here instead of directly to
 // google-analytics.com. Ad/privacy blocklists near-universally target that
@@ -650,6 +711,10 @@ export default async function middleware(request: Request) {
 
   if (pathname === "/t/pdp" && request.method === "POST") {
     return proxyPdpTrack(request);
+  }
+
+  if (pathname === "/t/pdp-recording" && request.method === "POST") {
+    return proxyPdpRecording(request);
   }
 
   if (pathname === "/sitemap.xml") {

@@ -355,6 +355,7 @@ type BtnProps = {
   type?: "button" | "submit";
   icon?: React.ReactNode;
   iconRight?: React.ReactNode;
+  className?: string;
   ["aria-label"]?: string;
 };
 export const Btn = ({

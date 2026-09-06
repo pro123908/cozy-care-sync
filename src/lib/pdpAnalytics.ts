@@ -58,7 +58,10 @@ function writeSession(session: SessionRecord) {
   }
 }
 
-function getOrCreatePdpSession(): SessionRecord {
+// Exported so src/lib/pdpRecording.ts (Part 2) can tag its recording with
+// the exact same session_id — a recording cross-references this session's
+// structured dwell events.
+export function getOrCreatePdpSession(): SessionRecord {
   const now = Date.now();
   const existing = readSession();
   const session =
