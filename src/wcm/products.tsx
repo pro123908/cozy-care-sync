@@ -16,6 +16,7 @@ import { useWcm, useTestimonials } from "./context";
 import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { trackMetaEvent } from "@/lib/meta-pixel";
+import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
 import {
   CategoryRail,
   DealsRail,
@@ -1126,6 +1127,7 @@ export function ProductDetail({
   useEffect(() => {
     trackView(product.id);
   }, [product.id, trackView]);
+  usePdpAnalyticsSession();
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
   // Live finger-tracking for the hero swipe — touchStartX above only ever
@@ -1216,6 +1218,16 @@ export function ProductDetail({
     : null;
   const nextMedia = hasMultipleImages ? detailMedia[(activeView + 1) % detailMedia.length] : null;
 
+  // PDP engagement dwell tracking (src/lib/pdpAnalytics.ts). Gallery and
+  // video share one physical hero container (no separate "video section"
+  // exists in this DOM), so the dwell section label is resolved dynamically
+  // from whichever media type is actually active.
+  const descriptionSectionRef = useRef<HTMLDivElement | null>(null);
+  const reviewsSectionRef = useRef<HTMLDivElement | null>(null);
+  usePdpSectionDwell(heroContainerRef, product.id, () => (activeMedia?.type === "video" ? "video" : "gallery"));
+  usePdpSectionDwell(descriptionSectionRef, product.id, "description", { viewedEvent: "description_viewed" });
+  usePdpSectionDwell(reviewsSectionRef, product.id, "reviews", { viewedEvent: "reviews_viewed" });
+
   useEffect(() => {
     setActiveView(0);
   }, [product.id, detailMedia.length]);
@@ -1236,7 +1248,18 @@ export function ProductDetail({
 
   const cycleView = (dir: 1 | -1) => {
     if (detailMedia.length <= 1) return;
-    setActiveView((v) => (v + dir + detailMedia.length) % detailMedia.length);
+    const next = (activeView + dir + detailMedia.length) % detailMedia.length;
+    setActiveView(next);
+    trackPdpEvent("gallery_swipe", product.id, { from: activeView, to: next });
+  };
+
+  // Dot/thumbnail navigation (as opposed to cycleView's swipe-commit path)
+  // — both are user-initiated index changes worth tracking, unlike the
+  // reset-on-product-change effect above which calls setActiveView directly.
+  const goToView = (i: number) => {
+    if (i === activeView) return;
+    setActiveView(i);
+    trackPdpEvent("gallery_swipe", product.id, { from: activeView, to: i });
   };
 
   const heroTouchStart = (e: React.TouchEvent) => {
@@ -1334,6 +1357,7 @@ export function ProductDetail({
             loop
             playsInline
             preload={isActive ? "auto" : "metadata"}
+            onPlay={isActive ? () => trackPdpEvent("video_play", product.id, {}) : undefined}
             style={{
               width: "100%",
               height: "100%",
@@ -1545,7 +1569,7 @@ export function ProductDetail({
                   <button
                     key={`dot-${i}`}
                     type="button"
-                    onClick={() => setActiveView(i)}
+                    onClick={() => goToView(i)}
                     aria-label={`Show image ${i + 1}`}
                     style={{
                       width: i === activeView ? 16 : 6,
@@ -1608,7 +1632,7 @@ export function ProductDetail({
               {thumbIndexes.map((i) => (
                 <button
                   key={i}
-                  onClick={() => setActiveView(i)}
+                  onClick={() => goToView(i)}
                   aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
                   style={{
                     position: "relative",
@@ -2194,7 +2218,7 @@ export function ProductDetail({
               {thumbIndexes.map((i) => (
                 <button
                   key={`mobile-thumb-${i}`}
-                  onClick={() => setActiveView(i)}
+                  onClick={() => goToView(i)}
                   aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
                   style={{
                     position: "relative",
@@ -2244,23 +2268,25 @@ export function ProductDetail({
               ))}
             </div>
           )}
-          <Section className="wcm-detail-about" style={{ padding: 16 }}>
-            <div
-              style={{
-                fontWeight: 700,
-                marginBottom: 8,
-                fontSize: 13,
-                letterSpacing: 0.3,
-                color: "var(--ink-3)",
-                textTransform: "uppercase",
-              }}
-            >
-              About this product
-            </div>
-            <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14, lineHeight: 1.55 }}>
-              {product.blurb}
-            </p>
-          </Section>
+          <div ref={descriptionSectionRef}>
+            <Section className="wcm-detail-about" style={{ padding: 16 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  marginBottom: 8,
+                  fontSize: 13,
+                  letterSpacing: 0.3,
+                  color: "var(--ink-3)",
+                  textTransform: "uppercase",
+                }}
+              >
+                About this product
+              </div>
+              <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14, lineHeight: 1.55 }}>
+                {product.blurb}
+              </p>
+            </Section>
+          </div>
           <div className="wcm-product-badges">
             {[
               { i: Icons.shield, t: "100% authentic", s: "Direct from brands" },
@@ -2288,7 +2314,9 @@ export function ProductDetail({
         </div>
       </div>
 
-      <TestimonialsSection />
+      <div ref={reviewsSectionRef}>
+        <TestimonialsSection />
+      </div>
 
       {(!productsLoaded || related.length > 0) && (
         <div>

@@ -44,6 +44,90 @@ const STATIC_PAGES = [
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Server-only secret key (never read via import.meta.env, so it can't end up
+// in a client bundle) — see proxyPdpTrack for why this needs to be the
+// secret key rather than the publishable one above.
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
+
+// Same-origin relay for self-hosted PDP engagement events (see
+// src/lib/pdpAnalytics.ts) — navigator.sendBeacon can't set the
+// apikey/Authorization headers Supabase's REST gateway requires regardless
+// of RLS, so the client posts here and this adds those headers server-side
+// before forwarding to Supabase's REST API. Mirrors proxyGaCollect below:
+// best-effort, always 204, the client never waits on a meaningful response.
+//
+// Uses the secret key, not the anon/publishable key: analytics_sessions is
+// upserted (on_conflict=session_id, merge-duplicates), and confirmed
+// directly against this project that Postgres's ON CONFLICT DO UPDATE path
+// requires the executing role to have SELECT visibility on the table (to
+// evaluate the conflicting row), even though this table's RLS deliberately
+// grants anon INSERT/UPDATE but no SELECT — a plain anon INSERT/UPDATE each
+// work fine standalone, but anon upsert 401s with "new row violates
+// row-level security policy". Since this call is server-side only (the
+// browser never sees this code or key), using the secret key here bypasses
+// RLS entirely and sidesteps that gotcha — same pattern as
+// supabase/functions/meta-track/index.ts's SUPABASE_SERVICE_ROLE_KEY. The
+// anon insert-only RLS policies in the migration stay in place as
+// defense-in-depth for the (unused) direct-from-browser path.
+// first_seen is never in the client payload, so its `default now()` only
+// ever applies on the initial insert and the upsert never overwrites it.
+async function proxyPdpTrack(request: Request): Promise<Response> {
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) return new Response(null, { status: 204 });
+  try {
+    const body = (await request.json()) as {
+      session?: {
+        session_id?: string;
+        referrer?: string | null;
+        user_agent?: string;
+        device_type?: string;
+        last_seen?: string;
+      };
+      events?: Array<{ event_type?: string; product_id?: string; payload?: Record<string, unknown> }>;
+    };
+    const session = body.session;
+    const events = Array.isArray(body.events) ? body.events : [];
+    if (!session?.session_id) return new Response(null, { status: 204 });
+
+    const headers = {
+      apikey: SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/analytics_sessions?on_conflict=session_id`, {
+      method: "POST",
+      headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({
+        session_id: session.session_id,
+        referrer: session.referrer ?? null,
+        user_agent: session.user_agent ?? null,
+        device_type: session.device_type ?? null,
+        last_seen: session.last_seen ?? new Date().toISOString(),
+      }),
+    });
+
+    const validEvents = events
+      .filter((e) => Boolean(e && e.event_type && e.product_id))
+      .map((e) => ({
+        session_id: session.session_id,
+        product_id: e.product_id,
+        event_type: e.event_type,
+        payload: e.payload ?? {},
+      }));
+
+    if (validEvents.length > 0) {
+      await fetch(`${SUPABASE_URL}/rest/v1/analytics_events`, {
+        method: "POST",
+        headers: { ...headers, Prefer: "return=minimal" },
+        body: JSON.stringify(validEvents),
+      });
+    }
+  } catch {
+    // Best-effort, same as proxyGaCollect — a dropped analytics batch isn't
+    // worth surfacing to the client, which isn't waiting on this response.
+  }
+  return new Response(null, { status: 204 });
+}
 
 // First-party proxy for GA4 hit collection: gtag.js is configured (see
 // src/lib/ga.ts, transport_url) to send hits here instead of directly to
@@ -546,6 +630,10 @@ export default async function middleware(request: Request) {
 
   if (pathname.startsWith("/g/")) {
     return proxyGaCollect(request, pathname, url.search);
+  }
+
+  if (pathname === "/t/pdp" && request.method === "POST") {
+    return proxyPdpTrack(request);
   }
 
   if (pathname === "/sitemap.xml") {
