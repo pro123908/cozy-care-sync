@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { EventType, type eventWithTime } from "@rrweb/types";
-import { getOrCreatePdpSession } from "./pdpAnalytics";
+import { getOrCreatePdpSession, trackPdpEvent } from "./pdpAnalytics";
 
 // ---------------------------------------------------------------------------
 // Self-hosted session replay — Part 2 of the structured-events + session-
@@ -54,6 +54,22 @@ const PDP_RECORDING_SAMPLE_RATE = 1;
 let currentPdpProductId: string | null = null;
 export function setActivePdpProduct(productId: string | null) {
   currentPdpProductId = productId;
+}
+
+// Temporary diagnostic: two separate real mobile visits with substantial
+// Part 1 (dwell/event) activity produced zero session_recordings rows even
+// after the keepalive fix and the parallel-import startup fix, and two
+// separate synthetic reproductions (fast network, then 4x-CPU-throttled
+// slow-3G) both succeeded — meaning the failure mode on a real device isn't
+// reproducing synthetically. Piggybacked on trackPdpEvent (Part 1's already
+// production-proven pipeline, including its pagehide finalizer) rather than
+// the recording upload path itself, since that path is exactly what's
+// failing to arrive. Only logs when a product page is current, since both
+// real failures were on PDPs — remove once root-caused, see PdpEventType.
+function debugLog(stage: string, extra: Record<string, unknown> = {}) {
+  if (currentPdpProductId) {
+    trackPdpEvent("recording_debug", currentPdpProductId, { stage, ...extra });
+  }
 }
 
 const SAMPLE_DECISION_KEY = "wcm_pdp_recording_sample";
@@ -142,6 +158,9 @@ export function useSiteRecording() {
     const session = getOrCreatePdpSession();
     if (!isSampledIn(session.id)) return;
 
+    const mountedAt = performance.now();
+    const elapsed = () => Math.round(performance.now() - mountedAt);
+
     let stopped = false;
     let stopFn: (() => void) | undefined;
     let buffer: eventWithTime[] = [];
@@ -180,6 +199,7 @@ export function useSiteRecording() {
     // had nothing to render, just a blank white player for the whole
     // session.
     let hasFlushedInitialSnapshot = false;
+    let recordingStarted = false;
 
     // Kick the module fetch off immediately, in parallel with the idle wait
     // below — a background network fetch/parse costs nothing towards LCP,
@@ -195,8 +215,10 @@ export function useSiteRecording() {
 
     const startRecording = async () => {
       if (stopped) return;
+      debugLog("idle_fired", { elapsed_ms: elapsed() });
       const { record } = await recordModulePromise;
       if (stopped) return;
+      debugLog("import_resolved", { elapsed_ms: elapsed() });
       stopFn = record({
         emit(event, isCheckout) {
           const typedEvent = event as eventWithTime;
@@ -205,6 +227,7 @@ export function useSiteRecording() {
             flush();
           } else if (!hasFlushedInitialSnapshot && typedEvent.type === EventType.FullSnapshot) {
             hasFlushedInitialSnapshot = true;
+            debugLog("first_snapshot_flush", { elapsed_ms: elapsed() });
             flush();
           }
         },
@@ -214,6 +237,8 @@ export function useSiteRecording() {
         maskAllInputs: true,
         recordCanvas: false,
       });
+      recordingStarted = true;
+      debugLog("record_started", { elapsed_ms: elapsed() });
       fallbackTimer = window.setInterval(flush, FALLBACK_FLUSH_MS);
     };
 
@@ -232,15 +257,35 @@ export function useSiteRecording() {
     // browser-level navigation away never runs React's unmount cleanup, so
     // without this, a genuinely common short visit (confirmed for real in
     // production — see pdpAnalytics.ts's pagehide fix) would lose its
-    // entire in-progress recording buffer, uploading nothing at all.
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flush(true);
+    // entire in-progress recording buffer, uploading nothing at all. This is
+    // also why the "did recording even start" diagnostic below has to live
+    // here, not in the effect's own cleanup — that cleanup is exactly what
+    // doesn't run on a real tab-close.
+    let reportedTeardownState = false;
+    const reportTeardownState = () => {
+      if (reportedTeardownState) return;
+      reportedTeardownState = true;
+      if (!recordingStarted) {
+        debugLog("teardown_before_start", { elapsed_ms: elapsed() });
+      } else if (!hasFlushedInitialSnapshot) {
+        debugLog("teardown_before_first_flush", { elapsed_ms: elapsed() });
+      }
     };
-    const onPageHide = () => flush(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        reportTeardownState();
+        flush(true);
+      }
+    };
+    const onPageHide = () => {
+      reportTeardownState();
+      flush(true);
+    };
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
 
     return () => {
+      reportTeardownState();
       stopped = true;
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);

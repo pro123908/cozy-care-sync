@@ -16,7 +16,17 @@ import { useEffect, useRef, type RefObject } from "react";
 // ---------------------------------------------------------------------------
 
 export type PdpEventType =
-  "section_dwell" | "video_play" | "gallery_swipe" | "description_viewed" | "reviews_viewed";
+  | "section_dwell"
+  | "video_play"
+  | "gallery_swipe"
+  | "description_viewed"
+  | "reviews_viewed"
+  // Temporary: pdpRecording.ts's own startup-lifecycle timing, piggybacked
+  // on this already-reliable pipeline to diagnose why real short visits keep
+  // producing zero session_recordings rows despite substantial Part 1
+  // activity in the same window — remove once that's root-caused. See
+  // pdpRecording.ts's debugLog().
+  | "recording_debug";
 
 type QueuedEvent = {
   event_type: PdpEventType;
