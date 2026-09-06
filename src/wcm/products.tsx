@@ -17,7 +17,7 @@ import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
-import { usePdpRecording } from "@/lib/pdpRecording";
+import { setActivePdpProduct } from "@/lib/pdpRecording";
 import {
   CategoryRail,
   DealsRail,
@@ -1129,7 +1129,14 @@ export function ProductDetail({
     trackView(product.id);
   }, [product.id, trackView]);
   usePdpAnalyticsSession();
-  usePdpRecording(product.id);
+  // Site-wide recording (useSiteRecording) is mounted once at the app root —
+  // this just tells it which product, if any, is currently on screen so
+  // uploaded chunks are attributed correctly. Cleanup clears it on leaving
+  // the PDP so recording captured elsewhere in the visit isn't mislabeled.
+  useEffect(() => {
+    setActivePdpProduct(product.id);
+    return () => setActivePdpProduct(null);
+  }, [product.id]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
   // Live finger-tracking for the hero swipe — touchStartX above only ever

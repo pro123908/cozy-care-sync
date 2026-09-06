@@ -145,7 +145,7 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
   return new Response(null, { status: 204 });
 }
 
-// Same-origin relay for self-hosted PDP session-replay chunks (see
+// Same-origin relay for self-hosted session-replay chunks (see
 // src/lib/pdpRecording.ts) — same reasoning and secret-key usage as
 // proxyPdpTrack above (this is server-side only, the browser never sees
 // SUPABASE_SECRET_KEY). Uploads the chunk as its own Storage object at
@@ -158,6 +158,12 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
 // monotonically-increasing counters (chunk_index + 1, and a running total),
 // not incremented server-side — see the plan's note on the resulting
 // (harmless) out-of-order-arrival edge case.
+//
+// Recording now spans the whole site, not just PDPs, so product_id is
+// optional per chunk (omitted entirely off a product page — see
+// pdpRecording.ts) — left out of the upsert body rather than sent as null,
+// so `resolution=merge-duplicates` leaves the row's last-known product_id
+// alone instead of clobbering it on every non-PDP chunk.
 async function proxyPdpRecording(request: Request): Promise<Response> {
   if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) return new Response(null, { status: 204 });
   try {
@@ -169,7 +175,7 @@ async function proxyPdpRecording(request: Request): Promise<Response> {
       events?: unknown[];
     };
     const { session_id, product_id, chunk_index, approx_size, events } = body;
-    if (!session_id || !product_id || typeof chunk_index !== "number" || !Array.isArray(events) || events.length === 0) {
+    if (!session_id || typeof chunk_index !== "number" || !Array.isArray(events) || events.length === 0) {
       return new Response(null, { status: 204 });
     }
 
@@ -193,7 +199,7 @@ async function proxyPdpRecording(request: Request): Promise<Response> {
       headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify({
         session_id,
-        product_id,
+        ...(product_id ? { product_id } : {}),
         chunk_count: chunk_index + 1,
         approx_size: typeof approx_size === "number" ? approx_size : 0,
         ended_at: new Date().toISOString(),

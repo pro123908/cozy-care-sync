@@ -1,43 +1,60 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { EventType, type eventWithTime } from "@rrweb/types";
 import { getOrCreatePdpSession } from "./pdpAnalytics";
 
 // ---------------------------------------------------------------------------
-// Self-hosted PDP session replay — Part 2 of the structured-events +
-// session-replay feature. Sampled, PDP-only, admin-only viewing.
+// Self-hosted session replay — Part 2 of the structured-events + session-
+// replay feature. Sampled, site-wide (originally shipped PDP-only, expanded
+// per explicit request to cover the whole visit — home, cart, checkout,
+// account, everything — not just product pages), admin-only viewing.
 //
-// See supabase/migrations/20260907030000_session_recordings.sql (admin
-// repo) for the schema this feeds, and this repo's middleware.ts
-// (`/t/pdp-recording` branch) for where chunks land — same secret-key
-// relay pattern as pdpAnalytics.ts's `/t/pdp`, for the same reason
-// (navigator.sendBeacon/fetch can't carry Supabase's required apikey
-// header directly).
+// See supabase/migrations/20260907030000_session_recordings.sql +
+// 20260907040000_session_recordings_product_id_nullable.sql (admin repo) for
+// the schema this feeds, and this repo's middleware.ts (`/t/pdp-recording`
+// branch) for where chunks land — same secret-key relay pattern as
+// pdpAnalytics.ts's `/t/pdp`, for the same reason (navigator.sendBeacon/fetch
+// can't carry Supabase's required apikey header directly). The endpoint path
+// and DB/table names kept their original "pdp" naming rather than a rename
+// across both repos for a scope change with no functional stake in the name.
 //
-// Masking (`rr-block`/`rr-mask` classes) lives at each risky element
-// itself, not here — src/wcm/App.tsx's site header (real account
-// name/email, on-screen for every PDP view even though it isn't part of
-// ProductDetail), src/wcm/products.tsx's wishlist/cart state, and
-// src/wcm/products-card-components.tsx's related-product cards. This
-// module only wires rrweb's `record()` to those class names.
+// Masking (`rr-block`/`rr-mask` classes) lives at each risky element itself,
+// not here: src/wcm/App.tsx's site header (real account name/email, on
+// screen for every route), src/wcm/products.tsx's wishlist/cart state,
+// src/wcm/products-card-components.tsx's related-product cards,
+// src/wcm/cart.tsx's checkout review step (name/address/phone) and saved-
+// address quick-fill, src/wcm/orders.tsx's delivery-address card and rider
+// card, and src/routes/account.tsx's email display. This module only wires
+// rrweb's `record()` to those class names — it doesn't know what's masked.
 //
-// A session's recording spans the whole visit, not one row per product —
+// A session's recording spans the whole visit, not one row per page —
 // session_recordings.session_id is the primary key (shared with
 // pdpAnalytics.ts's session so a recording cross-references its structured
-// dwell events), and navigating from one PDP to another within the same
-// session is just a DOM mutation to rrweb, not a reason to stop/restart
-// recording. `product_id` on each uploaded chunk reflects whichever
-// product was current at that moment; the metadata row's `product_id`
-// following it is an accepted simplification for the common
-// one-product-per-session case.
+// PDP dwell events), and navigating anywhere in the app is just a DOM
+// mutation to rrweb, not a reason to stop/restart recording. `product_id` on
+// each uploaded chunk reflects whichever product page (if any) was current
+// at that moment — see setActivePdpProduct below — and is omitted (not
+// overwritten to null) on chunks captured while off a product page, so the
+// metadata row keeps the last-known product as its attribution.
 // ---------------------------------------------------------------------------
 
 const RECORDING_URL = "/t/pdp-recording";
 
-// Single source of truth for what fraction of PDP sessions get fully
-// recorded. Set to 1.0 (100%) at the user's explicit request while actively
-// testing this feature — dial this back down once it's trusted, since
-// storage/write volume is unbounded at 100% for real production traffic.
+// Single source of truth for what fraction of sessions get fully recorded.
+// Set to 1.0 (100%) at the user's explicit request while actively testing
+// this feature — dial this back down once it's trusted, since storage/write
+// volume is unbounded at 100% for real production traffic, now across every
+// page rather than just PDPs.
 const PDP_RECORDING_SAMPLE_RATE = 1;
+
+// Updated by ProductDetail's mount/update/cleanup effect (see products.tsx)
+// to whichever product is currently on screen, or null when off a product
+// page — read at flush time below, not passed into the hook, since the
+// recorder itself is mounted once at the app root and outlives any single
+// product page.
+let currentPdpProductId: string | null = null;
+export function setActivePdpProduct(productId: string | null) {
+  currentPdpProductId = productId;
+}
 
 const SAMPLE_DECISION_KEY = "wcm_pdp_recording_sample";
 // Fallback flush cadence even without an rrweb checkout boundary, so an
@@ -88,7 +105,7 @@ function isSampledIn(sessionId: string): boolean {
 // chance" flush sets it — everything else uses a normal fetch.
 async function uploadChunk(
   sessionId: string,
-  productId: string,
+  productId: string | null,
   chunkIndex: number,
   events: eventWithTime[],
   approxTotalSize: number,
@@ -100,7 +117,10 @@ async function uploadChunk(
       method: "POST",
       body: JSON.stringify({
         session_id: sessionId,
-        product_id: productId,
+        // Omitted (not sent as null) when off a product page, so the
+        // middleware's upsert leaves the metadata row's last-known
+        // product_id alone instead of clobbering it — see the file header.
+        ...(productId ? { product_id: productId } : {}),
         chunk_index: chunkIndex,
         approx_size: approxTotalSize,
         events,
@@ -113,14 +133,11 @@ async function uploadChunk(
   }
 }
 
-// Call once from ProductDetail's mount effect (mirrors
-// usePdpAnalyticsSession — same PDP-only scoping, so recording structurally
-// cannot start from anywhere else). No-ops entirely for sessions that
-// didn't sample in — @rrweb/record is never even imported for them.
-export function usePdpRecording(productId: string) {
-  const productIdRef = useRef(productId);
-  productIdRef.current = productId;
-
+// Call once from the app root (see src/wcm/App.tsx) — recording now spans
+// the whole visit, not just PDPs, so it starts as soon as any page mounts.
+// No-ops entirely for sessions that didn't sample in — @rrweb/record is
+// never even imported for them.
+export function useSiteRecording() {
   useEffect(() => {
     const session = getOrCreatePdpSession();
     if (!isSampledIn(session.id)) return;
@@ -146,7 +163,7 @@ export function usePdpRecording(productId: string) {
       const thisChunk = chunkIndex;
       chunkIndex += 1;
       totalSize += JSON.stringify(toSend).length;
-      void uploadChunk(session.id, productIdRef.current, thisChunk, toSend, totalSize, isFinal);
+      void uploadChunk(session.id, currentPdpProductId, thisChunk, toSend, totalSize, isFinal);
     };
 
     // rrweb emits a small Meta event first, then the initial FullSnapshot
@@ -237,8 +254,9 @@ export function usePdpRecording(productId: string) {
       // alive, not being torn down — no keepalive needed here.
       flush(false);
     };
-    // Deliberately empty — recording spans the whole session (however many
-    // products get visited), not restarted per product; productIdRef keeps
-    // uploaded chunks attributed to whichever product is current.
+    // Deliberately empty — mounted once at the app root for the life of the
+    // tab, not restarted per route; currentPdpProductId (module-level, set
+    // by ProductDetail) keeps uploaded chunks attributed to whichever
+    // product page is current, if any.
   }, []);
 }

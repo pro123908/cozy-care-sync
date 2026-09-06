@@ -994,7 +994,7 @@ export function OrderDetail({
                     )}
                     {current && order.rider && (
                       <div
-                        className="wcm-track-inset-box"
+                        className="wcm-track-inset-box rr-block"
                         style={{
                           marginTop: 10,
                           padding: "10px 12px",
@@ -1136,7 +1136,7 @@ export function OrderDetail({
             >
               Delivery address
             </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <div className="rr-block" style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
               <div
                 style={{
                   width: 32,

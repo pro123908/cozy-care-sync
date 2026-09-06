@@ -124,7 +124,9 @@ function AccountPage() {
 
       <div>
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.3 }}>Account settings</div>
-        <div style={{ fontSize: 13, color: "var(--ink-4)", marginTop: 4 }}>{user.email}</div>
+        <div className="rr-mask" style={{ fontSize: 13, color: "var(--ink-4)", marginTop: 4 }}>
+          {user.email}
+        </div>
       </div>
 
       {/* Profile info */}
@@ -217,7 +219,7 @@ function AccountPage() {
       >
         <div style={{ fontSize: 15, fontWeight: 700 }}>Password</div>
         <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
-          We'll send a password reset link to <strong>{user.email}</strong>.
+          We'll send a password reset link to <strong className="rr-mask">{user.email}</strong>.
         </div>
         {resetSent ? (
           <div

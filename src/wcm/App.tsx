@@ -16,6 +16,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
+import { useSiteRecording } from "@/lib/pdpRecording";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
@@ -73,6 +74,11 @@ function AppLayout() {
     trackMetaEvent("PageView");
     gaEvent("page_view", { page_path: pathname, page_location: window.location.href });
   }, [pathname]);
+
+  // Site-wide session replay (Part 2) — mounted once here at the true app
+  // root so it spans the whole visit (any page, until the tab closes), not
+  // just PDPs. No-ops for sessions that don't sample in.
+  useSiteRecording();
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
     setCartOpen(false);
