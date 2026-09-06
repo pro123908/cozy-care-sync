@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { EventType, type eventWithTime } from "@rrweb/types";
-import { getOrCreatePdpSession, trackPdpEvent } from "./pdpAnalytics";
+import { getOrCreatePdpSession } from "./pdpAnalytics";
 
 // ---------------------------------------------------------------------------
 // Self-hosted session replay — Part 2 of the structured-events + session-
@@ -59,18 +59,31 @@ export function setActivePdpProduct(productId: string | null) {
 // Temporary diagnostic: two separate real mobile visits with substantial
 // Part 1 (dwell/event) activity produced zero session_recordings rows even
 // after the keepalive fix and the parallel-import startup fix, and two
-// separate synthetic reproductions (fast network, then 4x-CPU-throttled
-// slow-3G) both succeeded — meaning the failure mode on a real device isn't
-// reproducing synthetically. Piggybacked on trackPdpEvent (Part 1's already
-// production-proven pipeline, including its pagehide finalizer) rather than
-// the recording upload path itself, since that path is exactly what's
-// failing to arrive. Only logs when a product page is current, since both
-// real failures were on PDPs — remove once root-caused, see PdpEventType.
+// synthetic reproductions (fast network, then 4x-CPU-throttled slow-3G)
+// both succeeded — the failure mode on a real device isn't reproducing
+// off-device. A first attempt piggybacked this on trackPdpEvent (Part 1's
+// pipeline), gated on a non-null product id — but a follow-up production
+// repro proved the recorder frequently completes its ENTIRE startup
+// sequence (idle fired -> import resolved -> record() called -> first
+// snapshot flushed) before ProductDetail has attached the current product,
+// so that gate was silently swallowing exactly the early checkpoints that
+// mattered most. This sends straight to recording_debug_log (no product
+// FK, see 20260907050000_recording_debug_log.sql) instead, unconditionally,
+// with keepalive always on since each ping is a tiny fixed-size payload —
+// nowhere near the 64KB shared cap that ruled out keepalive for full chunks
+// above. Remove this whole function (and its call sites) once root-caused.
 function debugLog(stage: string, extra: Record<string, unknown> = {}) {
-  if (currentPdpProductId) {
-    trackPdpEvent("recording_debug", currentPdpProductId, { stage, ...extra });
+  try {
+    void fetch(RECORDING_URL, {
+      method: "POST",
+      body: JSON.stringify({ debug_stage: stage, session_id: debugSessionId, ...extra }),
+      keepalive: true,
+    });
+  } catch {
+    // best-effort, same posture as everything else in this file
   }
 }
+let debugSessionId: string | null = null;
 
 const SAMPLE_DECISION_KEY = "wcm_pdp_recording_sample";
 // Fallback flush cadence even without an rrweb checkout boundary, so an
@@ -157,9 +170,11 @@ export function useSiteRecording() {
   useEffect(() => {
     const session = getOrCreatePdpSession();
     if (!isSampledIn(session.id)) return;
+    debugSessionId = session.id;
 
     const mountedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - mountedAt);
+    debugLog("effect_mounted", { elapsed_ms: 0 });
 
     let stopped = false;
     let stopFn: (() => void) | undefined;

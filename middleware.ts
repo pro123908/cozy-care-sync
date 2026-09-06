@@ -173,17 +173,36 @@ async function proxyPdpRecording(request: Request): Promise<Response> {
       chunk_index?: number;
       approx_size?: number;
       events?: unknown[];
+      debug_stage?: string;
+      elapsed_ms?: number;
     };
-    const { session_id, product_id, chunk_index, approx_size, events } = body;
-    if (!session_id || typeof chunk_index !== "number" || !Array.isArray(events) || events.length === 0) {
-      return new Response(null, { status: 204 });
-    }
 
     const headers = {
       apikey: SUPABASE_SECRET_KEY,
       Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
       "Content-Type": "application/json",
     };
+
+    // Temporary diagnostic branch — see pdpRecording.ts's debugLog() and
+    // 20260907050000_recording_debug_log.sql. Remove both together once the
+    // recording-never-starts bug is root-caused.
+    if (body.debug_stage) {
+      await fetch(`${SUPABASE_URL}/rest/v1/recording_debug_log`, {
+        method: "POST",
+        headers: { ...headers, Prefer: "return=minimal" },
+        body: JSON.stringify({
+          session_id: body.session_id ?? null,
+          stage: body.debug_stage,
+          elapsed_ms: typeof body.elapsed_ms === "number" ? body.elapsed_ms : null,
+        }),
+      });
+      return new Response(null, { status: 204 });
+    }
+
+    const { session_id, product_id, chunk_index, approx_size, events } = body;
+    if (!session_id || typeof chunk_index !== "number" || !Array.isArray(events) || events.length === 0) {
+      return new Response(null, { status: 204 });
+    }
 
     await fetch(
       `${SUPABASE_URL}/storage/v1/object/session-recordings/${encodeURIComponent(session_id)}/${chunk_index}.json`,
