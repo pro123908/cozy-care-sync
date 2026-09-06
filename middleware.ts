@@ -94,6 +94,18 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
       "Content-Type": "application/json",
     };
 
+    // Read directly off the incoming request — this is the visitor's own
+    // first hop onto Vercel's edge network, so these headers carry their
+    // real IP/geo already resolved, no external lookup needed (unlike
+    // supabase/functions/_shared/geo.ts's ip-api.com call, which only
+    // exists because Supabase Edge Functions never see these headers).
+    // Not the same "IP gets lost" problem proxyGaCollect has below — that's
+    // about a fresh *outbound* fetch to Google losing the original caller;
+    // here we're reading the *inbound* request's own headers before doing
+    // anything else with it.
+    const ipAddress = (request.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || null;
+    const geoCity = request.headers.get("x-vercel-ip-city");
+
     await fetch(`${SUPABASE_URL}/rest/v1/analytics_sessions?on_conflict=session_id`, {
       method: "POST",
       headers: { ...headers, Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -103,6 +115,10 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
         user_agent: session.user_agent ?? null,
         device_type: session.device_type ?? null,
         last_seen: session.last_seen ?? new Date().toISOString(),
+        ip_address: ipAddress,
+        geo_city: geoCity ? decodeURIComponent(geoCity) : null,
+        geo_region: request.headers.get("x-vercel-ip-country-region"),
+        geo_country: request.headers.get("x-vercel-ip-country"),
       }),
     });
 

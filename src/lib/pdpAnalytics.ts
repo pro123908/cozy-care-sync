@@ -77,6 +77,22 @@ function getDeviceType(): "mobile" | "desktop" {
 
 let queue: QueuedEvent[] = [];
 
+// Each mounted usePdpSectionDwell instance registers its own `stop` here so
+// a hard page-close/navigation can force every in-progress dwell timer to
+// finalize (turn its elapsed time into a queued event) before the final
+// flush — otherwise that timer's own React-effect cleanup, which normally
+// does this on unmount, never gets a chance to run at all: pagehide/tab-
+// close tears down the page without React ever unmounting the component
+// first. Without this, a visitor who closes the tab (or hard-navigates
+// away) mid-dwell — the single most common way a real visit actually ends —
+// loses that entire visit's data, since nothing was ever explicitly queued
+// for it to flush (not even the session row).
+const activeDwellFinalizers = new Set<() => void>();
+
+function finalizeAllDwells() {
+  for (const finalize of activeDwellFinalizers) finalize();
+}
+
 export function trackPdpEvent(
   event_type: PdpEventType,
   product_id: string,
@@ -129,15 +145,22 @@ export function usePdpAnalyticsSession() {
     getOrCreatePdpSession();
     const interval = window.setInterval(() => flush(false), FLUSH_INTERVAL_MS);
     const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flush(true);
+      if (document.visibilityState === "hidden") {
+        finalizeAllDwells();
+        flush(true);
+      }
     };
-    const onPageHide = () => flush(true);
+    const onPageHide = () => {
+      finalizeAllDwells();
+      flush(true);
+    };
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
     return () => {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", onPageHide);
+      finalizeAllDwells();
       flush(true);
     };
   }, []);
@@ -206,6 +229,7 @@ export function usePdpSectionDwell<T extends HTMLElement>(
       { threshold: 0.5 },
     );
     observer.observe(el);
+    activeDwellFinalizers.add(stop);
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
@@ -218,6 +242,7 @@ export function usePdpSectionDwell<T extends HTMLElement>(
 
     return () => {
       stop();
+      activeDwellFinalizers.delete(stop);
       observer.disconnect();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
