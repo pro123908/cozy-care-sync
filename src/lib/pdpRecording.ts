@@ -164,9 +164,21 @@ export function usePdpRecording(productId: string) {
     // session.
     let hasFlushedInitialSnapshot = false;
 
+    // Kick the module fetch off immediately, in parallel with the idle wait
+    // below — a background network fetch/parse costs nothing towards LCP,
+    // unlike the actual record() call (DOM mutation observers, etc.), which
+    // still waits for idle. Importing only after idle fired (the original
+    // approach) serialized "wait up to 4s" + "then fetch the chunk," which on
+    // a real mobile connection could easily outlast a short visit entirely —
+    // confirmed as the likely cause of a real visit with substantial Part 1
+    // (dwell/event) activity producing zero Part 2 recording: Part 1 has no
+    // such startup gate, so it captured the visit while Part 2's recorder
+    // never got past waiting to start.
+    const recordModulePromise = import("@rrweb/record");
+
     const startRecording = async () => {
       if (stopped) return;
-      const { record } = await import("@rrweb/record");
+      const { record } = await recordModulePromise;
       if (stopped) return;
       stopFn = record({
         emit(event, isCheckout) {
