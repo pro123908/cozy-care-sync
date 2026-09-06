@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { eventWithTime } from "@rrweb/types";
+import { EventType, type eventWithTime } from "@rrweb/types";
 import { getOrCreatePdpSession } from "./pdpAnalytics";
 
 // ---------------------------------------------------------------------------
@@ -34,10 +34,10 @@ import { getOrCreatePdpSession } from "./pdpAnalytics";
 const RECORDING_URL = "/t/pdp-recording";
 
 // Single source of truth for what fraction of PDP sessions get fully
-// recorded — deliberately conservative, since storage/write volume is
-// unbounded at 100%. Only raise this, or record outside the PDP, if
-// explicitly asked for.
-const PDP_RECORDING_SAMPLE_RATE = 0.15;
+// recorded. Set to 1.0 (100%) at the user's explicit request while actively
+// testing this feature — dial this back down once it's trusted, since
+// storage/write volume is unbounded at 100% for real production traffic.
+const PDP_RECORDING_SAMPLE_RATE = 1;
 
 const SAMPLE_DECISION_KEY = "wcm_pdp_recording_sample";
 // Fallback flush cadence even without an rrweb checkout boundary, so an
@@ -74,12 +74,25 @@ function isSampledIn(sessionId: string): boolean {
   return sampledIn;
 }
 
+// `keepalive: true` is NOT a "handles bigger payloads than sendBeacon"
+// option — confirmed against the actual Fetch/Chromium behavior: every
+// keepalive request (regardless of API) shares a single 64KB budget across
+// ALL in-flight keepalive requests combined, the identical cap
+// navigator.sendBeacon has. Found this the hard way: setting it
+// unconditionally on every chunk silently dropped the initial full-snapshot
+// chunk (~150-200KB) in real production recordings, along with a few
+// periodic re-checkout chunks — the replayer had no base DOM to render,
+// producing a blank white player for the entire session. keepalive is only
+// needed to survive an actual page teardown; during normal page life a
+// plain fetch has no such cap. So: only the pagehide/tab-hidden "last
+// chance" flush sets it — everything else uses a normal fetch.
 async function uploadChunk(
   sessionId: string,
   productId: string,
   chunkIndex: number,
   events: eventWithTime[],
   approxTotalSize: number,
+  useKeepalive: boolean,
 ) {
   if (events.length === 0) return;
   try {
@@ -92,7 +105,7 @@ async function uploadChunk(
         approx_size: approxTotalSize,
         events,
       }),
-      keepalive: true,
+      keepalive: useKeepalive,
     });
   } catch {
     // Best-effort, same posture as pdpAnalytics.ts — losing a chunk isn't
@@ -126,15 +139,30 @@ export function usePdpRecording(productId: string) {
     let fallbackTimer: number | undefined;
     let startTimer: number | undefined;
 
-    const flush = () => {
+    const flush = (isFinal = false) => {
       if (buffer.length === 0) return;
       const toSend = buffer;
       buffer = [];
       const thisChunk = chunkIndex;
       chunkIndex += 1;
       totalSize += JSON.stringify(toSend).length;
-      void uploadChunk(session.id, productIdRef.current, thisChunk, toSend, totalSize);
+      void uploadChunk(session.id, productIdRef.current, thisChunk, toSend, totalSize, isFinal);
     };
+
+    // rrweb emits a small Meta event first, then the initial FullSnapshot
+    // (type 2) — confirmed empirically: a naive "flush after the very first
+    // event" only caught the tiny Meta event, leaving the actual (large,
+    // ~150-200KB+ observed in real sessions) snapshot sitting buffered.
+    // Neither of these sets isCheckout (that flag means "this is a
+    // *re*-checkout", not "this is the first one"). The FullSnapshot needs
+    // to leave via a normal, unrestricted fetch as soon as it arrives — not
+    // sit buffered until whatever flush trigger happens next, which for a
+    // short (very common) visit is often the pagehide-triggered *final*
+    // flush, where keepalive's 64KB cap silently drops it. Without this,
+    // real recordings ended up with no bootstrap snapshot at all — replayer
+    // had nothing to render, just a blank white player for the whole
+    // session.
+    let hasFlushedInitialSnapshot = false;
 
     const startRecording = async () => {
       if (stopped) return;
@@ -142,8 +170,14 @@ export function usePdpRecording(productId: string) {
       if (stopped) return;
       stopFn = record({
         emit(event, isCheckout) {
-          buffer.push(event as eventWithTime);
-          if (isCheckout) flush();
+          const typedEvent = event as eventWithTime;
+          buffer.push(typedEvent);
+          if (isCheckout) {
+            flush();
+          } else if (!hasFlushedInitialSnapshot && typedEvent.type === EventType.FullSnapshot) {
+            hasFlushedInitialSnapshot = true;
+            flush();
+          }
         },
         checkoutEveryNms: CHECKOUT_INTERVAL_MS,
         blockClass: "rr-block",
@@ -171,9 +205,9 @@ export function usePdpRecording(productId: string) {
     // production — see pdpAnalytics.ts's pagehide fix) would lose its
     // entire in-progress recording buffer, uploading nothing at all.
     const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") flush();
+      if (document.visibilityState === "hidden") flush(true);
     };
-    const onPageHide = () => flush();
+    const onPageHide = () => flush(true);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("pagehide", onPageHide);
 
@@ -187,7 +221,9 @@ export function usePdpRecording(productId: string) {
       }
       if (fallbackTimer != null) window.clearInterval(fallbackTimer);
       stopFn?.();
-      flush();
+      // A React unmount (in-app navigation) means the page is still fully
+      // alive, not being torn down — no keepalive needed here.
+      flush(false);
     };
     // Deliberately empty — recording spans the whole session (however many
     // products get visited), not restarted per product; productIdRef keeps
