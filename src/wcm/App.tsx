@@ -16,7 +16,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
-import { useSiteRecording } from "@/lib/pdpRecording";
+import { useSiteRecording } from "@/lib/pdpRecordingState";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));

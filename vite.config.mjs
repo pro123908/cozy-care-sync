@@ -139,6 +139,18 @@ export default defineConfig({
             return "vendor-forms";
           }
 
+          // Only ever reached via pdpRecording.ts's dynamic import("@rrweb/record")
+          // — kept out of vendor-misc specifically so it doesn't get pulled into
+          // that chunk's eager load path. Folding it into "vendor-misc" (the
+          // catch-all below) previously meant the whole ~285KB chunk, rrweb
+          // included, loaded on every page for every visitor regardless of
+          // sampling, since vendor-misc is also needed eagerly by the main
+          // bundle for unrelated small deps — silently defeating the "never
+          // even imported for sessions that didn't sample in" design.
+          if (id.includes("rrweb")) {
+            return "vendor-rrweb";
+          }
+
           return "vendor-misc";
         },
       },

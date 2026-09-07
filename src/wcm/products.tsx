@@ -17,7 +17,7 @@ import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
-import { setActivePdpProduct } from "@/lib/pdpRecording";
+import { setActivePdpProduct } from "@/lib/pdpRecordingState";
 import {
   CategoryRail,
   DealsRail,
