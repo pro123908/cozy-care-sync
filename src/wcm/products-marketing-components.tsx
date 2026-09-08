@@ -364,7 +364,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
                   key={`${b.imageUrl}-${i}`}
                   className="wcm-hero-image"
                   src={b.imageUrl!}
-                  mobileSrc={i === 0 ? undefined : b.mobileImageUrl}
+                  mobileSrc={i === 0 ? "/hero-banner-mobile.webp" : b.mobileImageUrl}
                   alt={b.imageAlt || `Homepage banner ${i + 1}`}
                   fetchPriority={i === 0 ? "high" : "auto"}
                   style={{
@@ -382,7 +382,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
             className="wcm-hero-image"
             key={`hero-slide-${slideTick}-${active}`}
             src={banner.imageUrl!}
-            mobileSrc={active === 0 ? undefined : banner.mobileImageUrl}
+            mobileSrc={active === 0 ? "/hero-banner-mobile.webp" : banner.mobileImageUrl}
             alt={banner.imageAlt || "Homepage banner"}
             fetchPriority={active === 0 ? "high" : "auto"}
             style={{
