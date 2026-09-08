@@ -363,7 +363,6 @@ function Header({
       text: isMobile ? "Delivered in 3–5 working days" : "Orders delivered within 3 to 5 working days",
       chip: "SHIP",
     },
-    { icon: "🏷", text: "Flat 20% off on all items", chip: "SALE" },
   ];
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => { if (cartOpen || authOpen) setMenuOpen(false); }, [cartOpen, authOpen]);
