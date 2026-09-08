@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Keeps the #root SEO fallback below (see the comment at the top of <body>)
+         out of the initial paint on slow connections, without removing it from the
+         HTML source — plain-text/non-CSS clients (most crawlers) still get the full
+         text; a client that executes CSS just never sees it flash before React's
+         createRoot().render() fully replaces #root's children with the real app. -->
+    <style>
+      #root .wcm-seo-fallback {
+        visibility: hidden;
+      }
+    </style>
     <title>Wellcare Mart — Medical Supplies & Equipment</title>
     <meta
       name="description"
@@ -33,12 +43,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-    <!-- Preloads the actual slot-0 hero images (see GRAND_OPENING_DESKTOP_OVERRIDE /
-         GRAND_OPENING_MOBILE_OVERRIDE in products-marketing-components.tsx) so the
-         LCP image starts fetching from the initial HTML instead of waiting on the
-         Supabase banner fetch + JS render. Revert alongside those together. -->
-    <link rel="preload" href="/azadi-banner.webp" as="image" type="image/webp" fetchpriority="high" media="(min-width: 769px)" />
-    <link rel="preload" href="/azadi-banner-mobile.webp" as="image" type="image/webp" fetchpriority="high" media="(max-width: 768px)" />
+    <link rel="preload" href="/hero-banner.webp" as="image" type="image/webp" fetchpriority="high" />
     <link rel="preconnect" href="https://dkspvlpswpipltceptoa.supabase.co" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -84,11 +89,12 @@
       browser-like headers to test for cloaking. React's createRoot().render()
       call in main.tsx replaces all of #root's children the instant it mounts
       (this is a plain client render, not hydrateRoot, so there's no
-      hydration-mismatch risk) — real users never perceive this content, it's
-      overwritten before first paint in practice.
+      hydration-mismatch risk). The .wcm-seo-fallback rule in <head> keeps it
+      invisible to real users on a slow connection (still present in the raw
+      HTML for text-only clients) until that replacement happens.
     -->
     <div id="root">
-      <main>
+      <main class="wcm-seo-fallback">
         <h1>Wellcare Mart — Medical Supplies &amp; Equipment</h1>
         <p>
           Wellcare Mart is Pakistan's trusted online store for home healthcare products, medical equipment, and
