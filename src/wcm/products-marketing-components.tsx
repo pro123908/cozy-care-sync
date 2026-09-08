@@ -213,6 +213,33 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
     setActive((current) => (current + 1) % banners.length);
   };
 
+  // Swipe-to-change on touch devices. Only decided on touch end (not
+  // touch move) so a normal vertical page scroll started on the banner is
+  // never hijacked — the gesture is classified as a swipe only once it's
+  // over, by comparing net horizontal vs. vertical travel.
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE_THRESHOLD_PX = 40;
+
+  const handleHeroTouchStart = (e: React.TouchEvent) => {
+    setIsHovered(true);
+    const touch = e.touches[0];
+    touchStartRef.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  };
+
+  const handleHeroTouchEnd = (e: React.TouchEvent) => {
+    setIsHovered(false);
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start || banners.length < 2) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    if (deltaX < 0) goToNextBanner();
+    else goToPreviousBanner();
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -324,9 +351,12 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
       onMouseLeave={() => setIsHovered(false)}
       onFocus={() => setIsHovered(true)}
       onBlur={() => setIsHovered(false)}
-      onTouchStart={() => setIsHovered(true)}
-      onTouchEnd={() => setIsHovered(false)}
-      onTouchCancel={() => setIsHovered(false)}
+      onTouchStart={handleHeroTouchStart}
+      onTouchEnd={handleHeroTouchEnd}
+      onTouchCancel={() => {
+        touchStartRef.current = null;
+        setIsHovered(false);
+      }}
       style={{
         position: "relative",
         overflow: "hidden",
