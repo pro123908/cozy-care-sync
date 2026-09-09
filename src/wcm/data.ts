@@ -54,6 +54,7 @@ export type ProductSizeOption = {
 export type ProductVariantOption = {
   name: string;
   price: number;
+  image_url?: string | null;
 };
 
 export type Category = {
@@ -121,21 +122,22 @@ export function normalizeVariantOptions(
     const key = name.toLowerCase();
     if (!name || !Number.isFinite(price) || price < 0 || seen.has(key)) continue;
     seen.add(key);
-    normalized.push({ name, price: Math.round(price) });
+    normalized.push({ name, price: Math.round(price), image_url: typeof option?.image_url === "string" ? option.image_url : null });
   }
 
   return normalized;
 }
 
-export function getSelectableOptions(product: Product): Array<{ label: string; price: number }> {
+export function getSelectableOptions(product: Product): Array<{ label: string; price: number; imageUrl: string | null }> {
   const variantOptions = normalizeVariantOptions(product.variant_options);
   if (variantOptions.length > 0) {
-    return variantOptions.map((option) => ({ label: option.name, price: option.price }));
+    return variantOptions.map((option) => ({ label: option.name, price: option.price, imageUrl: option.image_url ?? null }));
   }
 
   return normalizeSizeOptions(product.size_options).map((option) => ({
     label: option.size,
     price: option.price,
+    imageUrl: null,
   }));
 }
 

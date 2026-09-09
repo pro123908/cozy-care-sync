@@ -1123,6 +1123,14 @@ export function ProductDetail({
   const variantKey =
     [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
   const resolvedUnitPrice = getUnitPrice(product, selectedSize || undefined);
+  // A variant like "Male"/"Female" can carry its own box photo — swap the
+  // gallery's main shot to it once selected, so the buyer sees the box
+  // they're actually about to order instead of whichever variant happened
+  // to be uploaded as the product's default image_url.
+  const selectedOption = selectableOptions.find(
+    (option) => option.label.toLowerCase() === (selectedSize || "").toLowerCase(),
+  );
+  const variantImageUrl = selectedOption?.imageUrl ?? null;
 
   // Track this product as recently viewed
   useEffect(() => {
@@ -1199,7 +1207,7 @@ export function ProductDetail({
     return [...sameBrand, ...sameCat].slice(0, 8);
   })();
   const detailMedia = useMemo(() => {
-    const primary = product.image_url ? [product.image_url] : [];
+    const primary = variantImageUrl ? [variantImageUrl] : product.image_url ? [product.image_url] : [];
     const extra = Array.isArray(product.gallery_images) ? product.gallery_images : [];
     const images = Array.from(new Set([...primary, ...extra].filter((src): src is string => Boolean(src))));
     const videos = Array.isArray(product.gallery_videos)
@@ -1215,7 +1223,13 @@ export function ProductDetail({
       ...videos.map((src) => ({ type: "video" as const, src })),
       ...restImages.map((src) => ({ type: "image" as const, src })),
     ];
-  }, [product]);
+  }, [product, variantImageUrl]);
+  // Jump back to the (now variant-specific) hero shot on every selection
+  // change, rather than leaving activeView pointed at whatever gallery index
+  // the buyer happened to be looking at.
+  useEffect(() => {
+    setActiveView(0);
+  }, [variantImageUrl]);
   const hasMultipleImages = detailMedia.length > 1;
   const activeMedia = detailMedia[activeView] ?? detailMedia[0] ?? null;
   const thumbIndexes = detailMedia.map((_, i) => i);
