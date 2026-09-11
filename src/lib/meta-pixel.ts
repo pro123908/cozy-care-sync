@@ -23,32 +23,37 @@ function buildFbc(fbclid: string): string {
 function initMetaBrowserIds(): void {
   if (typeof window === "undefined") return;
   try {
-    // Capture fbclid from URL (present when user arrives via a Meta ad)
+    // Capture fbclid from URL (present when user arrives via a Meta ad).
+    // Always overwrite on a fresh fbclid so a later ad click gets credit
+    // over a stale one from a much earlier visit.
     const params = new URLSearchParams(window.location.search);
     const fbclid = params.get("fbclid") || "";
     if (fbclid) {
-      sessionStorage.setItem(FBC_STORAGE_KEY, buildFbc(fbclid));
+      localStorage.setItem(FBC_STORAGE_KEY, buildFbc(fbclid));
     }
     // Fall back to existing _fbc cookie (set by pixel on previous visits)
-    if (!sessionStorage.getItem(FBC_STORAGE_KEY)) {
+    if (!localStorage.getItem(FBC_STORAGE_KEY)) {
       const cookieFbc = getCookie("_fbc");
-      if (cookieFbc) sessionStorage.setItem(FBC_STORAGE_KEY, cookieFbc);
+      if (cookieFbc) localStorage.setItem(FBC_STORAGE_KEY, cookieFbc);
     }
     // Capture _fbp cookie (browser-level identifier set by Meta pixel)
-    if (!sessionStorage.getItem(FBP_STORAGE_KEY)) {
+    if (!localStorage.getItem(FBP_STORAGE_KEY)) {
       const cookieFbp = getCookie("_fbp");
-      if (cookieFbp) sessionStorage.setItem(FBP_STORAGE_KEY, cookieFbp);
+      if (cookieFbp) localStorage.setItem(FBP_STORAGE_KEY, cookieFbp);
     }
   } catch {
     // storage unavailable — silently skip
   }
 }
 
+// Purchases routinely happen in a later browser session than the ad click
+// (server-side CAPI fires at order completion, not at click time), so fbc/fbp
+// must survive a tab close — sessionStorage does not, localStorage does.
 export function getMetaBrowserIds(): { fbc?: string; fbp?: string } {
   if (typeof window === "undefined") return {};
   try {
-    const fbc = sessionStorage.getItem(FBC_STORAGE_KEY) || undefined;
-    const fbp = sessionStorage.getItem(FBP_STORAGE_KEY) || undefined;
+    const fbc = localStorage.getItem(FBC_STORAGE_KEY) || undefined;
+    const fbp = localStorage.getItem(FBP_STORAGE_KEY) || undefined;
     return { fbc, fbp };
   } catch {
     return {};
