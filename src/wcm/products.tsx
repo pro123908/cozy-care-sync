@@ -801,13 +801,34 @@ const qtyBtn: React.CSSProperties = {
 // shared `Stars` component (single icon + decimal, e.g. "★ 4.5") is built
 // for a computed average and reads oddly applied to one review's whole-
 // number score (a customer didn't give "5.0 stars", they gave 5).
-function ReviewStars({ rating, size = 13 }: { rating: number; size?: number }) {
+// Inline SVG (not a text glyph) so it scales/recolors cleanly — same star
+// path used across the testimonial card redesign's design canvas options.
+const STAR_PATH = "M10 1.5l2.6 5.5 6 .7-4.4 4.2 1.1 6L10 14.9 4.7 17.9l1.1-6L1.4 7.7l6-.7L10 1.5z";
+
+// `inView` (true once the card has scrolled into view — see
+// TestimonialsSection's IntersectionObserver) triggers a one-time staggered
+// pop-in per star via the .wcm-star-pop rules injected below. Guarded by a
+// prefers-reduced-motion media query in that same CSS block, not here — the
+// base (pre-animation) state has to come from CSS, not a JS check, so stars
+// aren't invisible for a render or two before the check resolves.
+function ReviewStars({ rating, size = 11, inView = true }: { rating: number; size?: number; inView?: boolean }) {
   const r = Math.max(0, Math.min(5, Math.round(rating)));
   return (
-    <span style={{ color: "#f59e0b", fontSize: size, letterSpacing: 1 }} aria-label={`${r} out of 5 stars`}>
-      {"★".repeat(r)}
-      <span style={{ color: "var(--line)" }}>{"★".repeat(5 - r)}</span>
-    </span>
+    <div style={{ display: "flex", gap: 2, flexShrink: 0 }} aria-label={`${r} out of 5 stars`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <svg
+          key={i}
+          className={`wcm-star-pop${inView ? " wcm-star-in" : ""}`}
+          style={{ animationDelay: `${i * 60}ms` }}
+          width={size}
+          height={size}
+          viewBox="0 0 20 20"
+          fill={i < r ? "#f59e0b" : "var(--line)"}
+        >
+          <path d={STAR_PATH} />
+        </svg>
+      ))}
+    </div>
   );
 }
 
@@ -815,11 +836,37 @@ function testimonialAccent(source: string): string {
   return source === "facebook" ? "#1877f2" : source === "daraz" ? "#f85a02" : "var(--ink-4)";
 }
 
-// Initials avatar — these are curated from screenshots, not a real profile
-// photo we're allowed to host, so a plain neutral initial stands in instead
-// of faking one. Kept source-neutral (not tinted per platform) — the left
-// border stripe is the only per-source color accent on the card now.
-function ReviewerAvatar({ name, size = 38 }: { name: string; size?: number }) {
+// Small chevron-in-corner icon for the "View" link — see ArrowIcon usage
+// below.
+function ArrowIcon({ color, size = 9 }: { color: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 12 12" fill="none">
+      <path d="M3 9L9 3M9 3H4M9 3V8" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Initials avatar, tinted per source (facebook blue / daraz orange) — these
+// are curated from screenshots, not a real profile photo we're allowed to
+// host, so a plain colored initial stands in instead of faking one.
+// `ringGap`, when given, marks a review as being of the product actually
+// being viewed (see TestimonialsSection's productId) with a double
+// box-shadow ring rather than a border, so it doesn't shift the avatar's
+// box size or nudge neighboring layout. It's passed the card's own
+// background (not a hardcoded "var(--card)") so the gap between the avatar
+// and the ring reads as a cutout, not a mismatched halo, against the
+// tinted card.
+function ReviewerAvatar({
+  name,
+  accent,
+  size = 38,
+  ringGap,
+}: {
+  name: string;
+  accent: string;
+  size?: number;
+  ringGap?: string;
+}) {
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   return (
     <div
@@ -827,9 +874,8 @@ function ReviewerAvatar({ name, size = 38 }: { name: string; size?: number }) {
         width: size,
         height: size,
         borderRadius: "50%",
-        background: "var(--bg-elev)",
-        border: "1.5px solid var(--line)",
-        color: "var(--ink-3)",
+        background: accent,
+        color: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -837,6 +883,7 @@ function ReviewerAvatar({ name, size = 38 }: { name: string; size?: number }) {
         fontSize: size * 0.42,
         flexShrink: 0,
         boxSizing: "border-box",
+        boxShadow: ringGap ? `0 0 0 2px ${ringGap}, 0 0 0 4px ${accent}` : "none",
       }}
     >
       {initial}
@@ -846,8 +893,19 @@ function ReviewerAvatar({ name, size = 38 }: { name: string; size?: number }) {
 
 // display_order first (nulls last), then review_date/created_at, newest
 // first — same fallback chain the admin app's spec calls for.
-function sortTestimonials(items: Testimonial[]): Testimonial[] {
+// `productId`, when given, pulls reviews of the product actually being
+// viewed to the front of the pool — still the full site-wide testimonial
+// list (this section deliberately isn't filtered to one product, see the
+// comment on TestimonialsSection), just re-ordered so the reviews most
+// relevant to *this* page surface first instead of wherever display_order/
+// date happened to land them.
+function sortTestimonials(items: Testimonial[], productId?: string): Testimonial[] {
   return [...items].sort((a, b) => {
+    if (productId) {
+      const aMatch = a.product_id === productId;
+      const bMatch = b.product_id === productId;
+      if (aMatch !== bMatch) return aMatch ? -1 : 1;
+    }
     if (a.display_order != null && b.display_order != null && a.display_order !== b.display_order) {
       return a.display_order - b.display_order;
     }
@@ -876,8 +934,11 @@ function formatReviewDate(iso: string): string {
 // see useTestimonials's own comment). Hides itself entirely when there's
 // nothing published, same "no fake empty state" rule the sold-count pill
 // already follows.
-function TestimonialsSection() {
+function TestimonialsSection({ productId }: { productId?: string }) {
   const { testimonials, loading } = useTestimonials();
+  const { products } = useWcm();
+  const navigate = useNavigate();
+  const productName = (id: string) => products.find((p) => p.id === id)?.name || id;
   const [lightbox, setLightbox] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const railRef = useRef<HTMLDivElement | null>(null);
@@ -885,15 +946,42 @@ function TestimonialsSection() {
   const sortedRef = useRef<Testimonial[]>([]);
   const cardWidthRef = useRef(0);
 
+  // Cards pop their star rating in once scrolled into view rather than on
+  // mount — the rail is usually below the fold, so an on-mount animation
+  // would already be finished by the time anyone scrolls to it. Built with
+  // a plain IntersectionObserver (fires once per card, then unobserves)
+  // rather than the CSS `animation-timeline: view()` shortcut, since that
+  // has no safe fallback on unsupported browsers — stars would just never
+  // animate in, silently. Created via a useState initializer (not
+  // useEffect) so it exists before the card refs below attach during the
+  // same commit.
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(() => new Set());
+  const [starObserver] = useState<IntersectionObserver | null>(() => {
+    if (typeof IntersectionObserver === "undefined") return null;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const id = entry.target.getAttribute("data-testimonial-id");
+          if (id) setVisibleIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+          io.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.4 },
+    );
+    return io;
+  });
+
   useEffect(() => {
     return () => {
       if (swipeTimeoutRef.current) window.clearTimeout(swipeTimeoutRef.current);
+      starObserver?.disconnect();
     };
-  }, []);
+  }, [starObserver]);
 
   if (loading || testimonials.length === 0) return null;
 
-  const sorted = sortTestimonials(testimonials);
+  const sorted = sortTestimonials(testimonials, productId);
   const cardWidth = isMobile ? 272 : 320;
   sortedRef.current = sorted;
   cardWidthRef.current = cardWidth;
@@ -921,7 +1009,7 @@ function TestimonialsSection() {
     <Section className="wcm-detail-reviews" style={{ padding: 16 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
         <h2 style={{ fontSize: 18, margin: 0, fontWeight: 800, letterSpacing: -0.2 }}>Satisfied customers</h2>
-        <span style={{ fontSize: 12, color: "var(--ink-4)" }}>What customers are saying on Facebook</span>
+        <span style={{ fontSize: 12, color: "var(--ink-4)" }}>What customers are saying on Facebook &amp; Daraz</span>
       </div>
 
       <div
@@ -931,7 +1019,7 @@ function TestimonialsSection() {
         style={{
           display: "flex",
           alignItems: "stretch",
-          gap: 12,
+          gap: 14,
           width: "100%",
           minWidth: 0,
           maxWidth: "100%",
@@ -945,60 +1033,98 @@ function TestimonialsSection() {
           scrollbarWidth: "none",
         }}
       >
-        <style>{`.wcm-testimonial-rail::-webkit-scrollbar{display:none}`}</style>
+        <style>{`
+          .wcm-testimonial-rail::-webkit-scrollbar{display:none}
+          @media (prefers-reduced-motion: no-preference) {
+            .wcm-star-pop{opacity:0;transform:scale(0);}
+            .wcm-star-pop.wcm-star-in{animation:wcmStarPop .4s cubic-bezier(.34,1.56,.64,1) both;}
+          }
+          @keyframes wcmStarPop{
+            0%{transform:scale(0);opacity:0;}
+            60%{transform:scale(1.3);opacity:1;}
+            100%{transform:scale(1);opacity:1;}
+          }
+        `}</style>
         {sorted.map((t) => {
           const accent = testimonialAccent(t.source);
+          const cardBg = `color-mix(in srgb, var(--card) 88%, ${accent} 12%)`;
+          const isCurrentProduct = !!productId && t.product_id === productId;
+          // Rating-only reviews (no source_url) still open their screenshot
+          // on tap, same "the whole card is the affordance" idea the old
+          // border-stripe cards had via the separate screenshot button.
+          const opensScreenshot = !t.source_url && !!t.screenshot_url;
           return (
             <div
               key={t.id}
-              onClick={() =>
+              data-testimonial-id={t.id}
+              ref={(el) => {
+                if (el && starObserver) starObserver.observe(el);
+              }}
+              onClick={() => {
                 trackMetaEvent("ReviewCardClick", {
                   content_type: "testimonial",
                   content_category: t.source,
                   content_ids: [t.product_id],
                   search_string: t.reviewer_name,
-                })
-              }
+                });
+                if (opensScreenshot) setLightbox(t.screenshot_url);
+              }}
               style={{
                 flex: `0 0 ${cardWidth}px`,
                 width: cardWidth,
                 scrollSnapAlign: "start",
-                borderTop: "1px solid var(--line)",
-                borderRight: "1px solid var(--line)",
-                borderBottom: "1px solid var(--line)",
-                borderLeft: `6px solid ${accent}`,
-                padding: 10,
-                background: "var(--card)",
-                boxShadow: "var(--shadow-sm)",
+                borderRadius: 12,
+                padding: 16,
+                background: cardBg,
                 display: "flex",
                 flexDirection: "column",
+                cursor: opensScreenshot ? "zoom-in" : "default",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <ReviewerAvatar name={t.reviewer_name} size={26} />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    By {t.reviewer_name}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                  <ReviewerAvatar name={t.reviewer_name} accent={accent} size={26} ringGap={isCurrentProduct ? cardBg : undefined} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {t.reviewer_name}
+                    </div>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate({ to: "/products/$productId", params: { productId: t.product_id } });
+                      }}
+                      style={{
+                        display: "inline-block",
+                        marginTop: 3,
+                        maxWidth: "100%",
+                        padding: "2px 8px",
+                        borderRadius: 999,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: accent,
+                        background: "var(--card)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {productName(t.product_id)}
+                    </span>
                   </div>
-                  <div style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{formatReviewDate(t.review_date ?? t.created_at)}</div>
                 </div>
+                {t.rating != null && <ReviewStars rating={t.rating} size={15} inView={visibleIds.has(t.id)} />}
               </div>
-
-              {t.rating != null && (
-                <div style={{ marginTop: 6 }}>
-                  <ReviewStars rating={t.rating} size={13} />
-                </div>
-              )}
 
               {t.review_text && (
                 <p
                   style={{
-                    margin: "6px 0 0",
-                    fontSize: 13,
-                    lineHeight: 1.4,
+                    margin: "10px 0 0",
+                    fontSize: 13.5,
+                    lineHeight: 1.45,
                     color: "var(--ink-2)",
                     display: "-webkit-box",
-                    WebkitLineClamp: 4,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: "vertical",
                     overflow: "hidden",
                   }}
@@ -1007,24 +1133,10 @@ function TestimonialsSection() {
                 </p>
               )}
 
-              {t.screenshot_url && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLightbox(t.screenshot_url);
-                  }}
-                  style={{ marginTop: 5, padding: 0, border: "none", background: "none", cursor: "zoom-in", alignSelf: "flex-start" }}
-                >
-                  <img
-                    src={t.screenshot_url}
-                    alt={`${t.reviewer_name}'s review screenshot`}
-                    style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid var(--line)", display: "block" }}
-                  />
-                </button>
-              )}
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: "auto", paddingTop: 6, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto", paddingTop: 14 }}>
+                <span style={{ fontSize: 11, color: `color-mix(in srgb, var(--ink-4) 55%, ${accent} 45%)` }}>
+                  {formatReviewDate(t.review_date ?? t.created_at)}
+                </span>
                 {t.source_url && (
                   <a
                     href={t.source_url}
@@ -1039,20 +1151,10 @@ function TestimonialsSection() {
                         search_string: t.reviewer_name,
                       });
                     }}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "3px 0",
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "var(--ink-2)",
-                      textDecoration: "underline",
-                      textUnderlineOffset: 2,
-                      whiteSpace: "nowrap",
-                    }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: accent, whiteSpace: "nowrap" }}
                   >
-                    View on {t.source === "facebook" ? "Facebook" : "Daraz"}
+                    View
+                    <ArrowIcon color={accent} />
                   </a>
                 )}
               </div>
@@ -2629,7 +2731,7 @@ export function ProductDetail({
       </div>
 
       <div ref={reviewsSectionRef}>
-        <TestimonialsSection />
+        <TestimonialsSection productId={product.id} />
       </div>
 
       {(!productsLoaded || related.length > 0) && (
