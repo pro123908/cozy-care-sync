@@ -467,9 +467,7 @@ export function ProductCard({
           </div>
         )}
         <button
-          // rr-block: session replay masking (only active on the PDP) —
-          // reveals per-product wishlist state, see src/lib/pdpRecording.ts
-          className="wcm-card-hover-action wcm-card-wishlist-btn rr-block"
+          className="wcm-card-hover-action wcm-card-wishlist-btn"
           onClick={(e) => {
             e.stopPropagation();
             toggleWishlist(p.id);
@@ -511,9 +509,7 @@ export function ProductCard({
         {isInCart && (
           <span
             key={`qty-badge-${p.id}-${cartQty}`}
-            // rr-mask: session replay masking (only active on the PDP) —
-            // reveals per-product cart quantity, see src/lib/pdpRecording.ts
-            className="wcm-card-qty-badge rr-mask"
+            className="wcm-card-qty-badge"
             style={{
               position: "absolute",
               right: 10,
@@ -652,13 +648,7 @@ export function ProductCard({
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           {isInCart && !hasSelectableOptions && (
             <button
-              // rr-block: session replay masking (only active on the PDP) —
-              // this button's own presence already reveals cart membership,
-              // and its aria-label/title reveal exact quantity; rr-mask
-              // only redacts text nodes, not attributes, so this needs
-              // rr-block (which strips all non-dimension attributes) —
-              // see src/lib/pdpRecording.ts
-              className="wcm-card-step-btn wcm-card-step-btn-minus rr-block"
+              className="wcm-card-step-btn wcm-card-step-btn-minus"
               onClick={(e) => {
                 e.stopPropagation();
                 removeOneFromCart();
@@ -685,9 +675,7 @@ export function ProductCard({
           )}
           <div ref={sizePickerRef} style={{ position: "relative" }}>
             <button
-              // rr-block: aria-label/title reveal exact cart quantity when
-              // isInCart — see the minus button's comment above
-              className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action rr-block"
+              className="wcm-card-step-btn wcm-card-step-btn-plus wcm-card-hover-action"
               onClick={(e) => {
                 e.stopPropagation();
                 if (hasSelectableOptions) {

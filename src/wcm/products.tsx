@@ -17,7 +17,6 @@ import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
-import { setActivePdpProduct } from "@/lib/pdpRecordingState";
 import {
   CategoryRail,
   DealsRail,
@@ -1355,14 +1354,6 @@ export function ProductDetail({
     trackView(product.id);
   }, [product.id, trackView]);
   usePdpAnalyticsSession();
-  // Site-wide recording (useSiteRecording) is mounted once at the app root —
-  // this just tells it which product, if any, is currently on screen so
-  // uploaded chunks are attributed correctly. Cleanup clears it on leaving
-  // the PDP so recording captured elsewhere in the visit isn't mislabeled.
-  useEffect(() => {
-    setActivePdpProduct(product.id);
-    return () => setActivePdpProduct(null);
-  }, [product.id]);
   const [activeView, setActiveView] = useState(0);
   const touchStartX = useRef<number | null>(null);
   // Live finger-tracking for the hero swipe — touchStartX above only ever
@@ -1825,9 +1816,7 @@ export function ProductDetail({
             </button>
             <button
               type="button"
-              // rr-block: session replay masking — wishlist state reveals
-              // per-product save state (see src/lib/pdpRecording.ts)
-              className="wcm-pdp-overlay-fav rr-block"
+              className="wcm-pdp-overlay-fav"
               onClick={() => toggleWishlist(product.id)}
               aria-label={isSaved ? "Remove from saved" : "Save item"}
               style={{
@@ -2039,7 +2028,7 @@ export function ProductDetail({
                   ))}
               </div>
               <button
-                className="wcm-pdp-mobile-fav rr-block"
+                className="wcm-pdp-mobile-fav"
                 onClick={() => toggleWishlist(product.id)}
                 aria-label={isSaved ? "Remove from saved" : "Save item"}
                 title={isSaved ? "Remove from saved" : "Save item"}
@@ -2422,13 +2411,11 @@ export function ProductDetail({
               onClick={() => addToCart(product, qty, variantKey)}
               style={{ minHeight: 50 }}
             >
-              {/* rr-mask: session replay — cart-state text reveals per-product cart membership */}
-              <span className="rr-mask">{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+              <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
             </Btn>
             <Btn
               variant="outline"
               size="md"
-              className="rr-block"
               icon={
                 <svg
                   width="16"
@@ -2537,8 +2524,7 @@ export function ProductDetail({
                 minHeight: 44,
               }}
             >
-              {/* rr-mask: session replay — cart-state text reveals per-product cart membership */}
-              <span className="rr-mask">{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+              <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
             </button>
           </div>
           {hasMultipleImages && (

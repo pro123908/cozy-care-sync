@@ -796,7 +796,7 @@ export function CheckoutContent({
                           transition: "all .15s",
                         }}
                       >
-                        <span className="rr-mask">{address}</span>
+                        <span>{address}</span>
                       </button>
                       );
                     })}
@@ -1041,7 +1041,7 @@ export function CheckoutContent({
                     gap: 10,
                   }}
                 >
-                  <div className="rr-block">
+                  <div>
                     <div
                       style={{
                         fontSize: 11,

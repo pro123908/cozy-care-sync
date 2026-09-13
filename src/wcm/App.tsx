@@ -16,7 +16,6 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
-import { useSiteRecording } from "@/lib/pdpRecordingState";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
@@ -74,11 +73,6 @@ function AppLayout() {
     trackMetaEvent("PageView");
     gaEvent("page_view", { page_path: pathname, page_location: window.location.href });
   }, [pathname]);
-
-  // Site-wide session replay (Part 2) — mounted once here at the true app
-  // root so it spans the whole visit (any page, until the tab closes), not
-  // just PDPs. No-ops for sessions that don't sample in.
-  useSiteRecording();
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
     setCartOpen(false);
@@ -997,12 +991,6 @@ function Header({
               <div style={{ position: "relative" }}>
                 <button
                   onClick={() => setMenuOpen((o: boolean) => !o)}
-                  // rr-block: session replay (src/lib/pdpRecording.ts) fully
-                  // excludes this element — it's the one place real account
-                  // PII (name/initials) renders, and the header is on-screen
-                  // for the whole PDP recording even though it isn't part of
-                  // ProductDetail itself.
-                  className="rr-block"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1058,8 +1046,7 @@ function Header({
                         overflow: "hidden",
                       }}
                     >
-                      {/* rr-block: real name + raw email, see the trigger button above */}
-                      <div className="rr-block" style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+                      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
                           {user.firstName} {user.lastName}
                         </div>
