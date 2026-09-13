@@ -1088,6 +1088,224 @@ function TestimonialsSection() {
   );
 }
 
+const ZOOM_MIN_SCALE = 1;
+const ZOOM_MAX_SCALE = 4;
+const ZOOM_DOUBLE_TAP_SCALE = 2.5;
+
+type ZoomGesture =
+  | { mode: "pinch"; startDist: number; startScale: number }
+  | { mode: "pan" | "swipe"; startX: number; startY: number; lastX: number; lastY: number };
+
+// Single full-bleed photo with pinch-to-zoom, drag-to-pan once zoomed, and
+// double-tap/double-click to toggle zoom — plus a horizontal swipe to move
+// to the next/prev photo while at rest (scale 1). `touchAction: "none"` on
+// the stage below is what lets plain onTouch* handlers own the gesture
+// without fighting the browser's own pinch/scroll — no preventDefault (and
+// so no non-passive listener workaround) needed.
+function ZoomableImage({
+  src,
+  alt,
+  onSwipe,
+  swipeEnabled,
+}: {
+  src: string;
+  alt: string;
+  onSwipe: (dir: 1 | -1) => void;
+  swipeEnabled: boolean;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const [gestureActive, setGestureActive] = useState(false);
+  const gesture = useRef<ZoomGesture | null>(null);
+  const lastTapAt = useRef(0);
+  // Read during gesture math via refs, not state, so a fast pinch/pan
+  // isn't computing against a stale scale/tx/ty from the render the
+  // gesture started on.
+  const liveRef = useRef({ scale, tx, ty });
+  liveRef.current = { scale, tx, ty };
+
+  useEffect(() => {
+    setScale(1);
+    setTx(0);
+    setTy(0);
+  }, [src]);
+
+  const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+  const boundedPan = (nextScale: number, nx: number, ny: number) => {
+    const img = imgRef.current;
+    const stage = stageRef.current;
+    if (!img || !stage) return { x: nx, y: ny };
+    const maxX = Math.max(0, (img.offsetWidth * nextScale - stage.clientWidth) / 2);
+    const maxY = Math.max(0, (img.offsetHeight * nextScale - stage.clientHeight) / 2);
+    return { x: clamp(nx, -maxX, maxX), y: clamp(ny, -maxY, maxY) };
+  };
+
+  // Rescale while keeping the image point under (focalX, focalY) fixed on
+  // screen — the same math a trackpad/mouse pinch-zoom or a two-finger
+  // pinch needs so the zoom feels anchored to the gesture, not the corner.
+  const zoomToward = (nextScaleRaw: number, focalX: number, focalY: number) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
+    const nextScale = clamp(nextScaleRaw, ZOOM_MIN_SCALE, ZOOM_MAX_SCALE);
+    const { scale: s0, tx: tx0, ty: ty0 } = liveRef.current;
+    const midX = focalX - (rect.left + rect.width / 2);
+    const midY = focalY - (rect.top + rect.height / 2);
+    const anchorX = (midX - tx0) / s0;
+    const anchorY = (midY - ty0) / s0;
+    const next = boundedPan(nextScale, midX - anchorX * nextScale, midY - anchorY * nextScale);
+    setScale(nextScale);
+    setTx(next.x);
+    setTy(next.y);
+  };
+
+  const toggleZoom = (clientX: number, clientY: number) => {
+    if (liveRef.current.scale > 1.01) {
+      setScale(1);
+      setTx(0);
+      setTy(0);
+    } else {
+      zoomToward(ZOOM_DOUBLE_TAP_SCALE, clientX, clientY);
+    }
+  };
+
+  const touchDist = (a: React.Touch, b: React.Touch) =>
+    Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      gesture.current = { mode: "pinch", startDist: touchDist(a, b), startScale: liveRef.current.scale };
+      setGestureActive(true);
+      return;
+    }
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const now = Date.now();
+    if (now - lastTapAt.current < 300) {
+      lastTapAt.current = 0;
+      gesture.current = null;
+      toggleZoom(t.clientX, t.clientY);
+      return;
+    }
+    lastTapAt.current = now;
+    gesture.current =
+      liveRef.current.scale > 1.01
+        ? { mode: "pan", startX: t.clientX, startY: t.clientY, lastX: t.clientX, lastY: t.clientY }
+        : { mode: "swipe", startX: t.clientX, startY: t.clientY, lastX: t.clientX, lastY: t.clientY };
+    setGestureActive(true);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const g = gesture.current;
+    if (!g) return;
+    if (g.mode === "pinch" && e.touches.length === 2) {
+      const [a, b] = [e.touches[0], e.touches[1]];
+      const dist = touchDist(a, b);
+      const nextScale = (dist / g.startDist) * g.startScale;
+      zoomToward(nextScale, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+      return;
+    }
+    if (g.mode === "pan" && e.touches.length === 1) {
+      const t = e.touches[0];
+      const next = boundedPan(liveRef.current.scale, liveRef.current.tx + (t.clientX - g.lastX), liveRef.current.ty + (t.clientY - g.lastY));
+      setTx(next.x);
+      setTy(next.y);
+      gesture.current = { ...g, lastX: t.clientX, lastY: t.clientY };
+      return;
+    }
+    if (g.mode === "swipe" && e.touches.length === 1 && swipeEnabled) {
+      const t = e.touches[0];
+      setTx(t.clientX - g.startX);
+      gesture.current = { ...g, lastX: t.clientX, lastY: t.clientY };
+    }
+  };
+
+  const onTouchEnd = () => {
+    const g = gesture.current;
+    gesture.current = null;
+    setGestureActive(false);
+    if (g?.mode === "swipe") {
+      const dx = liveRef.current.tx;
+      const width = stageRef.current?.clientWidth || 1;
+      const threshold = Math.min(80, width * 0.2);
+      setTx(0);
+      if (swipeEnabled && dx <= -threshold) onSwipe(1);
+      else if (swipeEnabled && dx >= threshold) onSwipe(-1);
+    }
+  };
+
+  // Desktop equivalents: wheel to zoom toward the cursor, drag-to-pan once
+  // zoomed, double-click to toggle.
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    zoomToward(liveRef.current.scale - e.deltaY * 0.0015, e.clientX, e.clientY);
+  };
+
+  const mouseDrag = useRef<{ x: number; y: number } | null>(null);
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (liveRef.current.scale <= 1.01) return;
+    mouseDrag.current = { x: e.clientX, y: e.clientY };
+  };
+  const onMouseMove = (e: React.MouseEvent) => {
+    const start = mouseDrag.current;
+    if (!start) return;
+    const next = boundedPan(liveRef.current.scale, liveRef.current.tx + (e.clientX - start.x), liveRef.current.ty + (e.clientY - start.y));
+    setTx(next.x);
+    setTy(next.y);
+    mouseDrag.current = { x: e.clientX, y: e.clientY };
+  };
+  const stopMouseDrag = () => {
+    mouseDrag.current = null;
+  };
+
+  return (
+    <div
+      ref={stageRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        touchAction: "none",
+        overflow: "hidden",
+        cursor: scale > 1.01 ? "grab" : "zoom-in",
+      }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onWheel={onWheel}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={stopMouseDrag}
+      onMouseLeave={stopMouseDrag}
+      onDoubleClick={(e) => toggleZoom(e.clientX, e.clientY)}
+    >
+      <img
+        ref={imgRef}
+        src={src}
+        alt={alt}
+        draggable={false}
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          width: "auto",
+          height: "auto",
+          display: "block",
+          transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
+          transition: gestureActive ? "none" : "transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)",
+          userSelect: "none",
+        }}
+      />
+    </div>
+  );
+}
+
 export function ProductDetail({
   product,
   onClose,
@@ -1240,6 +1458,48 @@ export function ProductDetail({
     ? detailMedia[(activeView - 1 + detailMedia.length) % detailMedia.length]
     : null;
   const nextMedia = hasMultipleImages ? detailMedia[(activeView + 1) % detailMedia.length] : null;
+
+  // Full-screen pinch/pan zoom viewer. Scoped to images only (video already
+  // has its own native fullscreen control) and keyed off its own index into
+  // just the image subset, so swiping past a video slot in the gallery isn't
+  // a case the zoom viewer ever has to handle.
+  const imageMedia = useMemo(() => detailMedia.filter((m) => m.type === "image"), [detailMedia]);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const openLightbox = () => {
+    if (!activeMedia || activeMedia.type !== "image") return;
+    const idx = imageMedia.findIndex((m) => m.src === activeMedia.src);
+    setLightboxIndex(idx >= 0 ? idx : 0);
+    setLightboxOpen(true);
+    trackPdpEvent("gallery_zoom_open", product.id, { index: idx });
+  };
+  // Swiping between photos inside the zoom viewer also moves the main hero
+  // to match, so closing lands back on whichever photo was last zoomed into
+  // instead of snapping back to wherever the hero was before opening it.
+  const handleLightboxSwipe = (dir: 1 | -1) => {
+    if (imageMedia.length <= 1) return;
+    setLightboxIndex((i) => {
+      const next = (i + dir + imageMedia.length) % imageMedia.length;
+      const targetSrc = imageMedia[next]?.src;
+      const galleryIdx = targetSrc ? detailMedia.findIndex((m) => m.src === targetSrc) : -1;
+      if (galleryIdx >= 0) setActiveView(galleryIdx);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightboxOpen]);
 
   // PDP engagement dwell tracking (src/lib/pdpAnalytics.ts). Gallery and
   // video share one physical hero container (no separate "video section"
@@ -1452,20 +1712,60 @@ export function ProductDetail({
       );
     }
     return (
-      <ProductPhoto
-        key={media.src}
-        src={media.src}
-        alt={product.name}
-        loading={isActive ? "eager" : "lazy"}
-        containerStyle={{
-          width: "100%",
-          height: "100%",
-          borderRadius: 12,
-          border: "1px solid var(--line)",
-          background: "var(--bg-elev)",
-        }}
-        imgStyle={{ objectPosition: "center center" }}
-      />
+      <div
+        style={{ position: "relative", width: "100%", height: "100%" }}
+        onClick={isActive ? () => openLightbox() : undefined}
+      >
+        <ProductPhoto
+          key={media.src}
+          src={media.src}
+          alt={product.name}
+          loading={isActive ? "eager" : "lazy"}
+          containerStyle={{
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+            border: "1px solid var(--line)",
+            background: "var(--bg-elev)",
+            cursor: isActive ? "zoom-in" : undefined,
+          }}
+          imgStyle={{ objectPosition: "center center" }}
+        />
+        {isActive && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openLightbox();
+            }}
+            aria-label="Zoom image"
+            title="Zoom"
+            style={{
+              position: "absolute",
+              bottom: 12,
+              right: 12,
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              border: "none",
+              background: "rgba(0,0,0,0.55)",
+              color: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" strokeLinecap="round" />
+              <line x1="11" y1="8" x2="11" y2="14" strokeLinecap="round" />
+              <line x1="8" y1="11" x2="14" y2="11" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
+      </div>
     );
   };
   return (
@@ -2430,6 +2730,80 @@ export function ProductDetail({
               src={product.size_chart_image}
               alt={`${product.name} size chart`}
               style={{ width: "100%", height: "auto", borderRadius: 10, display: "block" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {lightboxOpen && imageMedia[lightboxIndex] && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.94)",
+            zIndex: 1200,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxOpen(false)}
+            aria-label="Close zoomed image"
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              zIndex: 3,
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              border: "none",
+              background: "rgba(255,255,255,.12)",
+              color: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {Icons.close}
+          </button>
+          {imageMedia.length > 1 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 18,
+                left: 0,
+                right: 0,
+                zIndex: 3,
+                display: "flex",
+                justifyContent: "center",
+                gap: 6,
+                pointerEvents: "none",
+              }}
+            >
+              {imageMedia.map((_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: i === lightboxIndex ? 16 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    background: i === lightboxIndex ? "#fff" : "rgba(255,255,255,.4)",
+                    transition: "width .2s ease, background .2s ease",
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <ZoomableImage
+              key={imageMedia[lightboxIndex].src}
+              src={imageMedia[lightboxIndex].src}
+              alt={product.name}
+              swipeEnabled={imageMedia.length > 1}
+              onSwipe={handleLightboxSwipe}
             />
           </div>
         </div>

@@ -16,7 +16,12 @@ import { useEffect, useRef, type RefObject } from "react";
 // ---------------------------------------------------------------------------
 
 export type PdpEventType =
-  "section_dwell" | "video_play" | "gallery_swipe" | "description_viewed" | "reviews_viewed";
+  | "section_dwell"
+  | "video_play"
+  | "gallery_swipe"
+  | "gallery_zoom_open"
+  | "description_viewed"
+  | "reviews_viewed";
 
 type QueuedEvent = {
   event_type: PdpEventType;
