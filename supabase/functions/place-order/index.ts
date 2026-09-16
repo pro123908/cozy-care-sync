@@ -47,6 +47,12 @@ const FREE_SHIPPING_THRESHOLD = 2000;
 const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
 const SHIPPING_COST = 250;
 const MAX_QTY_PER_PRODUCT = 5;
+// "Order over Rs 5,000 -> Rs 200 off next order" reward. Deliberately a
+// separate constant from FREE_SHIPPING_THRESHOLD_OTHER_CITIES even though
+// both are currently 5000 — they're independent business rules (delivery-fee
+// waiver vs. a loyalty reward) that just happen to share a number today.
+const REWARD_COUPON_THRESHOLD = 5000;
+const REWARD_COUPON_DISCOUNT = 200;
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
 const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
@@ -73,6 +79,11 @@ const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
 const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation_request";
 const WHATSAPP_TEMPLATE_LANG = Deno.env.get("WHATSAPP_TEMPLATE_LANG") || "en";
 const WHATSAPP_GRAPH_VERSION = Deno.env.get("WHATSAPP_GRAPH_VERSION") || "v21.0";
+// Left unset until a "you earned a coupon" template is submitted to and
+// approved by Meta (Marketing category, like delivery_feedback_ontime/
+// _late) — sends are skipped (and logged as failed, not silently) until
+// then. Same gate pattern as send-address-request's WHATSAPP_ADDRESS_TEMPLATE_NAME.
+const WHATSAPP_REWARD_COUPON_TEMPLATE_NAME = Deno.env.get("WHATSAPP_REWARD_COUPON_TEMPLATE_NAME") || "";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -730,6 +741,144 @@ async function sendWhatsAppOrderConfirmation(input: {
   });
 }
 
+// Random 6-char base36 suffix, same shape as admin's /coupons create-dialog
+// auto-fill (WELLCARE200-K3M9X2) so auto-issued and hand-created codes look
+// consistent — see [[project_coupon_code_system]] / feedback_coupon_codes_unique_by_default.
+function generateRewardCouponCode(): string {
+  return `THANKYOU200-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
+// Issues a one-time Rs-200-off coupon for the customer's NEXT order,
+// whenever this order's subtotal clears REWARD_COUPON_THRESHOLD. No
+// expires_at by design — stays valid until redeemed; usage_limit: 1 is what
+// caps it to a single use, not a deadline. Best-effort: called after the
+// order row already exists, so a failure here must never undo or fail the
+// order itself — same convention as the email/WhatsApp/Meta side-effects
+// below it. Retries a couple of times on a code collision (23505 =
+// unique_violation on coupons.code); anything else gives up.
+// deno-lint-ignore no-explicit-any
+async function issueRewardCoupon(
+  serviceClient: any,
+  orderId: string,
+): Promise<{ code: string; discount: number } | null> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const code = generateRewardCouponCode();
+    const { error } = await serviceClient.from("coupons").insert({
+      code,
+      discount_type: "flat",
+      discount_value: REWARD_COUPON_DISCOUNT,
+      min_order_amount: 0,
+      usage_limit: 1,
+      active: true,
+      note: `Auto-reward: order ${orderId} was over Rs ${REWARD_COUPON_THRESHOLD}`,
+    });
+    if (!error) return { code, discount: REWARD_COUPON_DISCOUNT };
+    if (error.code !== "23505") {
+      console.error("[reward-coupon] insert failed", error);
+      return null;
+    }
+  }
+  console.error("[reward-coupon] exhausted retries generating a unique code");
+  return null;
+}
+
+// Same shape/gating as sendWhatsAppOrderConfirmation, but for the "you
+// earned a coupon" message. WHATSAPP_REWARD_COUPON_TEMPLATE_NAME is unset
+// until that template is approved by Meta — see its declaration above.
+// Expected approved body (Marketing category), 3 variables in this order:
+// 1 name, 2 order total, 3 coupon code. No expiry mention in the message —
+// the coupon still expires server-side (REWARD_COUPON_VALID_DAYS), just not
+// advertised to the customer.
+async function sendWhatsAppRewardCoupon(input: {
+  phone: string;
+  customerName: string;
+  orderId: string;
+  orderRowId: string | null;
+  total: number;
+  coupon: { code: string; discount: number };
+}) {
+  if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_ACCESS_TOKEN || !WHATSAPP_REWARD_COUPON_TEMPLATE_NAME) {
+    console.info("[whatsapp-reward-coupon] template not configured yet - skipping send");
+    return;
+  }
+  if (Deno.env.get("WHATSAPP_SEND_ENABLED") === "false") {
+    console.info("[whatsapp-reward-coupon] Sends paused via WHATSAPP_SEND_ENABLED=false - skipping");
+    return;
+  }
+  const to = toWhatsAppNumber(input.phone);
+  if (!to) return;
+
+  const textParam = (text: string) => ({ type: "text", text });
+  const payload = {
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: WHATSAPP_REWARD_COUPON_TEMPLATE_NAME,
+      language: { code: WHATSAPP_TEMPLATE_LANG },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            textParam(input.customerName || "there"),
+            textParam(input.total.toLocaleString()),
+            textParam(input.coupon.code),
+          ],
+        },
+      ],
+    },
+  };
+
+  try {
+    const res = await fetch(
+      `https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("[whatsapp-reward-coupon] send failed", { status: res.status, body: detail });
+      await logWhatsAppMessage({
+        orderId: input.orderRowId,
+        orderCode: input.orderId,
+        phone: input.phone,
+        messageType: "reward_coupon",
+        templateName: WHATSAPP_REWARD_COUPON_TEMPLATE_NAME,
+        status: "failed",
+        errorDetail: detail,
+      });
+      return;
+    }
+  } catch (err) {
+    console.error("[whatsapp-reward-coupon] send threw", err);
+    await logWhatsAppMessage({
+      orderId: input.orderRowId,
+      orderCode: input.orderId,
+      phone: input.phone,
+      messageType: "reward_coupon",
+      templateName: WHATSAPP_REWARD_COUPON_TEMPLATE_NAME,
+      status: "failed",
+      errorDetail: String(err),
+    });
+    return;
+  }
+
+  await logWhatsAppMessage({
+    orderId: input.orderRowId,
+    orderCode: input.orderId,
+    phone: input.phone,
+    messageType: "reward_coupon",
+    templateName: WHATSAPP_REWARD_COUPON_TEMPLATE_NAME,
+    status: "sent",
+  });
+}
+
 function normalizeSizeOptions(options?: SizeOption[] | null): SizeOption[] {
   if (!Array.isArray(options)) return [];
   const seen = new Set<string>();
@@ -1058,6 +1207,25 @@ Deno.serve(
   });
 
   // ------------------------------------------------------------------
+  // 5d. Reward: order over Rs 5,000 earns a one-time Rs 200-off coupon for
+  // the customer's NEXT order (best-effort — see issueRewardCoupon).
+  // ------------------------------------------------------------------
+  let rewardCoupon: { code: string; discount: number } | null = null;
+  if (subtotal >= REWARD_COUPON_THRESHOLD) {
+    rewardCoupon = await issueRewardCoupon(serviceClient, orderId);
+    if (rewardCoupon) {
+      await sendWhatsAppRewardCoupon({
+        phone: ship.phone,
+        customerName: ship.name.trim(),
+        orderId,
+        orderRowId: insertedOrder?.id ?? null,
+        total,
+        coupon: rewardCoupon,
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------
   // 6. Increment sales counts
   // ------------------------------------------------------------------
   await Promise.all(
@@ -1117,6 +1285,10 @@ Deno.serve(
         shipping,
         total,
       },
+      // Not persisted on the order row — the coupon itself (in the coupons
+      // table) is the durable record. This is only here so the storefront
+      // can show it once, right after checkout.
+      reward_coupon: rewardCoupon ? { code: rewardCoupon.code, discount: rewardCoupon.discount } : null,
     },
     201,
     origin,

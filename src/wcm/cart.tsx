@@ -8,6 +8,8 @@ import {
   FREE_SHIPPING_THRESHOLD,
   FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
   SHIPPING_COST,
+  REWARD_COUPON_THRESHOLD,
+  REWARD_COUPON_DISCOUNT,
   PAKISTAN_CITIES,
   type Product,
 } from "./data";
@@ -470,13 +472,13 @@ const miniBtn: React.CSSProperties = {
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export function CheckoutContent({
-  items,
-  subtotal,
+  items: initialItems,
   shipping,
   total,
   user,
   onClose,
   onPlace,
+  onUpdateCart,
   placing = false,
   push,
 }: CheckoutData & {
@@ -484,6 +486,11 @@ export function CheckoutContent({
   onClose: () => void;
   onPlace: (d: PlacedOrderData) => void;
   placing?: boolean;
+  // Lets the customer adjust qty/remove items without leaving checkout (see
+  // the item-row controls in the order-summary panel below) — keeps the
+  // shared cart state in sync so a reopened cart drawer or a reload agrees
+  // with whatever was last edited here.
+  onUpdateCart: (cart: CartLine[]) => void;
   // The app-wide toast queue from useWcm() — NOT a local useToasts() call.
   // useToasts() creates its own isolated state; the only <Toaster /> that's
   // actually rendered on screen is the one mounted once in App.tsx from the
@@ -493,6 +500,22 @@ export function CheckoutContent({
 }) {
   const [step, setStep] = useState(1);
   const isMobile = useIsMobile();
+  // Editable locally (qty stepper / remove in the order-summary panel) —
+  // subtotal is always derived from this, never a stale prop, since it also
+  // feeds onPlace() below (what actually gets ordered).
+  const [items, setItems] = useState<CartItem[]>(initialItems);
+  const subtotal = items.reduce((s, x) => s + getUnitPrice(x.p, x.size) * x.qty, 0);
+  const updateItemQty = (id: string, size: string | undefined, qty: number) => {
+    setItems((prev) => {
+      const next =
+        qty <= 0
+          ? prev.filter((x) => !(x.id === id && x.size === size))
+          : prev.map((x) => (x.id === id && x.size === size ? { ...x, qty } : x));
+      onUpdateCart(next.map((x) => ({ id: x.id, qty: x.qty, size: x.size })));
+      if (next.length === 0) onClose();
+      return next;
+    });
+  };
   // Scroll to top on mobile when moving to the review step.
   React.useEffect(() => {
     if (isMobile && step === 2) {
@@ -585,16 +608,16 @@ export function CheckoutContent({
         setPromoDiscountValue(result.discount_value ?? 0);
         setPromoDiscountAmt(result.discount_amount ?? 0);
         setPromoErr("");
-        push(result.message ?? "Promo code applied!", { tone: "green" });
+        push(result.message ?? "Coupon code applied!", { tone: "green" });
       } else {
         setPromoErr(
           error
             ? "Something went wrong — try again"
-            : (result?.message ?? "Invalid or expired promo code"),
+            : (result?.message ?? "Invalid or expired coupon code"),
         );
         setPromoApplied(false);
         setPromoShake(true);
-        push("That promo code isn't valid", { tone: "red" });
+        push("That coupon code isn't valid", { tone: "red" });
         window.setTimeout(() => setPromoShake(false), 500);
       }
     } catch {
@@ -1195,25 +1218,107 @@ export function CheckoutContent({
           >
             Order summary
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, marginBottom: 14 }}>
             {items.map(({ p, qty, size }) => (
               <div
                 key={`${p.id}-${size || "default"}`}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 10,
-                  fontSize: 13,
-                }}
+                style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13 }}
               >
-                <span style={{ color: "var(--ink-2)", flex: 1 }}>
-                  {p.name}
-                  {size ? <span style={{ color: "var(--ink-4)" }}>{` (${size})`}</span> : null}
-                  <span style={{ color: "var(--ink-4)" }}> × {qty}</span>
-                </span>
-                <span style={{ fontWeight: 700 }}>{PKR(getUnitPrice(p, size) * qty)}</span>
+                <div style={{ width: 44, height: 44, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                  <ProductImage product={p} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: "var(--ink-2)" }}>
+                    {p.name}
+                    {size ? <span style={{ color: "var(--ink-4)" }}>{` (${size})`}</span> : null}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        border: "1px solid var(--line)",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <button
+                        onClick={() => updateItemQty(p.id, size, qty - 1)}
+                        style={{ ...miniBtn, width: 22, height: 22 }}
+                        aria-label={`Decrease quantity of ${p.name}`}
+                      >
+                        {Icons.minus}
+                      </button>
+                      <span
+                        style={{
+                          width: 22,
+                          lineHeight: "22px",
+                          textAlign: "center",
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        {qty}
+                      </span>
+                      <button
+                        onClick={() => updateItemQty(p.id, size, qty + 1)}
+                        style={{ ...miniBtn, width: 22, height: 22, opacity: qty >= MAX_QTY_PER_PRODUCT ? 0.5 : 1 }}
+                        disabled={qty >= MAX_QTY_PER_PRODUCT}
+                        aria-label={`Increase quantity of ${p.name}`}
+                      >
+                        {Icons.plus}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => updateItemQty(p.id, size, 0)}
+                      aria-label={`Remove ${p.name}`}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 7,
+                        border: "1px solid var(--line)",
+                        background: "var(--card)",
+                        color: "var(--ink-4)",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <span style={{ display: "inline-flex", transform: "scale(0.75)", lineHeight: 0 }}>
+                        {Icons.trash}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <span style={{ fontWeight: 700, flexShrink: 0 }}>{PKR(getUnitPrice(p, size) * qty)}</span>
               </div>
             ))}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "9px 12px",
+              borderRadius: 10,
+              marginBottom: 12,
+              background: subtotal >= REWARD_COUPON_THRESHOLD ? "var(--pill-success-bg)" : "var(--pill-warn-bg)",
+              color: subtotal >= REWARD_COUPON_THRESHOLD ? "var(--pill-success-fg)" : "var(--pill-warn-fg)",
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {subtotal >= REWARD_COUPON_THRESHOLD ? (
+              <span>
+                <span aria-hidden="true">🎉</span> You'll get a Rs {REWARD_COUPON_DISCOUNT} coupon for your
+                next order!
+              </span>
+            ) : (
+              <span>
+                <span aria-hidden="true">🎁</span> Add {PKR(REWARD_COUPON_THRESHOLD - subtotal)} more to earn a
+                Rs {REWARD_COUPON_DISCOUNT} coupon for your next order
+              </span>
+            )}
           </div>
           <div style={{ height: 1, background: "var(--line)", margin: "4px 0 12px" }} />
           <Row label="Subtotal" value={PKR(subtotal)} />
@@ -1234,7 +1339,7 @@ export function CheckoutContent({
               <Row
                 label={
                   <span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>
-                    {`Promo (${promoDiscountType === "flat" ? `${PKR(promoDiscountValue)} off` : `${promoDiscountValue}% off`})`}
+                    {`Coupon (${promoDiscountType === "flat" ? `${PKR(promoDiscountValue)} off` : `${promoDiscountValue}% off`})`}
                   </span>
                 }
                 value={
@@ -1262,7 +1367,7 @@ export function CheckoutContent({
               }}
             >
               <input
-                placeholder="Promo code"
+                placeholder="Coupon code"
                 value={promo}
                 onChange={(e) => {
                   setPromo(e.target.value);

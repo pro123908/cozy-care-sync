@@ -240,6 +240,19 @@ function CheckoutPage() {
       setCart([]);
       setCheckoutData(null);
 
+      // Orders over Rs 5,000 earn a one-time Rs 200-off coupon for the
+      // customer's next order (see place-order's REWARD_COUPON_THRESHOLD).
+      // Shown here as the immediate on-page feedback; a WhatsApp copy also
+      // goes out once WHATSAPP_REWARD_COUPON_TEMPLATE_NAME is approved and
+      // configured (best-effort, may not have gone out).
+      const rewardCoupon = payload.reward_coupon as { code: string; discount: number } | null;
+      if (rewardCoupon) {
+        push(
+          `🎉 You've earned Rs ${rewardCoupon.discount} off your next order! Code: ${rewardCoupon.code}`,
+          { tone: "amber", ms: 10000 },
+        );
+      }
+
       if (session?.user) {
         setOrders((o) => [newOrder, ...o]);
         navigate({ to: "/orders/$orderId", params: { orderId: newOrder.id } });
@@ -289,6 +302,7 @@ function CheckoutPage() {
         placing={placing}
         onClose={() => navigate({ to: "/" })}
         onPlace={placeOrder}
+        onUpdateCart={setCart}
         push={push}
       />
     </Suspense>

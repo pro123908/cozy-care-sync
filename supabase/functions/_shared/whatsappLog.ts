@@ -13,7 +13,8 @@ export type WhatsAppMessageType =
   | "feedback_ontime"
   | "feedback_late"
   | "confirm_ack"
-  | "cancel_ack";
+  | "cancel_ack"
+  | "reward_coupon";
 
 const logClient = createClient(
   Deno.env.get("SUPABASE_URL")!,

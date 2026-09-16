@@ -176,6 +176,14 @@ export const FREE_SHIPPING_THRESHOLD = 2000;
 export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
 export const SHIPPING_COST = 250;
 
+// "Order over Rs 5,000 -> Rs 200 off next order" reward, mirrored from
+// place-order/index.ts's REWARD_COUPON_THRESHOLD/REWARD_COUPON_DISCOUNT
+// (that edge function is what actually issues the coupon — these are only
+// for showing the "add Rs X more" nudge client-side). Deliberately separate
+// from FREE_SHIPPING_THRESHOLD_OTHER_CITIES even though both are 5000 today.
+export const REWARD_COUPON_THRESHOLD = 5000;
+export const REWARD_COUPON_DISCOUNT = 200;
+
 /** True when the delivery city is Karachi (case/whitespace-insensitive). */
 export function isKarachiCity(city: string | null | undefined): boolean {
   return /karachi/i.test((city ?? "").trim());
