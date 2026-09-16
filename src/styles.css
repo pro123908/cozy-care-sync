@@ -1710,6 +1710,36 @@
   }
 }
 
+.wcm-bank-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wcm-bank-label {
+  color: var(--ink-4);
+  font-weight: 600;
+  min-width: 130px;
+  flex-shrink: 0;
+}
+.wcm-bank-value {
+  word-break: break-all;
+}
+
+/* Below 600px the checkout drawer is too narrow for "label · value" to sit on
+   one line without the value overflowing (see bank-transfer bug where IBAN /
+   long branch names got cropped past the panel edge) — stack them instead so
+   every row renders consistently regardless of value length. */
+@media (max-width: 600px) {
+  .wcm-bank-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .wcm-bank-label {
+    min-width: 0;
+  }
+}
+
 @media (max-width: 380px) {
   .wcm-hero {
     padding: 18px 14px 16px;

@@ -6,12 +6,13 @@ import {
   computeShipping,
   isKarachiCity,
   FREE_SHIPPING_THRESHOLD,
+  FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
   SHIPPING_COST,
   PAKISTAN_CITIES,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
-import { ProductImage, Btn, TextField, Section, Row, Select, useToasts } from "./ui";
+import { ProductImage, Btn, TextField, Section, Row, Select } from "./ui";
 import type { SelectOption } from "./ui";
 import { getSupabase } from "@/integrations/supabase/client";
 
@@ -371,7 +372,7 @@ export function CartDrawer({
                 border: "1px solid var(--line)",
               }}
             >
-              {subtotal >= FREE_SHIPPING_THRESHOLD ? (
+              {subtotal >= FREE_SHIPPING_THRESHOLD_OTHER_CITIES ? (
                 <div
                   style={{
                     fontSize: 12,
@@ -380,7 +381,19 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  <span aria-hidden="true">🎉</span> Free delivery in Karachi unlocked!
+                  <span aria-hidden="true">🎉</span> Free delivery unlocked everywhere!
+                </div>
+              ) : subtotal >= FREE_SHIPPING_THRESHOLD ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--pill-success-fg)",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span aria-hidden="true">🎉</span> Free delivery in Karachi unlocked! Add{" "}
+                  {PKR(FREE_SHIPPING_THRESHOLD_OTHER_CITIES - subtotal)} more for free delivery elsewhere too
                 </div>
               ) : (
                 <div
@@ -405,7 +418,16 @@ export function CartDrawer({
                 <div
                   style={{
                     height: "100%",
-                    width: `${Math.min(100, Math.round((subtotal / FREE_SHIPPING_THRESHOLD) * 100))}%`,
+                    width: `${Math.min(
+                      100,
+                      Math.round(
+                        (subtotal /
+                          (subtotal >= FREE_SHIPPING_THRESHOLD
+                            ? FREE_SHIPPING_THRESHOLD_OTHER_CITIES
+                            : FREE_SHIPPING_THRESHOLD)) *
+                          100,
+                      ),
+                    )}%`,
                     background:
                       subtotal >= FREE_SHIPPING_THRESHOLD
                         ? "var(--pill-success-fg)"
@@ -456,15 +478,21 @@ export function CheckoutContent({
   onClose,
   onPlace,
   placing = false,
+  push,
 }: CheckoutData & {
   user: { firstName: string; lastName: string; email: string; initials: string } | null;
   onClose: () => void;
   onPlace: (d: PlacedOrderData) => void;
   placing?: boolean;
+  // The app-wide toast queue from useWcm() — NOT a local useToasts() call.
+  // useToasts() creates its own isolated state; the only <Toaster /> that's
+  // actually rendered on screen is the one mounted once in App.tsx from the
+  // shared context instance, so a locally-created queue's toasts never
+  // appear. Must be passed down from a caller that has the real one.
+  push: (msg: string, opts?: { tone?: string; icon?: React.ReactNode; ms?: number }) => void;
 }) {
   const [step, setStep] = useState(1);
   const isMobile = useIsMobile();
-  const { push } = useToasts();
   // Scroll to top on mobile when moving to the review step.
   React.useEffect(() => {
     if (isMobile && step === 2) {
@@ -892,17 +920,32 @@ export function CheckoutContent({
                 {freeDeliveryMissedForCity && (
                   <div
                     style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--blue-700)",
-                      background: "var(--pill-info-bg)",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      background: "var(--pill-warn-bg)",
+                      border: "1.5px solid var(--pill-warn-fg)",
                       borderRadius: 10,
-                      padding: "8px 12px",
+                      padding: "10px 12px",
                     }}
                   >
-                    Free delivery is available on Karachi orders over {PKR(FREE_SHIPPING_THRESHOLD)}
-                    . A {PKR(SHIPPING_COST)} delivery fee applies to{" "}
-                    {ship.city.trim() || "this city"}.
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        display: "inline-flex",
+                        color: "var(--pill-warn-fg)",
+                        marginTop: 1,
+                      }}
+                    >
+                      {Icons.truck}
+                    </span>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--pill-warn-fg)", lineHeight: 1.45 }}>
+                      Add {PKR(FREE_SHIPPING_THRESHOLD_OTHER_CITIES - subtotal)} more to get{" "}
+                      <strong style={{ fontWeight: 800 }}>FREE delivery</strong> to{" "}
+                      {ship.city.trim() || "this city"} — orders over{" "}
+                      {PKR(FREE_SHIPPING_THRESHOLD_OTHER_CITIES)} ship free. A{" "}
+                      {PKR(SHIPPING_COST)} delivery fee currently applies.
+                    </div>
                   </div>
                 )}
               </div>
@@ -952,11 +995,10 @@ export function CheckoutContent({
                       ["Branch code", "269"],
                       ["IBAN", "PK92MCIB2691006549640001"],
                     ].map(([label, value]) => (
-                      <div key={label} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <span style={{ color: "var(--ink-4)", fontWeight: 600, minWidth: 130 }}>
-                          {label}
-                        </span>
+                      <div key={label} className="wcm-bank-row">
+                        <span className="wcm-bank-label">{label}</span>
                         <span
+                          className="wcm-bank-value"
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -981,6 +1023,7 @@ export function CheckoutContent({
                               style={{
                                 width: 20,
                                 height: 20,
+                                flexShrink: 0,
                                 borderRadius: 6,
                                 border: "1px solid var(--line)",
                                 background: "var(--card)",
@@ -1185,8 +1228,6 @@ export function CheckoutContent({
               )
             }
           />
-          <div style={{ height: 6 }} />
-          <Row label="Tax" value={<span style={{ color: "var(--ink-4)" }}>Included</span>} />
           {discountAmt > 0 && (
             <>
               <div style={{ height: 6 }} />

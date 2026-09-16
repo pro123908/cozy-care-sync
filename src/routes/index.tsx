@@ -20,13 +20,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
+          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.",
       },
       { property: "og:title", content: "Wellcare Mart — Medical Supplies & Equipment" },
       {
         property: "og:description",
         content:
-          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
+          "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

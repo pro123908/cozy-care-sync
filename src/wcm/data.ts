@@ -164,14 +164,16 @@ export function getDisplayPrice(product: Product): number {
 // ---------------------------------------------------------------------------
 // Delivery / shipping rules
 //
-// Free delivery applies ONLY to Karachi addresses on orders at or above the
-// threshold — everywhere else pays the flat shipping fee. Keep this in sync
-// with the authoritative server-side calculation in the place-order edge
-// function (supabase/functions/place-order/index.ts), which is what actually
-// charges the customer.
+// Free delivery applies at a lower threshold in Karachi, and at a higher
+// threshold everywhere else. Below the applicable threshold, the flat
+// shipping fee applies. Keep this in sync with the authoritative server-side
+// calculation in the place-order edge function
+// (supabase/functions/place-order/index.ts), which is what actually charges
+// the customer.
 // ---------------------------------------------------------------------------
 
 export const FREE_SHIPPING_THRESHOLD = 2000;
+export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
 export const SHIPPING_COST = 250;
 
 /** True when the delivery city is Karachi (case/whitespace-insensitive). */
@@ -182,7 +184,8 @@ export function isKarachiCity(city: string | null | undefined): boolean {
 /** Delivery fee for a given subtotal and destination city. */
 export function computeShipping(subtotal: number, city?: string | null): number {
   if (subtotal <= 0) return 0;
-  if (isKarachiCity(city) && subtotal >= FREE_SHIPPING_THRESHOLD) return 0;
+  const threshold = isKarachiCity(city) ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
+  if (subtotal >= threshold) return 0;
   return SHIPPING_COST;
 }
 

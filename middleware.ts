@@ -326,11 +326,11 @@ function renderHome(products: LiveProduct[], categories: Category[]): PageConten
   return {
     title: "Wellcare Mart — Medical Supplies & Equipment",
     description:
-      "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.",
+      "Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.",
     canonical: `${SITE_URL}/`,
     jsonLd: buildOrganizationJsonLd(),
     bodyHtml: `
-<p>Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000.</p>
+<p>Shop trusted medical supplies, monitoring devices, and wellness essentials. Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.</p>
 <h2>Categories</h2>
 <ul>${categoriesHtml}</ul>
 <h2>Popular products</h2>
@@ -357,7 +357,7 @@ function renderAbout(): PageContent {
 <h2>Our promise</h2>
 <p>Reliable products, transparent information, and responsive customer support.</p>
 <h2>Serving Karachi and beyond</h2>
-<p>Wellcare Mart ships blood pressure monitors, glucometers, nebulizers, weight scales, orthopedic supports, and other home-care essentials across Pakistan, with free same-day delivery in Karachi on orders above Rs 2,000. If you're unsure which product fits your needs, our team is happy to help — see the <a href="/contact">Contact page</a> for phone, WhatsApp, and email details.</p>`,
+<p>Wellcare Mart ships blood pressure monitors, glucometers, nebulizers, weight scales, orthopedic supports, and other home-care essentials across Pakistan, with free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000. If you're unsure which product fits your needs, our team is happy to help — see the <a href="/contact">Contact page</a> for phone, WhatsApp, and email details.</p>`,
   };
 }
 
@@ -605,7 +605,7 @@ ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escape
 <p>${escapeHtml(description)}</p>
 ${product.stock === "Out of stock" ? "<p>Out of stock</p>" : "<p>In stock</p>"}
 ${product.brand ? `<p>Brand: ${escapeHtml(product.brand)}</p>` : ""}
-<p>Free same-day delivery in Karachi on orders above Rs 2,000.</p>`,
+<p>Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.</p>`,
   };
 }
 

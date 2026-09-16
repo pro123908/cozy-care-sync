@@ -289,6 +289,7 @@ function CheckoutPage() {
         placing={placing}
         onClose={() => navigate({ to: "/" })}
         onPlace={placeOrder}
+        push={push}
       />
     </Suspense>
   );

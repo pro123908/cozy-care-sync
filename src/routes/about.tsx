@@ -105,7 +105,8 @@ function AboutPage() {
         <p style={{ margin: 0, color: "var(--ink-3)", fontSize: 14, lineHeight: 1.7 }}>
           Wellcare Mart ships blood pressure monitors, glucometers, nebulizers, weight scales,
           orthopedic supports, and other home-care essentials across Pakistan, with free same-day
-          delivery in Karachi on orders above Rs 2,000. If you're unsure which product fits your
+          delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above
+          Rs 5,000. If you're unsure which product fits your
           needs, our team is happy to help — see the <Link to="/contact">Contact page</Link> for
           phone, WhatsApp, and email details.
         </p>

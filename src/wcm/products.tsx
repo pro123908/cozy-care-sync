@@ -8,6 +8,7 @@ import {
   getUnitPrice,
   normalizeVariantOptions,
   FREE_SHIPPING_THRESHOLD,
+  FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
@@ -600,6 +601,7 @@ export function ProductsPage({
             >
               <span>
                 Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery in Karachi
+                (Rs {FREE_SHIPPING_THRESHOLD_OTHER_CITIES.toLocaleString()}+ for other cities)
               </span>
               <span style={{ color: "var(--ink-4)" }}>
                 {Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%
@@ -2224,7 +2226,8 @@ export function ProductDetail({
                 className="wcm-detail-tax-note"
                 style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}
               >
-                Inclusive of all taxes · Free delivery in Karachi over Rs 2,000
+                Inclusive of all taxes · Free delivery in Karachi over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString()},{" "}
+                Rs {FREE_SHIPPING_THRESHOLD_OTHER_CITIES.toLocaleString()}+ elsewhere
               </div>
             </div>
           </Section>

@@ -44,6 +44,7 @@ type ProductRow = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREE_SHIPPING_THRESHOLD = 2000;
+const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
 const SHIPPING_COST = 250;
 const MAX_QTY_PER_PRODUCT = 5;
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
@@ -938,16 +939,12 @@ Deno.serve(
 
   const subtotal = finalizedItems.reduce((sum, item) => sum + item.line_total, 0);
 
-  // Free delivery applies ONLY to Karachi addresses on orders at or above the
-  // threshold — everywhere else pays the flat fee. Keep this rule in sync with
-  // computeShipping() in the storefront (src/wcm/data.ts).
+  // Free delivery applies at a lower threshold in Karachi, and a higher
+  // threshold everywhere else. Keep this rule in sync with computeShipping()
+  // in the storefront (src/wcm/data.ts).
   const isKarachiAddress = /karachi/i.test((ship.city ?? "").trim());
-  const shipping =
-    subtotal === 0
-      ? 0
-      : isKarachiAddress && subtotal >= FREE_SHIPPING_THRESHOLD
-        ? 0
-        : SHIPPING_COST;
+  const freeShippingThreshold = isKarachiAddress ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
+  const shipping = subtotal === 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : SHIPPING_COST;
 
   // Validate + atomically redeem the promo code if provided (it's optional —
   // no code = no discount). redeem_coupon re-validates server-side and
