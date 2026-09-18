@@ -428,6 +428,7 @@ export type Database = {
           brand: string
           cat: string
           category_id: string | null
+          confirmed_sales_count: number
           created_at: string
           daraz_delivered_sales_count: number
           delivered_sales_count: number
@@ -458,6 +459,7 @@ export type Database = {
           brand?: string
           cat?: string
           category_id?: string | null
+          confirmed_sales_count?: number
           created_at?: string
           daraz_delivered_sales_count?: number
           delivered_sales_count?: number
@@ -488,6 +490,7 @@ export type Database = {
           brand?: string
           cat?: string
           category_id?: string | null
+          confirmed_sales_count?: number
           created_at?: string
           daraz_delivered_sales_count?: number
           delivered_sales_count?: number

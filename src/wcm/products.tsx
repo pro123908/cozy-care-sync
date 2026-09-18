@@ -2177,7 +2177,7 @@ export function ProductDetail({
               {product.name}
             </h1>
             {(() => {
-              const totalSold = (product.delivered_sales_count ?? 0) + (product.daraz_delivered_sales_count ?? 0);
+              const totalSold = (product.confirmed_sales_count ?? 0) + (product.daraz_delivered_sales_count ?? 0);
               if (totalSold <= 0) return null;
               return (
                 <div style={{ display: "flex", alignItems: "center", marginTop: 6 }}>

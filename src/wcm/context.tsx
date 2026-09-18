@@ -776,6 +776,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             reviews: r.reviews,
             sales_count: Number(r.sales_count ?? 0),
             delivered_sales_count: Number(r.delivered_sales_count ?? 0),
+            confirmed_sales_count: Number(r.confirmed_sales_count ?? 0),
             daraz_delivered_sales_count: Number(r.daraz_delivered_sales_count ?? 0),
             stock: r.stock,
             tags: r.tags ?? [],

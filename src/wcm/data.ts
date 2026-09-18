@@ -11,6 +11,7 @@ export type Product = {
   reviews: number;
   sales_count?: number;
   delivered_sales_count?: number;
+  confirmed_sales_count?: number;
   daraz_delivered_sales_count?: number;
   stock: string;
   tags: string[];
