@@ -11,12 +11,15 @@ import {
   getUnitPrice,
   computeShipping,
   computeBundles,
+  BUNDLES,
+  BUNDLE_DEALS_END_MS,
   PKR,
 } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
+import { useBundlesActive } from "./bundle-clock";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
@@ -351,7 +354,25 @@ function Header({
   onSignOut: () => Promise<void>;
 }) {
   const isMobile = useIsMobile();
+  const bundlesOn = useBundlesActive();
+  const bundleEndLabel = new Date(BUNDLE_DEALS_END_MS).toLocaleDateString("en-PK", {
+    timeZone: "Asia/Karachi",
+    month: "short",
+    day: "numeric",
+  });
+  const maxBundleSaving = Math.max(...BUNDLES.map((b) => b.discount));
   const announcementSlides = [
+    ...(bundlesOn
+      ? [
+          {
+            icon: "🎁",
+            text: isMobile
+              ? `Bundle deals · save up to Rs ${maxBundleSaving} · ends ${bundleEndLabel}`
+              : `Bundle deals: save up to Rs ${maxBundleSaving} + free delivery · ends ${bundleEndLabel}`,
+            chip: "DEAL",
+          },
+        ]
+      : []),
     { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
     { icon: "🚚", text: "Free delivery across Pakistan over Rs 2,000", chip: "PK" },
     {
@@ -361,7 +382,10 @@ function Header({
     },
   ];
   const [menuOpen, setMenuOpen] = useState(false);
+  // Mobile-only hamburger (Orders lives here now, not in the bottom nav).
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
   useEffect(() => { if (cartOpen || authOpen) setMenuOpen(false); }, [cartOpen, authOpen]);
+  useEffect(() => { if (cartOpen || authOpen) setNavMenuOpen(false); }, [cartOpen, authOpen]);
   const [search, setSearch] = useState("");
   const [dropOpen, setDropOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -919,13 +943,15 @@ function Header({
               >
                 Categories
               </NavBtn>
-              <NavBtn
-                active={isDeals}
-                onClick={() => navigate({ to: "/deals" })}
-                icon={Icons.percent}
-              >
-                Deals
-              </NavBtn>
+              {bundlesOn && (
+                <NavBtn
+                  active={isDeals}
+                  onClick={() => navigate({ to: "/deals" })}
+                  icon={Icons.percent}
+                >
+                  Deals
+                </NavBtn>
+              )}
               <NavBtn
                 active={isOrders}
                 onClick={() => navigate({ to: "/orders" })}
@@ -938,6 +964,25 @@ function Header({
 
           <div className="wcm-header-right">
             {isAdmin && <ThemeToggle theme={theme} onToggle={toggleTheme} />}
+            <button
+              className="wcm-mobile-only wcm-menu-btn"
+              onClick={() => setNavMenuOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={navMenuOpen}
+              style={iconBtn}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+            </button>
             <button
               onClick={() => {
                 const phone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
@@ -990,7 +1035,7 @@ function Header({
               {cartCount > 0 && <CartBadge n={cartCount} />}
             </button>
             {user ? (
-              <div style={{ position: "relative" }}>
+              <div className="wcm-desktop-only" style={{ position: "relative" }}>
                 <button
                   onClick={() => setMenuOpen((o: boolean) => !o)}
                   style={{
@@ -1133,6 +1178,7 @@ function Header({
               <button
                 onClick={onSignIn}
                 aria-label="Sign in"
+                className="wcm-desktop-only"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1156,6 +1202,215 @@ function Header({
           </div>
         </div>
       </header>
+      {navMenuOpen && (
+        <>
+          <style>{`
+            @keyframes wcmMenuFade{from{opacity:0}to{opacity:1}}
+            @keyframes wcmMenuSlideRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+          `}</style>
+          <div
+            onClick={() => setNavMenuOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "var(--overlay)",
+              zIndex: 110,
+              animation: "wcmMenuFade .2s ease",
+            }}
+          />
+          <aside
+            aria-label="Menu"
+            style={{
+              position: "fixed",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              width: "min(300px, 84vw)",
+              background: "var(--card)",
+              zIndex: 111,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "-20px 0 60px -20px rgba(0,0,0,.3)",
+              animation: "wcmMenuSlideRight .25s ease",
+              overflowY: "auto",
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                padding: "16px 16px 14px",
+                borderBottom: "1px solid var(--line)",
+              }}
+            >
+              {user ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      flexShrink: 0,
+                      borderRadius: 99,
+                      background: "var(--grad)",
+                      color: "#fff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 13,
+                      fontWeight: 800,
+                    }}
+                  >
+                    {user.initials}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>
+                      {user.firstName} {user.lastName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "var(--ink-4)",
+                        marginTop: 2,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {user.email}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setNavMenuOpen(false);
+                    onSignIn();
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 18px",
+                    borderRadius: 99,
+                    background: "var(--grad)",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 700,
+                    fontSize: 14,
+                    fontFamily: "inherit",
+                    boxShadow: "0 6px 14px -6px rgba(37,99,235,.4)",
+                  }}
+                >
+                  {Icons.user} Sign in
+                </button>
+              )}
+              <button
+                onClick={() => setNavMenuOpen(false)}
+                aria-label="Close menu"
+                style={{ ...iconBtn, width: 34, height: 34 }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                setNavMenuOpen(false);
+                navigate({ to: "/orders" });
+              }}
+              style={menuItem}
+            >
+              {Icons.pkg} My orders
+            </button>
+            <button
+              onClick={() => {
+                setNavMenuOpen(false);
+                navigate({ to: "/track-order" });
+              }}
+              style={menuItem}
+            >
+              {Icons.truck} Track an order
+            </button>
+            {user && (
+              <>
+                <button
+                  onClick={() => {
+                    setNavMenuOpen(false);
+                    navigate({ to: "/wishlist" });
+                  }}
+                  style={menuItem}
+                >
+                  {Icons.heart} Saved items
+                  {wishlist.length > 0 && (
+                    <span
+                      style={{
+                        marginLeft: "auto",
+                        minWidth: 18,
+                        height: 18,
+                        borderRadius: 99,
+                        background: "var(--ink)",
+                        color: "var(--card)",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "0 5px",
+                      }}
+                    >
+                      {wishlist.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setNavMenuOpen(false);
+                    navigate({ to: "/account" });
+                  }}
+                  style={menuItem}
+                >
+                  {Icons.user} Account settings
+                </button>
+                <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
+                <button
+                  onClick={() => {
+                    setNavMenuOpen(false);
+                    onSignOut();
+                  }}
+                  style={{ ...menuItem, color: "var(--pill-rose-fg)" }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                  </svg>
+                  Sign out
+                </button>
+              </>
+            )}
+          </aside>
+        </>
+      )}
     </>
   );
 }
@@ -1250,7 +1505,8 @@ function BottomNav({
   const isCartActive = !!cartOpen;
   const isProducts = !isCartActive && (pathname === "/" || pathname.startsWith("/products"));
   const isCategories = !isCartActive && pathname.startsWith("/categories");
-  const isOrders = !isCartActive && pathname.startsWith("/orders");
+  const bundlesOn = useBundlesActive();
+  const isDeals = !isCartActive && pathname.startsWith("/deals");
 
   const items = [
     {
@@ -1273,6 +1529,21 @@ function BottomNav({
       },
       active: isCategories,
     },
+    ...(bundlesOn
+      ? [
+          {
+            id: "deals",
+            label: "Deals",
+            icon: Icons.percent,
+            action: () => {
+              onCartClose?.();
+              navigate({ to: "/deals" });
+            },
+            active: isDeals,
+            dot: true,
+          },
+        ]
+      : []),
     {
       id: "cart",
       label: "Cart",
@@ -1280,16 +1551,6 @@ function BottomNav({
       action: onCartOpen,
       badge: cartCount,
       active: isCartActive,
-    },
-    {
-      id: "orders",
-      label: "Orders",
-      icon: Icons.pkg,
-      action: () => {
-        onCartClose?.();
-        navigate({ to: "/orders" });
-      },
-      active: isOrders,
     },
   ];
   return (
@@ -1304,20 +1565,45 @@ function BottomNav({
             flexDirection: "column",
             alignItems: "center",
             gap: 2,
-            padding: "6px 14px",
+            padding: "6px 8px",
             border: "none",
             background: "transparent",
-            color: it.active ? "var(--blue-700)" : "var(--ink-3)",
+            color: it.active
+              ? "var(--blue-700)"
+              : "dot" in it && it.dot
+                ? "var(--pill-rose-fg)"
+                : "var(--ink-3)",
             fontWeight: 700,
             fontSize: 11,
             cursor: "pointer",
             fontFamily: "inherit",
-            minWidth: 60,
+            minWidth: 56,
           }}
         >
           <span style={{ position: "relative" }}>
             {it.icon}
             {(it.badge ?? 0) > 0 && <CartBadge n={it.badge as number} />}
+            {"dot" in it && it.dot && !it.active && (
+              <span
+                aria-hidden="true"
+                className="wcm-deals-badge"
+                style={{
+                  position: "absolute",
+                  top: -7,
+                  right: -20,
+                  padding: "1px 5px",
+                  borderRadius: 999,
+                  background: "var(--pill-rose-fg)",
+                  color: "#fff",
+                  fontSize: 8.5,
+                  fontWeight: 800,
+                  letterSpacing: 0.3,
+                  lineHeight: 1.3,
+                }}
+              >
+                SAVE
+              </span>
+            )}
           </span>
           {it.label}
         </button>

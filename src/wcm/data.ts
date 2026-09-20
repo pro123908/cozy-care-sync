@@ -207,6 +207,7 @@ export const BUNDLES: Bundle[] = [
   { id: "bd-012+wsd-002", ids: ["bd-012", "wsd-002"], discount: 200 },
   { id: "bd-012+oth-018", ids: ["bd-012", "oth-018"], discount: 150 },
   { id: "hear-002+bd-012", ids: ["hear-002", "bd-012"], discount: 250 },
+  { id: "ha-007+bd-012", ids: ["ha-007", "bd-012"], discount: 250 },
   { id: "bp-man-003+steth-001", ids: ["bp-man-003", "steth-001"], discount: 150 },
   { id: "bp-man-002+steth-003", ids: ["bp-man-002", "steth-003"], discount: 150 },
   { id: "stick-001+rub-001", ids: ["stick-001", "rub-001"], discount: 100 },
@@ -216,7 +217,21 @@ export const BUNDLES: Bundle[] = [
 
 /** Highest-discount bundle a product belongs to, if any (for card badges). */
 export function bestBundleFor(productId: string): Bundle | undefined {
+  if (!bundlesActive()) return undefined;
   return BUNDLES.filter((b) => b.ids.includes(productId)).sort((a, b) => b.discount - a.discount)[0];
+}
+
+/**
+ * Bundle deals run until this instant (Wed 23 Sep 2026, 11:59 PM Pakistan
+ * time). After it, computeBundles/bestBundleFor return nothing, so the
+ * discount, chips, rails and bundle free-delivery all stop. Mirrored in
+ * place-order/index.ts, which also enforces it server-side. To extend the
+ * deals, change it in BOTH places and redeploy both.
+ */
+export const BUNDLE_DEALS_END_MS = new Date("2026-09-23T23:59:59+05:00").getTime();
+
+export function bundlesActive(now: number = Date.now()): boolean {
+  return now <= BUNDLE_DEALS_END_MS;
 }
 
 export type BundleResult = {
@@ -233,6 +248,7 @@ export type BundleResult = {
  * unit — the bigger discount wins. Sizes/variants are ignored.
  */
 export function computeBundles(lines: { id: string; qty: number }[]): BundleResult {
+  if (!bundlesActive()) return { total: 0, applied: [], suggestions: [] };
   const remaining = new Map<string, number>();
   for (const l of lines) remaining.set(l.id, (remaining.get(l.id) ?? 0) + Math.max(0, Number(l.qty) || 0));
   const inCart = new Set(lines.filter((l) => l.qty > 0).map((l) => l.id));

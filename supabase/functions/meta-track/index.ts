@@ -22,6 +22,8 @@ async function logMetaEvent(row: {
   num_items?: number | null;
   content_ids?: string[] | null;
   search_string?: string | null;
+  reviewer_name?: string | null;
+  event_detail?: Record<string, string> | null;
   has_email?: boolean;
   has_phone?: boolean;
   event_source_url?: string | null;
@@ -53,6 +55,7 @@ const ALLOWED_EVENTS = new Set([
   "ReviewCardClick",
   "ReviewCarouselSwipe",
   "ReviewFacebookClick",
+  "BundleClick",
 ]);
 
 // UI-engagement events that should only be logged to meta_events for the
@@ -62,7 +65,19 @@ const LOCAL_ONLY_EVENTS = new Set([
   "ReviewCardClick",
   "ReviewCarouselSwipe",
   "ReviewFacebookClick",
+  "BundleClick",
 ]);
+
+// Flat string->string context for events that carry it (BundleClick sends
+// { label, source }). Client-supplied, so keep it tiny and strings-only.
+function sanitizeDetail(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>).slice(0, 8)) {
+    if (typeof value === "string" && value.trim()) out[key.slice(0, 40)] = value.slice(0, 200);
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
 
 type Body = {
   event_name?: string;
@@ -174,6 +189,10 @@ serve(async (req) => {
   const geo = await resolveGeo(clientIp);
 
   if (LOCAL_ONLY_EVENTS.has(eventName)) {
+    // These events (review-carousel interactions) send a person's name under
+    // the same "search_string" payload key that "Search" uses for the
+    // literal search-box query — same client field name, different meaning.
+    // Route it into its own column rather than mixing it into search_string.
     await logMetaEvent({
       event_name: eventName,
       event_id: body.event_id || null,
@@ -183,7 +202,8 @@ serve(async (req) => {
       currency: eventCurrency,
       num_items: eventNumItems,
       content_ids: eventContentIds,
-      search_string: eventSearchString,
+      reviewer_name: eventSearchString,
+      event_detail: sanitizeDetail(customData.detail),
       has_email: Boolean(body.user_data?.email),
       has_phone: Boolean(body.user_data?.phone),
       event_source_url: body.event_source_url?.trim() || origin,

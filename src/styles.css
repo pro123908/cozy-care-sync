@@ -559,6 +559,31 @@
   gap: 28px;
 }
 
+.wcm-mobile-only {
+  display: none !important;
+}
+/* Bottom-nav Deals tab: gentle pulse on the SAVE badge to draw the eye. */
+@keyframes wcmDealsPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.45); }
+  50% { transform: scale(1.1); box-shadow: 0 0 0 5px rgba(244, 63, 94, 0); }
+}
+.wcm-deals-badge {
+  animation: wcmDealsPulse 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wcm-deals-badge { animation: none; }
+}
+/* Header hamburger: no browser focus ring (it keeps focus after a tap and
+   showed a heavy black circle); it keeps the same light border as the other
+   header icon buttons. */
+.wcm-menu-btn,
+.wcm-menu-btn:focus,
+.wcm-menu-btn:focus-visible,
+.wcm-bottomnav button:focus,
+.wcm-bottomnav button:focus-visible {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
 .wcm-bottomnav {
   position: fixed;
   bottom: 0;
@@ -1142,6 +1167,9 @@
   }
   .wcm-desktop-only {
     display: none !important;
+  }
+  .wcm-mobile-only {
+    display: inline-flex !important;
   }
   .wcm-bottomnav {
     display: flex;

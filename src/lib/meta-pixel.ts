@@ -226,3 +226,27 @@ export function trackMetaEventOnce(
 
   return true;
 }
+
+export type BundleClickSource = "home page" | "deals page" | "product page" | "cart";
+
+/**
+ * A shopper clicked "Add both" / the cart's bundle tip. Local-only event
+ * (logged to meta_events for the admin feed, never forwarded to Meta's
+ * Conversions API). Both product ids ride in content_ids; the human label
+ * and the surface it was clicked on go in meta_events.event_detail.
+ */
+export function trackBundleClick(input: {
+  productIds: string[];
+  label: string;
+  source: BundleClickSource;
+  /** Bundle price after discount, in PKR. */
+  value: number;
+}) {
+  trackMetaEvent("BundleClick", {
+    content_ids: input.productIds,
+    content_type: "product_group",
+    value: input.value,
+    currency: "PKR",
+    detail: { label: input.label, source: input.source },
+  });
+}

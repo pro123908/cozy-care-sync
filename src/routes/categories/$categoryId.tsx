@@ -4,7 +4,7 @@ import { useWcm } from "@/wcm/context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
 import { Btn } from "@/wcm/ui";
-import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
+import { BundleDeals, ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
 import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/categories/$categoryId")({
@@ -146,6 +146,10 @@ function CategoryProductsPage() {
           Shop all
         </Btn>
       </div>
+
+      {productsLoaded && categoryProducts.length > 0 && (
+        <BundleDeals products={products} isMobile={isMobile} forProducts={categoryProducts} />
+      )}
 
       {!productsLoaded ? (
         <div

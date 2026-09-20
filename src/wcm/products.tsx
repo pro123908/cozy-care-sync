@@ -9,15 +9,17 @@ import {
   normalizeVariantOptions,
   FREE_SHIPPING_THRESHOLD,
   BUNDLES,
+  bundlesActive,
   computeBundles,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, ProductPhoto, Pill, Btn, Section } from "./ui";
 import { useWcm, useTestimonials } from "./context";
+import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { trackMetaEvent } from "@/lib/meta-pixel";
+import { trackMetaEvent, trackBundleClick } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
 import {
   CategoryRail,
@@ -131,6 +133,7 @@ export function ProductsPage({
   const { products, productsLoaded, categories, categoriesLoaded } = useWcm();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  useBundlesActive();
   const { ids: recentlyViewedIds } = useRecentlyViewed();
   const [active, setActive] = useState(category ?? "all");
   const [sort, setSort] = useState("popular");
@@ -1420,6 +1423,7 @@ export function ProductDetail({
   const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } =
     useWcm();
   const isMobile = useIsMobile();
+  useBundlesActive();
   const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -1442,7 +1446,7 @@ export function ProductDetail({
   // Bundle deals this product is part of, with the partner product resolved
   // from the live catalog (skipped when the partner is unavailable or needs
   // an option picked, since "Add both" can't choose one for the buyer).
-  const bundleOffers = BUNDLES.filter((b) => b.ids.includes(product.id))
+  const bundleOffers = (bundlesActive() ? BUNDLES : []).filter((b) => b.ids.includes(product.id))
     .sort((a, b) => b.discount - a.discount)
     .flatMap((bundle) => {
       const partnerId = bundle.ids[0] === product.id ? bundle.ids[1] : bundle.ids[0];
@@ -2517,6 +2521,7 @@ export function ProductDetail({
             )}
             {bundleOffers.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <BundleCountdown style={{ alignSelf: "flex-start" }} />
                 {bundleOffers.map(({ bundle, partner }) => (
                   <div
                     key={bundle.id}
@@ -2542,6 +2547,12 @@ export function ProductDetail({
                     <button
                       type="button"
                       onClick={() => {
+                        trackBundleClick({
+                          productIds: [product.id, partner.id],
+                          label: `${product.name} + ${partner.name}`,
+                          source: "product page",
+                          value: resolvedUnitPrice + partner.price - bundle.discount,
+                        });
                         addToCart(product, 1, variantKey);
                         addToCart(partner, 1);
                       }}

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   BUNDLES,
   PKR,
+  bundlesActive,
   bestBundleFor,
   getDisplayPrice,
   getProductBadge,
@@ -13,6 +14,8 @@ import {
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
+import { trackBundleClick } from "@/lib/meta-pixel";
+import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import type { CartLine } from "./context";
 
 export function CategoryRail({
@@ -383,6 +386,7 @@ export function ProductCard({
   compact?: boolean;
 }) {
   const { wishlist, toggleWishlist, setCart, addToCart } = useWcm();
+  useBundlesActive();
   const getProductRatings = useProductRatings();
   const { average: userRating, count: reviewCount } = getProductRatings(p.id);
   const saved = wishlist.includes(p.id);
@@ -997,6 +1001,7 @@ export function DealsRail({
  * in the cart (see computeBundles) — "Add both" just puts the pair in it.
  */
 export function getBundleOffers(products: Product[]) {
+  if (!bundlesActive()) return [];
   return BUNDLES.flatMap((bundle) => {
     const [a, b] = bundle.ids.map((id) => products.find((p) => p.id === id));
     // Skip pairs needing an option pick — "Add both" can't choose for the buyer.
@@ -1010,16 +1015,23 @@ export function BundleDeals({
   isMobile,
   layout = "rail",
   limit,
+  forProducts,
 }: {
   products: Product[];
   isMobile: boolean;
+  /** Only show bundles that include at least one of these products (category pages). */
+  forProducts?: Product[];
   /** Cap on how many bundles to show (best discounts first). */
   limit?: number;
   /** "rail" scrolls sideways (home page); "grid" wraps (the /deals page). */
   layout?: "rail" | "grid";
 }) {
   const { addToCart } = useWcm();
-  const offers = getBundleOffers(products).slice(0, limit);
+  useBundlesActive();
+  const scope = forProducts ? new Set(forProducts.map((p) => p.id)) : null;
+  const offers = getBundleOffers(products)
+    .filter((o) => !scope || scope.has(o.a.id) || scope.has(o.b.id))
+    .slice(0, limit);
   if (offers.length === 0) return null;
   const isGrid = layout === "grid";
 
@@ -1038,6 +1050,7 @@ export function BundleDeals({
         <div
           style={{
             display: "flex",
+            flexWrap: "wrap",
             alignItems: "center",
             gap: 6,
             marginBottom: 8,
@@ -1049,6 +1062,7 @@ export function BundleDeals({
         >
           <span aria-hidden="true">🎁</span> Bundle deals
           <span style={{ fontWeight: 600, color: "var(--ink-4)" }}>· buy together, save + free delivery</span>
+          <BundleCountdown />
           <Link
             to="/deals"
             style={{
@@ -1107,28 +1121,73 @@ export function BundleDeals({
               <div style={thumb}>
                 <ProductImage product={a} />
               </div>
-              <span style={{ fontWeight: 800, color: "var(--ink-4)" }}>+</span>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 24,
+                  height: 24,
+                  flexShrink: 0,
+                  borderRadius: 999,
+                  background: "var(--grad)",
+                  color: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  fontWeight: 800,
+                  lineHeight: 1,
+                  paddingBottom: 2,
+                }}
+              >
+                +
+              </span>
               <div style={thumb}>
                 <ProductImage product={b} />
               </div>
-              <span
+              <div
                 style={{
                   marginLeft: "auto",
                   alignSelf: "flex-start",
-                  padding: "3px 9px",
-                  borderRadius: 999,
-                  background: "var(--pill-success-bg)",
-                  color: "var(--pill-success-fg)",
-                  fontSize: 11.5,
-                  fontWeight: 800,
-                  whiteSpace: "nowrap",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: 5,
                 }}
               >
-                Save {PKR(bundle.discount)}
-              </span>
+                <span
+                  style={{
+                    padding: "3px 9px",
+                    borderRadius: 999,
+                    background: "var(--pill-success-bg)",
+                    color: "var(--pill-success-fg)",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Save {PKR(bundle.discount)}
+                </span>
+                <span
+                  style={{
+                    padding: "3px 9px",
+                    borderRadius: 999,
+                    background: "var(--pill-teal-bg)",
+                    color: "var(--pill-teal-fg)",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <span aria-hidden="true">🚚</span> Free delivery
+                </span>
+              </div>
             </div>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.35 }}>
-              {a.name} + {b.name}
+              <div>{a.name}</div>
+              <div>
+                <span style={{ color: "var(--blue-700)", fontWeight: 900, fontSize: 16, marginRight: 5 }}>+</span>
+                {b.name}
+              </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
               <div>
@@ -1142,6 +1201,12 @@ export function BundleDeals({
               <button
                 type="button"
                 onClick={() => {
+                  trackBundleClick({
+                    productIds: [a.id, b.id],
+                    label: `${a.name} + ${b.name}`,
+                    source: isGrid ? "deals page" : "home page",
+                    value: a.price + b.price - bundle.discount,
+                  });
                   addToCart(a, 1);
                   addToCart(b, 1);
                 }}

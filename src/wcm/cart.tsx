@@ -18,6 +18,8 @@ import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row, Select } from "./ui";
 import type { SelectOption } from "./ui";
 import { getSupabase } from "@/integrations/supabase/client";
+import { trackBundleClick } from "@/lib/meta-pixel";
+import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
@@ -82,6 +84,7 @@ export function CartDrawer({
   onCheckout: (items: CartItem[], subtotal: number, shipping: number, total: number) => void;
 }) {
   const isMobile = useIsMobile();
+  useBundlesActive();
   const mobileBottomNavInset = "calc(env(safe-area-inset-bottom, 0px) + 58px)";
 
   if (!open) return null;
@@ -379,10 +382,21 @@ export function CartDrawer({
               <span>
                 <span aria-hidden="true">🎁</span> Add <strong style={{ fontWeight: 800 }}>{bundleTip.partner.name}</strong>{" "}
                 ({PKR(bundleTip.partner.price)}) and save {PKR(bundleTip.sg.bundle.discount)}
+                <BundleCountdown style={{ display: "flex", marginTop: 6, width: "fit-content" }} />
               </span>
               <button
                 type="button"
-                onClick={() => addBundlePartner(bundleTip.partner!)}
+                onClick={() => {
+                  const partner = bundleTip.partner!;
+                  const have = catalog.find((p) => p.id === bundleTip.sg.haveId);
+                  trackBundleClick({
+                    productIds: [bundleTip.sg.haveId, partner.id],
+                    label: `${have?.name ?? bundleTip.sg.haveId} + ${partner.name}`,
+                    source: "cart",
+                    value: (have?.price ?? 0) + partner.price - bundleTip.sg.bundle.discount,
+                  });
+                  addBundlePartner(partner);
+                }}
                 style={{
                   flexShrink: 0,
                   border: "1.5px solid currentColor",
@@ -570,6 +584,7 @@ export function CheckoutContent({
 }) {
   const [step, setStep] = useState(1);
   const isMobile = useIsMobile();
+  useBundlesActive();
   // Editable locally (qty stepper / remove in the order-summary panel) —
   // subtotal is always derived from this, never a stale prop, since it also
   // feeds onPlace() below (what actually gets ordered).
