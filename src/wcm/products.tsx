@@ -2578,9 +2578,35 @@ export function ProductDetail({
               </div>
             )}
             {bundleOffers.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <BundleCountdown style={{ alignSelf: "flex-start" }} />
-                {bundleOffers.map(({ bundle, partner }) => (
+              // One card: the countdown lives in the card header so it reads as
+              // "this bundle deal ends in…", not as a separate banner.
+              <div
+                style={{
+                  borderRadius: 12,
+                  background: "var(--pill-success-bg)",
+                  color: "var(--pill-success-fg)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 8,
+                    padding: "10px 12px 0",
+                  }}
+                >
+                  <span style={{ fontWeight: 800 }}>
+                    <span aria-hidden="true">🎁</span> Bundle deal
+                  </span>
+                  <BundleCountdown />
+                </div>
+                {bundleOffers.map(({ bundle, partner }, index) => (
                   <div
                     key={bundle.id}
                     style={{
@@ -2589,17 +2615,11 @@ export function ProductDetail({
                       justifyContent: "space-between",
                       gap: 10,
                       padding: "10px 12px",
-                      borderRadius: 12,
-                      background: "var(--pill-success-bg)",
-                      color: "var(--pill-success-fg)",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.4,
+                      borderTop: index > 0 ? "1px solid rgba(0,0,0,.08)" : "none",
                     }}
                   >
                     <span style={{ minWidth: 0 }}>
-                      <span aria-hidden="true">🎁</span> Bundle &amp; save{" "}
-                      <strong style={{ fontWeight: 800 }}>{PKR(bundle.discount)}</strong> + free delivery — buy
+                      Save <strong style={{ fontWeight: 800 }}>{PKR(bundle.discount)}</strong> + free delivery — buy
                       with {partner.name} ({PKR(partner.price)})
                     </span>
                     <button

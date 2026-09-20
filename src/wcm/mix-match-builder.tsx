@@ -14,7 +14,15 @@ import { useBundlesActive } from "./bundle-clock";
 import { Select, type SelectOption } from "./ui";
 import { trackBundleClick, trackBundleEvent } from "@/lib/meta-pixel";
 
-type Choice = { p: Product; variant?: string; price: number };
+type Choice = { p: Product; variant?: string; price: number; group: string };
+
+const prettyCategory = (p: Product) =>
+  p.category_name ||
+  p.cat
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
 // Same trigger look as the checkout city picker.
 const selectStyle: React.CSSProperties = {
@@ -44,9 +52,9 @@ export function MixMatchBuilder({ products, isMobile }: { products: Product[]; i
       const options = getSelectableOptions(p);
       if (options.length > 1) continue; // "Add both" can't pick an option for the buyer
       const variant = options[0]?.label;
-      list.push({ p, variant, price: getUnitPrice(p, variant) });
+      list.push({ p, variant, price: getUnitPrice(p, variant), group: prettyCategory(p) });
     }
-    return list.sort((x, y) => x.p.name.localeCompare(y.p.name));
+    return list.sort((x, y) => x.group.localeCompare(y.group) || x.p.name.localeCompare(y.p.name));
   }, [products]);
 
   if (!active || choices.length < 2) return null;
@@ -78,7 +86,7 @@ export function MixMatchBuilder({ products, isMobile }: { products: Product[]; i
   const optionsFor = (exclude: string): SelectOption[] =>
     choices
       .filter((c) => c.p.id !== exclude)
-      .map((c) => ({ value: c.p.id, label: `${c.p.name} — ${PKR(c.price)}`, image: c.p.image_url || null }));
+      .map((c) => ({ value: c.p.id, label: c.p.name, meta: PKR(c.price), image: c.p.image_url || null, group: c.group }));
 
   const addBoth = () => {
     if (!a || !b) return;

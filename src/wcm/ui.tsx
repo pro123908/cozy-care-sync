@@ -480,6 +480,13 @@ export type SelectOption = {
   // key at all (even to null) opts the option into a thumbnail slot: a missing
   // or broken image falls back to an initials avatar so rows stay aligned.
   image?: string | null;
+  // Optional group heading: a heading row is drawn above the first option of
+  // each run of consecutive options sharing the same group (options should be
+  // supplied already sorted by group).
+  group?: string;
+  // Optional short text kept on the right of the row/trigger and never
+  // truncated (e.g. a price) — long labels wrap or ellipsize instead.
+  meta?: string;
 };
 
 function SelectThumb({ src, label, size }: { src?: string | null; label: string; size: number }) {
@@ -767,9 +774,10 @@ export function Select({
           }}
         >
           {active && active.image !== undefined && <SelectThumb src={active.image} label={active.label} size={28} />}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
             {active?.label || value || placeholder || "Select"}
           </span>
+          {active?.meta && <span style={{ flexShrink: 0, fontWeight: 700, whiteSpace: "nowrap" }}>{active.meta}</span>}
         </span>
         <span
           style={{
@@ -824,9 +832,11 @@ export function Select({
               filtered.map((opt, i) => {
                 const isActive = opt.value === value;
                 const isHighlighted = i === highlight;
+                const showGroup = !!opt.group && opt.group !== filtered[i - 1]?.group;
                 return (
+                  <React.Fragment key={opt.value}>
+                    {showGroup && <div style={selectGroupStyle}>{opt.group}</div>}
                   <button
-                    key={opt.value}
                     ref={isHighlighted ? highlightRef : undefined}
                     type="button"
                     role="option"
@@ -839,7 +849,7 @@ export function Select({
                       ...(isActive ? activeSelectOptionStyle : {}),
                     }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                       {opt.image !== undefined && <SelectThumb src={opt.image} label={opt.label} size={36} />}
                       {opt.color && (
                         <span
@@ -853,17 +863,29 @@ export function Select({
                         />
                       )}
                       <span
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
+                        style={
+                          opt.meta
+                            ? {
+                                overflow: "hidden",
+                                display: "-webkit-box",
+                                WebkitBoxOrient: "vertical",
+                                WebkitLineClamp: 2,
+                                lineHeight: 1.3,
+                              }
+                            : { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+                        }
                       >
                         {opt.label}
                       </span>
                     </span>
-                    {isActive && <span style={{ flexShrink: 0 }}>{Icons.check}</span>}
+                    {(opt.meta || isActive) && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                        {opt.meta && <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{opt.meta}</span>}
+                        {isActive && <span style={{ display: "inline-flex" }}>{Icons.check}</span>}
+                      </span>
+                    )}
                   </button>
+                  </React.Fragment>
                 );
               })
             )}
@@ -927,6 +949,15 @@ const selectListStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   gap: 2,
+};
+
+const selectGroupStyle: CSSProperties = {
+  padding: "10px 10px 4px",
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: 0.6,
+  textTransform: "uppercase",
+  color: "var(--ink-4)",
 };
 
 const selectEmptyStyle: CSSProperties = {
