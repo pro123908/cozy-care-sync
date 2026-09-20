@@ -491,7 +491,7 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  <span aria-hidden="true">🎉</span> Free delivery unlocked!
+                  <span aria-hidden="true">🎉</span> Free delivery unlocked everywhere!
                 </div>
               ) : subtotal >= FREE_SHIPPING_THRESHOLD ? (
                 <div
@@ -514,7 +514,7 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  Add {PKR(FREE_SHIPPING_THRESHOLD - subtotal)} more for free delivery
+                  Add {PKR(FREE_SHIPPING_THRESHOLD - subtotal)} more for free delivery in Karachi
                 </div>
               )}
               <div

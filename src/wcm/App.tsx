@@ -378,7 +378,8 @@ function Header({
         ]
       : []),
     { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
-    { icon: "🚚", text: "Free delivery across Pakistan over Rs 2,000", chip: "PK" },
+    { icon: "🚚", text: "Free delivery in Karachi over Rs 2,000", chip: "KHI" },
+    { icon: "🚚", text: "Free delivery nationwide over Rs 5,000", chip: "PK" },
     {
       icon: "📦",
       text: isMobile ? "Delivered in 3–5 working days" : "Orders delivered within 3 to 5 working days",

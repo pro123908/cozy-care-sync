@@ -174,9 +174,10 @@ export function getDisplayPrice(product: Product): number {
 // ---------------------------------------------------------------------------
 
 export const FREE_SHIPPING_THRESHOLD = 2000;
-// Lowered from 5000 to match Karachi (2026-09-21) — checkout copy no longer
-// distinguishes the two tiers while they're equal.
-export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 2000;
+// Outside Karachi the Rs 250 fee stays until Rs 5,000 (tried Rs 2,000 on
+// 2026-09-21, reverted the same day). Any applied bundle / mix & match pair ships
+// free everywhere regardless — see computeShipping's hasBundle.
+export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
 export const SHIPPING_COST = 250;
 
 // "Order over Rs 5,000 -> Rs 200 off next order" reward, mirrored from

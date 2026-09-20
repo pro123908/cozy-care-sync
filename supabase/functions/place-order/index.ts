@@ -45,7 +45,7 @@ type ProductRow = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREE_SHIPPING_THRESHOLD = 2000;
-const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 2000; // lowered from 5000 on 2026-09-21
+const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000; // Rs 2,000 was tried 2026-09-21 and reverted
 const SHIPPING_COST = 250;
 const MAX_QTY_PER_PRODUCT = 5;
 // Wheelchairs and commode/shower chairs are delivered in Karachi only —
@@ -1242,9 +1242,9 @@ Deno.serve(
 
   const subtotal = finalizedItems.reduce((sum, item) => sum + item.line_total, 0);
 
-  // Free delivery threshold can differ for Karachi vs. other cities (equal at
-  // 2000 today). Keep this rule in sync with computeShipping() in the
-  // storefront (src/wcm/data.ts).
+  // Free delivery: Rs 2,000 in Karachi, Rs 5,000 elsewhere, and free on any
+  // applied bundle everywhere (below). Keep in sync with computeShipping() in
+  // the storefront (src/wcm/data.ts).
   const isKarachiAddress = /karachi/i.test((ship.city ?? "").trim());
   const freeShippingThreshold = isKarachiAddress ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
   // Any applied bundle deal ships free everywhere (mirrors computeShipping's
