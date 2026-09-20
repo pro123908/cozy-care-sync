@@ -1,6 +1,11 @@
 type MetaEventPayload = Record<string, unknown>;
 type MetaEventUserData = { email?: string; phone?: string };
-type MetaTrackOptions = { eventId?: string; userData?: MetaEventUserData };
+type MetaTrackOptions = {
+  eventId?: string;
+  userData?: MetaEventUserData;
+  /** Let the request outlive the page (used by SiteExit while the tab closes). */
+  keepalive?: boolean;
+};
 
 // ---------------------------------------------------------------------------
 // fbc / fbp helpers
@@ -152,6 +157,7 @@ async function forwardMetaEvent(
       Authorization: `Bearer ${SUPABASE_PUBLIC_KEY}`,
     },
     body: JSON.stringify(body),
+    ...(options?.keepalive ? { keepalive: true } : {}),
   });
 
   if (!res.ok) {

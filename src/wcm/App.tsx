@@ -20,6 +20,7 @@ import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
 import { useBundlesActive } from "./bundle-clock";
+import { initSiteExitTracking } from "@/lib/siteExit";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const CartDrawer = lazy(() => import("./cart").then((m) => ({ default: m.CartDrawer })));
@@ -69,6 +70,9 @@ function AppLayout() {
 
   // Close cart on route change
   useEffect(() => { setCartOpen(false); }, [pathname]);
+
+  // "Left the site" event (page hidden/closed) with the visitor's active time.
+  useEffect(() => initSiteExitTracking(), []);
 
   useEffect(() => {
     if (!pathname) return;
