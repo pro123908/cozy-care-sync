@@ -603,6 +603,10 @@ export function Select({
   const menuRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const highlightRef = useRef<HTMLButtonElement | null>(null);
+  // Only scroll the list to the highlighted option when it was set on open or
+  // by the arrow keys — never as a side effect of the menu re-measuring itself
+  // or of the user scrolling the list (that snapped it back to the first item).
+  const scrollToHighlightRef = useRef(false);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(() => {
@@ -665,6 +669,7 @@ export function Select({
       setQuery("");
       const idx = options.findIndex((opt) => opt.value === value);
       setHighlight(idx >= 0 ? idx : 0);
+      scrollToHighlightRef.current = true;
     } else {
       setPos(null);
     }
@@ -676,7 +681,11 @@ export function Select({
     if (!open) return;
     updatePosition();
     if (searchable) searchRef.current?.focus();
-    const handler = () => updatePosition();
+    const handler = (event: Event) => {
+      // Scrolling the option list itself must not re-measure/re-scroll the menu.
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
+      updatePosition();
+    };
     window.addEventListener("scroll", handler, true);
     window.addEventListener("resize", handler);
     return () => {
@@ -687,7 +696,10 @@ export function Select({
 
   // Keep the highlighted option scrolled into view (open + arrow navigation).
   useLayoutEffect(() => {
-    if (open) highlightRef.current?.scrollIntoView({ block: "nearest" });
+    if (open && scrollToHighlightRef.current && highlightRef.current) {
+      highlightRef.current.scrollIntoView({ block: "nearest" });
+      scrollToHighlightRef.current = false;
+    }
   }, [highlight, open, pos]);
 
   const active = options.find((opt) => opt.value === value);
@@ -701,9 +713,11 @@ export function Select({
   const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowDown") {
       event.preventDefault();
+      scrollToHighlightRef.current = true;
       setHighlight((h) => Math.min(filtered.length - 1, h + 1));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
+      scrollToHighlightRef.current = true;
       setHighlight((h) => Math.max(0, h - 1));
     } else if (event.key === "Enter") {
       event.preventDefault();
@@ -794,6 +808,7 @@ export function Select({
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setHighlight(0);
+                  scrollToHighlightRef.current = true;
                 }}
                 onKeyDown={onSearchKeyDown}
                 placeholder={searchPlaceholder}
@@ -906,6 +921,8 @@ const selectSearchInputStyle: CSSProperties = {
 const selectListStyle: CSSProperties = {
   overflowY: "auto",
   overflowX: "hidden",
+  overscrollBehavior: "contain",
+  WebkitOverflowScrolling: "touch",
   padding: 6,
   display: "flex",
   flexDirection: "column",
