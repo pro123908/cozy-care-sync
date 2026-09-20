@@ -10,6 +10,7 @@ import {
   resolveProductIdFromParam,
   getUnitPrice,
   computeShipping,
+  computeBundles,
   PKR,
 } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
@@ -192,8 +193,9 @@ function resolveCheckoutSnapshot(
     .filter((item): item is CheckoutLine => Boolean(item.p));
   if (items.length === 0) return null;
   const subtotal = items.reduce((sum, item) => sum + getUnitPrice(item.p, item.size) * item.qty, 0);
-  const shipping = computeShipping(subtotal, "Karachi");
-  return { items, subtotal, shipping, total: subtotal + shipping };
+  const bundles = computeBundles(items.map((item) => ({ id: item.p.id, qty: item.qty })));
+  const shipping = computeShipping(subtotal, "Karachi", bundles.total > 0);
+  return { items, subtotal, shipping, total: subtotal + shipping - bundles.total };
 }
 
 function buildCartWhatsappMessage(snapshot: CheckoutState): string {
@@ -351,8 +353,7 @@ function Header({
   const isMobile = useIsMobile();
   const announcementSlides = [
     { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
-    { icon: "🚚", text: "Free delivery in Karachi over Rs 2,000", chip: "KHI" },
-    { icon: "🚚", text: "Free delivery nationwide over Rs 5,000", chip: "PK" },
+    { icon: "🚚", text: "Free delivery across Pakistan over Rs 2,000", chip: "PK" },
     {
       icon: "📦",
       text: isMobile ? "Delivered in 3–5 working days" : "Orders delivered within 3 to 5 working days",

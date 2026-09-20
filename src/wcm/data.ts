@@ -174,25 +174,102 @@ export function getDisplayPrice(product: Product): number {
 // ---------------------------------------------------------------------------
 
 export const FREE_SHIPPING_THRESHOLD = 2000;
-export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
+// Lowered from 5000 to match Karachi (2026-09-21) — checkout copy no longer
+// distinguishes the two tiers while they're equal.
+export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 2000;
 export const SHIPPING_COST = 250;
 
 // "Order over Rs 5,000 -> Rs 200 off next order" reward, mirrored from
 // place-order/index.ts's REWARD_COUPON_THRESHOLD/REWARD_COUPON_DISCOUNT
 // (that edge function is what actually issues the coupon — these are only
 // for showing the "add Rs X more" nudge client-side). Deliberately separate
-// from FREE_SHIPPING_THRESHOLD_OTHER_CITIES even though both are 5000 today.
+// from the free-delivery thresholds (independent business rules).
 export const REWARD_COUPON_THRESHOLD = 5000;
 export const REWARD_COUPON_DISCOUNT = 200;
+
+// ---------------------------------------------------------------------------
+// Bundle deals: buy both products together, get a flat Rs discount. Applied
+// automatically in the cart (no code). Mirrored in place-order/index.ts, which
+// is the actual authority — keep the two lists identical.
+// ---------------------------------------------------------------------------
+
+export type Bundle = { id: string; ids: [string, string]; discount: number };
+
+// Pair complementary/same-brand items only (meter + its strips, manual BP set +
+// stethoscope, ...) — never two of the same kind of product.
+export const BUNDLES: Bundle[] = [
+  { id: "gluco-002+strip-003", ids: ["gluco-002", "strip-003"], discount: 250 },
+  { id: "gluco-003+strip-003", ids: ["gluco-003", "strip-003"], discount: 250 },
+  { id: "gluco-001+strip-002", ids: ["gluco-001", "strip-002"], discount: 250 },
+  { id: "gluco-004+strip-007", ids: ["gluco-004", "strip-007"], discount: 200 },
+  { id: "bd-012+neb-010", ids: ["bd-012", "neb-010"], discount: 200 },
+  { id: "bd-012+po-002", ids: ["bd-012", "po-002"], discount: 250 },
+  { id: "bd-012+wsd-002", ids: ["bd-012", "wsd-002"], discount: 200 },
+  { id: "bd-012+oth-018", ids: ["bd-012", "oth-018"], discount: 150 },
+  { id: "hear-002+bd-012", ids: ["hear-002", "bd-012"], discount: 250 },
+  { id: "bp-man-003+steth-001", ids: ["bp-man-003", "steth-001"], discount: 150 },
+  { id: "bp-man-002+steth-003", ids: ["bp-man-002", "steth-003"], discount: 150 },
+  { id: "stick-001+rub-001", ids: ["stick-001", "rub-001"], discount: 100 },
+  { id: "mas-012+tens-001", ids: ["mas-012", "tens-001"], discount: 300 },
+  { id: "supp-001+oth-002", ids: ["supp-001", "oth-002"], discount: 100 },
+];
+
+/** Highest-discount bundle a product belongs to, if any (for card badges). */
+export function bestBundleFor(productId: string): Bundle | undefined {
+  return BUNDLES.filter((b) => b.ids.includes(productId)).sort((a, b) => b.discount - a.discount)[0];
+}
+
+export type BundleResult = {
+  /** Total Rs discount across every bundle that matched. */
+  total: number;
+  applied: { bundle: Bundle; times: number }[];
+  /** Bundles where the cart has one product but not its partner yet. */
+  suggestions: { bundle: Bundle; haveId: string; missingId: string }[];
+};
+
+/**
+ * Each bundle consumes one unit of both its products per application, so a
+ * product shared by two bundles (the BP monitor) is only discounted once per
+ * unit — the bigger discount wins. Sizes/variants are ignored.
+ */
+export function computeBundles(lines: { id: string; qty: number }[]): BundleResult {
+  const remaining = new Map<string, number>();
+  for (const l of lines) remaining.set(l.id, (remaining.get(l.id) ?? 0) + Math.max(0, Number(l.qty) || 0));
+  const inCart = new Set(lines.filter((l) => l.qty > 0).map((l) => l.id));
+  const applied: BundleResult["applied"] = [];
+  let total = 0;
+  const byDiscount = [...BUNDLES].sort((a, b) => b.discount - a.discount);
+  for (const bundle of byDiscount) {
+    const times = Math.min(...bundle.ids.map((id) => remaining.get(id) ?? 0));
+    if (times <= 0) continue;
+    for (const id of bundle.ids) remaining.set(id, (remaining.get(id) ?? 0) - times);
+    applied.push({ bundle, times });
+    total += bundle.discount * times;
+  }
+  const suggestions: BundleResult["suggestions"] = [];
+  for (const bundle of byDiscount) {
+    const [a, b] = bundle.ids;
+    const ra = remaining.get(a) ?? 0;
+    const rb = remaining.get(b) ?? 0;
+    // Only nudge when the partner isn't in the cart at all — a leftover unit
+    // (e.g. a thermometer whose BP monitor already went into another bundle)
+    // shouldn't prompt "add another BP monitor".
+    if (ra > 0 && rb <= 0 && !inCart.has(b)) suggestions.push({ bundle, haveId: a, missingId: b });
+    else if (rb > 0 && ra <= 0 && !inCart.has(a)) suggestions.push({ bundle, haveId: b, missingId: a });
+  }
+  return { total, applied, suggestions };
+}
 
 /** True when the delivery city is Karachi (case/whitespace-insensitive). */
 export function isKarachiCity(city: string | null | undefined): boolean {
   return /karachi/i.test((city ?? "").trim());
 }
 
-/** Delivery fee for a given subtotal and destination city. */
-export function computeShipping(subtotal: number, city?: string | null): number {
+/** Delivery fee for a given subtotal and destination city (free when a bundle deal applies). */
+export function computeShipping(subtotal: number, city?: string | null, hasBundle = false): number {
   if (subtotal <= 0) return 0;
+  // Any applied bundle deal ships free, regardless of city or order size.
+  if (hasBundle) return 0;
   const threshold = isKarachiCity(city) ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
   if (subtotal >= threshold) return 0;
   return SHIPPING_COST;

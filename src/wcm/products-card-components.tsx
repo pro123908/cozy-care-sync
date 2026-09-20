@@ -1,6 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { PKR, getDisplayPrice, getProductBadge, getSelectableOptions, type Category, type Product } from "./data";
+import {
+  BUNDLES,
+  PKR,
+  bestBundleFor,
+  getDisplayPrice,
+  getProductBadge,
+  getSelectableOptions,
+  type Category,
+  type Product,
+} from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
@@ -397,6 +406,7 @@ export function ProductCard({
   const resolvedReviewCount = reviewCount || p.reviews;
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
+  const bundleDeal = bestBundleFor(p.id);
   const badge = getProductBadge(p);
   const primaryTag = badge?.label ?? "";
   const primaryTagTone = badge?.tone ?? "slate";
@@ -593,6 +603,22 @@ export function ProductCard({
             <span style={{ fontWeight: 700 }}>{resolvedRating.toFixed(1)}</span>
             <span>·</span>
             <span>{resolvedReviewCount} reviews</span>
+          </div>
+        )}
+        {bundleDeal && (
+          <div
+            style={{
+              alignSelf: "flex-start",
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "var(--pill-success-bg)",
+              color: "var(--pill-success-fg)",
+              fontSize: compact ? 11 : 11.5,
+              fontWeight: 700,
+              lineHeight: 1.3,
+            }}
+          >
+            <span aria-hidden="true">🎁</span> Bundle deal · save {PKR(bundleDeal.discount)}
           </div>
         )}
         <span
@@ -958,6 +984,182 @@ export function DealsRail({
               cartQty={cart.find((c) => c.id === p.id)?.qty ?? 0}
               compact
             />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Buy together, save" cards for every bundle in BUNDLES whose two products
+ * are both live in the catalog. The discount itself is applied automatically
+ * in the cart (see computeBundles) — "Add both" just puts the pair in it.
+ */
+export function getBundleOffers(products: Product[]) {
+  return BUNDLES.flatMap((bundle) => {
+    const [a, b] = bundle.ids.map((id) => products.find((p) => p.id === id));
+    // Skip pairs needing an option pick — "Add both" can't choose for the buyer.
+    if (!a || !b || getSelectableOptions(a).length > 0 || getSelectableOptions(b).length > 0) return [];
+    return [{ bundle, a, b }];
+  }).sort((x, y) => y.bundle.discount - x.bundle.discount);
+}
+
+export function BundleDeals({
+  products,
+  isMobile,
+  layout = "rail",
+  limit,
+}: {
+  products: Product[];
+  isMobile: boolean;
+  /** Cap on how many bundles to show (best discounts first). */
+  limit?: number;
+  /** "rail" scrolls sideways (home page); "grid" wraps (the /deals page). */
+  layout?: "rail" | "grid";
+}) {
+  const { addToCart } = useWcm();
+  const offers = getBundleOffers(products).slice(0, limit);
+  if (offers.length === 0) return null;
+  const isGrid = layout === "grid";
+
+  const thumb: React.CSSProperties = {
+    width: isMobile ? 64 : 72,
+    height: isMobile ? 64 : 72,
+    borderRadius: 10,
+    overflow: "hidden",
+    background: "var(--surface)",
+    flexShrink: 0,
+  };
+
+  return (
+    <div style={{ marginBottom: 12, minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+      {!isGrid && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 8,
+            fontSize: 13,
+            fontWeight: 800,
+            color: "var(--ink)",
+            letterSpacing: -0.1,
+          }}
+        >
+          <span aria-hidden="true">🎁</span> Bundle deals
+          <span style={{ fontWeight: 600, color: "var(--ink-4)" }}>· buy together, save + free delivery</span>
+          <Link
+            to="/deals"
+            style={{
+              marginLeft: "auto",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "var(--blue-700)",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              whiteSpace: "nowrap",
+            }}
+          >
+            View all {Icons.chev}
+          </Link>
+        </div>
+      )}
+      <div
+        className="wcm-bundle-rail"
+        style={
+          isGrid
+            ? {
+                display: "grid",
+                gridTemplateColumns: isMobile ? "minmax(0, 1fr)" : "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: 12,
+              }
+            : {
+                display: "flex",
+                gap: 8,
+                overflowX: "auto",
+                overflowY: "hidden",
+                WebkitOverflowScrolling: "touch",
+                overscrollBehaviorX: "contain",
+                paddingBottom: 4,
+                scrollbarWidth: "none",
+              }
+        }
+      >
+        <style>{`.wcm-bundle-rail::-webkit-scrollbar{display:none}`}</style>
+        {offers.map(({ bundle, a, b }) => (
+          <div
+            key={bundle.id}
+            style={{
+              ...(isGrid ? { minWidth: 0 } : { flex: "0 0 auto", width: isMobile ? 268 : 300 }),
+              padding: 12,
+              borderRadius: 14,
+              background: "var(--card)",
+              border: "1px solid var(--line)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={thumb}>
+                <ProductImage product={a} />
+              </div>
+              <span style={{ fontWeight: 800, color: "var(--ink-4)" }}>+</span>
+              <div style={thumb}>
+                <ProductImage product={b} />
+              </div>
+              <span
+                style={{
+                  marginLeft: "auto",
+                  alignSelf: "flex-start",
+                  padding: "3px 9px",
+                  borderRadius: 999,
+                  background: "var(--pill-success-bg)",
+                  color: "var(--pill-success-fg)",
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Save {PKR(bundle.discount)}
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.35 }}>
+              {a.name} + {b.name}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
+              <div>
+                <span style={{ fontWeight: 800, fontSize: 16, color: "var(--ink)" }}>
+                  {PKR(a.price + b.price - bundle.discount)}
+                </span>{" "}
+                <span style={{ fontSize: 12, color: "var(--ink-4)", textDecoration: "line-through" }}>
+                  {PKR(a.price + b.price)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  addToCart(a, 1);
+                  addToCart(b, 1);
+                }}
+                style={{
+                  border: "none",
+                  borderRadius: 8,
+                  background: "var(--grad)",
+                  color: "#fff",
+                  fontWeight: 800,
+                  fontSize: 12.5,
+                  padding: "7px 14px",
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                Add both
+              </button>
+            </div>
           </div>
         ))}
       </div>

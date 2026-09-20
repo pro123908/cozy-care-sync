@@ -4,6 +4,7 @@ import {
   PKR,
   getUnitPrice,
   computeShipping,
+  computeBundles,
   isKarachiCity,
   FREE_SHIPPING_THRESHOLD,
   FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
@@ -91,8 +92,20 @@ export function CartDrawer({
   const subtotal = items.reduce((s, x) => s + getUnitPrice(x.p, x.size) * x.qty, 0);
   // The delivery city isn't known until checkout, so show the Karachi estimate
   // here (the advertised offer). Checkout recomputes this from the entered city.
-  const shipping = computeShipping(subtotal, "Karachi");
-  const total = subtotal + shipping;
+  const bundles = computeBundles(items.map((x) => ({ id: x.id, qty: x.qty })));
+  const shipping = computeShipping(subtotal, "Karachi", bundles.total > 0);
+  const total = subtotal + shipping - bundles.total;
+  // Best still-open bundle: cart has one product of a pair but not its partner.
+  const bundleTip = bundles.suggestions
+    .map((sg) => ({ sg, partner: catalog.find((p) => p.id === sg.missingId) }))
+    .find(({ partner }) => partner && !partner.size_options?.length && !partner.variant_options?.length);
+  const addBundlePartner = (partner: Product) => {
+    setCart((c) => {
+      const i = c.findIndex((x) => x.id === partner.id);
+      if (i >= 0) return c.map((x, idx) => (idx === i ? { ...x, qty: Math.min(MAX_QTY_PER_PRODUCT, x.qty + 1) } : x));
+      return [...c, { id: partner.id, qty: 1 }];
+    });
+  };
   const update = (id: string, size: string | undefined, qty: number) => {
     if (qty <= 0) {
       const item = items.find((x) => x.id === id && x.size === size);
@@ -346,8 +359,54 @@ export function CartDrawer({
             background: "var(--card-2)",
           }}
         >
+          {bundleTip?.partner && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                marginBottom: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--pill-success-bg)",
+                color: "var(--pill-success-fg)",
+                fontSize: 12.5,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              <span>
+                <span aria-hidden="true">🎁</span> Add <strong style={{ fontWeight: 800 }}>{bundleTip.partner.name}</strong>{" "}
+                ({PKR(bundleTip.partner.price)}) and save {PKR(bundleTip.sg.bundle.discount)}
+              </span>
+              <button
+                type="button"
+                onClick={() => addBundlePartner(bundleTip.partner!)}
+                style={{
+                  flexShrink: 0,
+                  border: "1.5px solid currentColor",
+                  background: "transparent",
+                  color: "inherit",
+                  borderRadius: 8,
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Add
+              </button>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
             <Row label="Subtotal" value={PKR(subtotal)} />
+            {bundles.total > 0 && (
+              <Row
+                label={<span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>Bundle savings</span>}
+                value={<span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>-{PKR(bundles.total)}</span>}
+              />
+            )}
             <Row
               label="Delivery"
               value={
@@ -374,7 +433,7 @@ export function CartDrawer({
                 border: "1px solid var(--line)",
               }}
             >
-              {subtotal >= FREE_SHIPPING_THRESHOLD_OTHER_CITIES ? (
+              {bundles.total > 0 && subtotal < FREE_SHIPPING_THRESHOLD ? (
                 <div
                   style={{
                     fontSize: 12,
@@ -383,7 +442,18 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  <span aria-hidden="true">🎉</span> Free delivery unlocked everywhere!
+                  <span aria-hidden="true">🎉</span> Free delivery unlocked with your bundle!
+                </div>
+              ) : subtotal >= FREE_SHIPPING_THRESHOLD_OTHER_CITIES ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "var(--pill-success-fg)",
+                    marginBottom: 6,
+                  }}
+                >
+                  <span aria-hidden="true">🎉</span> Free delivery unlocked!
                 </div>
               ) : subtotal >= FREE_SHIPPING_THRESHOLD ? (
                 <div
@@ -406,7 +476,7 @@ export function CartDrawer({
                     marginBottom: 6,
                   }}
                 >
-                  Add {PKR(FREE_SHIPPING_THRESHOLD - subtotal)} more for free delivery in Karachi
+                  Add {PKR(FREE_SHIPPING_THRESHOLD - subtotal)} more for free delivery
                 </div>
               )}
               <div
@@ -586,10 +656,11 @@ export function CheckoutContent({
   // Recompute delivery from the entered city so it stays in sync with what the
   // server actually charges: free only for Karachi orders over the threshold.
   // The `shipping` prop from the cart is just a pre-address estimate.
-  const effectiveShipping = computeShipping(subtotal, ship.city);
+  const bundles = computeBundles(items.map((x) => ({ id: x.p.id, qty: x.qty })));
+  const effectiveShipping = computeShipping(subtotal, ship.city, bundles.total > 0);
   const freeDeliveryMissedForCity =
     effectiveShipping > 0 && subtotal >= FREE_SHIPPING_THRESHOLD && !isKarachiCity(ship.city);
-  const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt);
+  const finalTotal = Math.max(0, subtotal + effectiveShipping - discountAmt - bundles.total);
 
   const applyPromo = async () => {
     if (!promo.trim()) return;
@@ -1322,6 +1393,15 @@ export function CheckoutContent({
           </div>
           <div style={{ height: 1, background: "var(--line)", margin: "4px 0 12px" }} />
           <Row label="Subtotal" value={PKR(subtotal)} />
+          {bundles.total > 0 && (
+            <>
+              <div style={{ height: 6 }} />
+              <Row
+                label={<span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>Bundle savings</span>}
+                value={<span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>-{PKR(bundles.total)}</span>}
+              />
+            </>
+          )}
           <div style={{ height: 6 }} />
           <Row
             label="Delivery"

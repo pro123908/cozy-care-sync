@@ -1,16 +1,9 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { PKR, getProductSeoPathSegment } from "@/wcm/data";
+import { PKR } from "@/wcm/data";
 import { Icons } from "@/wcm/icons";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
-import {
-  PRODUCTS_PAGE_SIZE,
-  getVisiblePaginationItems,
-  paginationBtnStyle,
-  paginationEllipsisStyle,
-} from "@/wcm/products-filter-components";
+import { BundleDeals, getBundleOffers } from "@/wcm/products-card-components";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
 
@@ -21,7 +14,8 @@ export const Route = createFileRoute("/deals")({
       { title: "Deals & Offers — Wellcare Mart" },
       {
         name: "description",
-        content: "Shop discounted medical supplies and equipment at Wellcare Mart.",
+        content:
+          "Bundle deals on medical supplies and equipment at Wellcare Mart — buy together and save automatically.",
       },
     ],
   }),
@@ -29,33 +23,12 @@ export const Route = createFileRoute("/deals")({
 });
 
 function DealsPage() {
-  const { products, productsLoaded, addToCart, cart } = useWcm();
+  const { products, productsLoaded } = useWcm();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
-  const dealProducts = products
-    .filter((p) => p.was != null && p.was > p.price)
-    .sort((a, b) => {
-      const discA = 1 - a.price / a.was!;
-      const discB = 1 - b.price / b.was!;
-      return discB - discA;
-    });
-
-  const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
-
-  const totalSaved = dealProducts.reduce((sum, p) => sum + (p.was! - p.price), 0);
-
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(dealProducts.length / PRODUCTS_PAGE_SIZE));
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
-  const pageStart = (page - 1) * PRODUCTS_PAGE_SIZE;
-  const pageProducts = dealProducts.slice(pageStart, pageStart + PRODUCTS_PAGE_SIZE);
-  const visiblePaginationItems = useMemo(
-    () => getVisiblePaginationItems(page, totalPages),
-    [page, totalPages],
-  );
+  const offers = getBundleOffers(products);
+  const maxSaving = offers.length > 0 ? Math.max(...offers.map((o) => o.bundle.discount)) : 0;
 
   return (
     <div style={{ padding: isMobile ? "16px 0 24px" : "24px 0 32px" }}>
@@ -98,16 +71,13 @@ function DealsPage() {
               Deals &amp; Offers
             </h1>
           </div>
-          {productsLoaded && (
+          {productsLoaded && offers.length > 0 && (
             <p style={{ fontSize: 13, color: "var(--ink-4)", margin: 0 }}>
-              {dealProducts.length} products on sale
-              {dealProducts.length > 0 && (
-                <span style={{ color: "var(--pill-rose-fg)", fontWeight: 700 }}>
-                  {" "}
-                  · Save up to{" "}
-                  {PKR(totalSaved > 0 ? Math.max(...dealProducts.map((p) => p.was! - p.price)) : 0)}
-                </span>
-              )}
+              {offers.length} bundle deals · buy together, save automatically + free delivery
+              <span style={{ color: "var(--pill-rose-fg)", fontWeight: 700 }}>
+                {" "}
+                · Save up to {PKR(maxSaving)}
+              </span>
             </p>
           )}
         </div>
@@ -116,22 +86,9 @@ function DealsPage() {
         </Btn>
       </div>
 
-      {/* Grid */}
       {!productsLoaded ? (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "repeat(2, minmax(0, 1fr))"
-              : "repeat(auto-fill, minmax(190px, 1fr))",
-            gap: isMobile ? 8 : 12,
-          }}
-        >
-          {Array.from({ length: 8 }).map((_, i) => (
-            <ProductCardSkeleton key={i} isMobile={isMobile} />
-          ))}
-        </div>
-      ) : dealProducts.length === 0 ? (
+        <div style={{ minHeight: 220 }} aria-hidden="true" />
+      ) : offers.length === 0 ? (
         <div
           style={{
             textAlign: "center",
@@ -151,105 +108,7 @@ function DealsPage() {
           <Btn onClick={() => navigate({ to: "/" })}>Browse all products</Btn>
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "repeat(2, minmax(0, 1fr))"
-              : "repeat(auto-fill, minmax(190px, 1fr))",
-            gap: isMobile ? 8 : 12,
-            animation: "fadeInUp 0.25s ease",
-          }}
-        >
-          {pageProducts.map((p) => (
-            <ProductCard
-              key={p.id}
-              p={p}
-              onAdd={addToCart}
-              onOpen={(prod) =>
-                navigate({
-                  to: "/products/$productId",
-                  params: { productId: getProductSeoPathSegment(prod, products) },
-                })
-              }
-              cartQty={cartQtyById.get(p.id) ?? 0}
-              compact={isMobile}
-            />
-          ))}
-        </div>
-      )}
-
-      {productsLoaded && dealProducts.length > 0 && totalPages > 1 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-            marginTop: 18,
-          }}
-        >
-          <button
-            onClick={() => {
-              setPage((p) => Math.max(1, p - 1));
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            disabled={page === 1}
-            style={{
-              ...paginationBtnStyle,
-              opacity: page === 1 ? 0.5 : 1,
-              cursor: page === 1 ? "default" : "pointer",
-            }}
-          >
-            Previous
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {visiblePaginationItems.map((item, index) => {
-              if (item === "ellipsis") {
-                return (
-                  <span key={`ellipsis-${index}`} style={paginationEllipsisStyle}>
-                    ...
-                  </span>
-                );
-              }
-
-              const activePage = item === page;
-              return (
-                <button
-                  key={item}
-                  onClick={() => {
-                    setPage(item);
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                  }}
-                  style={{
-                    ...paginationBtnStyle,
-                    minWidth: 40,
-                    background: activePage ? "var(--ink)" : "var(--card)",
-                    color: activePage ? "var(--card)" : "var(--ink-2)",
-                    borderColor: activePage ? "var(--ink)" : "var(--line)",
-                  }}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            onClick={() => {
-              setPage((p) => Math.min(totalPages, p + 1));
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            disabled={page === totalPages}
-            style={{
-              ...paginationBtnStyle,
-              opacity: page === totalPages ? 0.5 : 1,
-              cursor: page === totalPages ? "default" : "pointer",
-            }}
-          >
-            Next
-          </button>
-        </div>
+        <BundleDeals products={products} isMobile={isMobile} layout="grid" />
       )}
     </div>
   );

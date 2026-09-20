@@ -8,7 +8,8 @@ import {
   getUnitPrice,
   normalizeVariantOptions,
   FREE_SHIPPING_THRESHOLD,
-  FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
+  BUNDLES,
+  computeBundles,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
@@ -20,7 +21,7 @@ import { trackMetaEvent } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
 import {
   CategoryRail,
-  DealsRail,
+  BundleDeals,
   ProductCard,
   ProductCardSkeleton,
   RecentlyViewedRail,
@@ -346,13 +347,7 @@ export function ProductsPage({
       {!productsLoaded && (
         <div style={{ height: isMobile ? 258 : 305, minWidth: 0 }} aria-hidden="true" />
       )}
-      <DealsRail
-        products={products}
-        cart={cart}
-        onAdd={addToCart}
-        onOpen={openProduct}
-        isMobile={isMobile}
-      />
+      <BundleDeals products={products} isMobile={isMobile} limit={6} />
       <RecentlyViewedRail
         ids={recentlyViewedIds}
         products={products}
@@ -578,7 +573,8 @@ export function ProductsPage({
           const p = products.find((pr) => pr.id === c.id);
           return p ? s + getUnitPrice(p, c.size) * c.qty : s;
         }, 0);
-        if (cartSubtotal <= 0 || cartSubtotal >= FREE_SHIPPING_THRESHOLD) return null;
+        const cartBundles = computeBundles(cart.map((c) => ({ id: c.id, qty: c.qty })));
+        if (cartSubtotal <= 0 || cartSubtotal >= FREE_SHIPPING_THRESHOLD || cartBundles.total > 0) return null;
         return (
           <div
             style={{
@@ -600,8 +596,7 @@ export function ProductsPage({
               }}
             >
               <span>
-                Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery in Karachi
-                (Rs {FREE_SHIPPING_THRESHOLD_OTHER_CITIES.toLocaleString()}+ for other cities)
+                Add {PKR(FREE_SHIPPING_THRESHOLD - cartSubtotal)} more for free delivery
               </span>
               <span style={{ color: "var(--ink-4)" }}>
                 {Math.round((cartSubtotal / FREE_SHIPPING_THRESHOLD) * 100)}%
@@ -1444,6 +1439,18 @@ export function ProductDetail({
   const variantKey =
     [selectedAgeGroup, selectedFit, selectedSize].filter(Boolean).join(" / ") || undefined;
   const resolvedUnitPrice = getUnitPrice(product, selectedSize || undefined);
+  // Bundle deals this product is part of, with the partner product resolved
+  // from the live catalog (skipped when the partner is unavailable or needs
+  // an option picked, since "Add both" can't choose one for the buyer).
+  const bundleOffers = BUNDLES.filter((b) => b.ids.includes(product.id))
+    .sort((a, b) => b.discount - a.discount)
+    .flatMap((bundle) => {
+      const partnerId = bundle.ids[0] === product.id ? bundle.ids[1] : bundle.ids[0];
+      const partner = products.find((p) => p.id === partnerId);
+      if (!partner || getSelectableOptions(partner).length > 0) return [];
+      return [{ bundle, partner }];
+    })
+    .slice(0, 2);
   // A variant like "Male"/"Female" can carry its own box photo — swap the
   // gallery's main shot to it once selected, so the buyer sees the box
   // they're actually about to order instead of whichever variant happened
@@ -2226,8 +2233,7 @@ export function ProductDetail({
                 className="wcm-detail-tax-note"
                 style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}
               >
-                Inclusive of all taxes · Free delivery in Karachi over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString()},{" "}
-                Rs {FREE_SHIPPING_THRESHOLD_OTHER_CITIES.toLocaleString()}+ elsewhere
+                Inclusive of all taxes · Free delivery over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString()}
               </div>
             </div>
           </Section>
@@ -2507,6 +2513,55 @@ export function ProductDetail({
                 }}
               >
                 Max 5 units per order
+              </div>
+            )}
+            {bundleOffers.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {bundleOffers.map(({ bundle, partner }) => (
+                  <div
+                    key={bundle.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      background: "var(--pill-success-bg)",
+                      color: "var(--pill-success-fg)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <span style={{ minWidth: 0 }}>
+                      <span aria-hidden="true">🎁</span> Bundle &amp; save{" "}
+                      <strong style={{ fontWeight: 800 }}>{PKR(bundle.discount)}</strong> + free delivery — buy
+                      with {partner.name} ({PKR(partner.price)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        addToCart(product, 1, variantKey);
+                        addToCart(partner, 1);
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        border: "1.5px solid currentColor",
+                        background: "transparent",
+                        color: "inherit",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Add both
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
             <Btn

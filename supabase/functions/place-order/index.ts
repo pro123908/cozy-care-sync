@@ -44,15 +44,46 @@ type ProductRow = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const FREE_SHIPPING_THRESHOLD = 2000;
-const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
+const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 2000; // lowered from 5000 on 2026-09-21
 const SHIPPING_COST = 250;
 const MAX_QTY_PER_PRODUCT = 5;
 // "Order over Rs 5,000 -> Rs 200 off next order" reward. Deliberately a
-// separate constant from FREE_SHIPPING_THRESHOLD_OTHER_CITIES even though
-// both are currently 5000 — they're independent business rules (delivery-fee
-// waiver vs. a loyalty reward) that just happen to share a number today.
+// separate constant from the free-delivery thresholds — they're independent
+// business rules (delivery-fee waiver vs. a loyalty reward).
 const REWARD_COUPON_THRESHOLD = 5000;
 const REWARD_COUPON_DISCOUNT = 200;
+// Bundle deals: buy both products, get a flat Rs discount, recorded on the
+// order as orders.discount. Mirror of BUNDLES/computeBundles in the
+// storefront's src/wcm/data.ts — keep the two lists identical.
+const BUNDLES: { ids: [string, string]; discount: number }[] = [
+  { ids: ["gluco-002", "strip-003"], discount: 250 },
+  { ids: ["gluco-003", "strip-003"], discount: 250 },
+  { ids: ["gluco-001", "strip-002"], discount: 250 },
+  { ids: ["gluco-004", "strip-007"], discount: 200 },
+  { ids: ["bd-012", "neb-010"], discount: 200 },
+  { ids: ["bd-012", "po-002"], discount: 250 },
+  { ids: ["bd-012", "wsd-002"], discount: 200 },
+  { ids: ["bd-012", "oth-018"], discount: 150 },
+  { ids: ["hear-002", "bd-012"], discount: 250 },
+  { ids: ["bp-man-003", "steth-001"], discount: 150 },
+  { ids: ["bp-man-002", "steth-003"], discount: 150 },
+  { ids: ["stick-001", "rub-001"], discount: 100 },
+  { ids: ["mas-012", "tens-001"], discount: 300 },
+  { ids: ["supp-001", "oth-002"], discount: 100 },
+];
+
+function computeBundleDiscount(lines: { id: string; qty: number }[]): number {
+  const remaining = new Map<string, number>();
+  for (const l of lines) remaining.set(l.id, (remaining.get(l.id) ?? 0) + Math.max(0, Number(l.qty) || 0));
+  let total = 0;
+  for (const bundle of [...BUNDLES].sort((a, b) => b.discount - a.discount)) {
+    const times = Math.min(...bundle.ids.map((id) => remaining.get(id) ?? 0));
+    if (times <= 0) continue;
+    for (const id of bundle.ids) remaining.set(id, (remaining.get(id) ?? 0) - times);
+    total += bundle.discount * times;
+  }
+  return total;
+}
 const META_PIXEL_ID = Deno.env.get("META_PIXEL_ID") || "2002828427034307";
 const META_ACCESS_TOKEN = Deno.env.get("META_ACCESS_TOKEN") || "";
 const META_GRAPH_VERSION = Deno.env.get("META_GRAPH_VERSION") || "v20.0";
@@ -1088,12 +1119,16 @@ Deno.serve(
 
   const subtotal = finalizedItems.reduce((sum, item) => sum + item.line_total, 0);
 
-  // Free delivery applies at a lower threshold in Karachi, and a higher
-  // threshold everywhere else. Keep this rule in sync with computeShipping()
-  // in the storefront (src/wcm/data.ts).
+  // Free delivery threshold can differ for Karachi vs. other cities (equal at
+  // 2000 today). Keep this rule in sync with computeShipping() in the
+  // storefront (src/wcm/data.ts).
   const isKarachiAddress = /karachi/i.test((ship.city ?? "").trim());
   const freeShippingThreshold = isKarachiAddress ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
-  const shipping = subtotal === 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : SHIPPING_COST;
+  // Any applied bundle deal ships free everywhere (mirrors computeShipping's
+  // hasBundle flag in the storefront).
+  const bundleDiscount = computeBundleDiscount(finalizedItems);
+  const shipping =
+    subtotal === 0 || bundleDiscount > 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : SHIPPING_COST;
 
   // Validate + atomically redeem the promo code if provided (it's optional —
   // no code = no discount). redeem_coupon re-validates server-side and
@@ -1113,7 +1148,7 @@ Deno.serve(
     }
     discountAmt = redeemed.discount_amount;
   }
-  const total = subtotal + shipping - discountAmt;
+  const total = Math.max(0, subtotal + shipping - discountAmt - bundleDiscount);
 
   // ------------------------------------------------------------------
   // 5. Insert the order using service-role client
@@ -1155,6 +1190,9 @@ Deno.serve(
       subtotal,
       shipping,
       total,
+      // Bundle deal savings (see BUNDLES) — same column admin uses for
+      // manual order discounts, so it already shows as a Discount line there.
+      discount: bundleDiscount,
       promo_code: promoKey || null,
       promo_discount: discountAmt,
       // admin-app's manual "Add/Edit order" flow requires this field and
