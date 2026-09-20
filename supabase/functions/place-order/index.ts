@@ -30,6 +30,7 @@ type VariantOption = { name: string; price: number };
 type ProductRow = {
   id: string;
   name: string;
+  cat: string;
   price: number;
   active: boolean;
   stock: string;
@@ -47,6 +48,9 @@ const FREE_SHIPPING_THRESHOLD = 2000;
 const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 2000; // lowered from 5000 on 2026-09-21
 const SHIPPING_COST = 250;
 const MAX_QTY_PER_PRODUCT = 5;
+// Wheelchairs and commode/shower chairs are delivered in Karachi only —
+// mirror of KARACHI_ONLY_CATEGORIES in the storefront's src/wcm/data.ts.
+const KARACHI_ONLY_CATEGORIES = new Set(["wheelchairs", "camote-chairs"]);
 // "Order over Rs 5,000 -> Rs 200 off next order" reward. Deliberately a
 // separate constant from the free-delivery thresholds — they're independent
 // business rules (delivery-fee waiver vs. a loyalty reward).
@@ -80,7 +84,84 @@ const BUNDLES: { ids: [string, string]; discount: number }[] = [
 const BUNDLE_DEALS_END_MS = new Date("2026-09-23T23:59:59+05:00").getTime();
 const BUNDLE_DEALS_GRACE_MS = 5 * 60 * 1000;
 
-function computeBundleDiscount(lines: { id: string; qty: number }[]): number {
+// Mix & match — mirror of MIX_MATCH_* / pairMixMatch in the storefront's
+// data.ts. Any two different products from the pool, combined >= Rs 2,500,
+// get a tiered discount; fixed BUNDLES are allocated first.
+const MIX_MATCH_MIN_TOTAL = 2500;
+const MIX_MATCH_TIERS = [
+  { min: 7000, off: 300 },
+  { min: 4000, off: 200 },
+  { min: 2500, off: 100 },
+];
+const MIX_MATCH_SET = new Set([
+  "bd-012",
+  "bp-dig-002",
+  "bp-dig-003",
+  "bp-dig-004",
+  "bp-dig-005",
+  "bp-dig-008",
+  "bp-dig-011",
+  "bp-man-007",
+  "bpump-002",
+  "gluco-001",
+  "gluco-002",
+  "gluco-003",
+  "gluco-008",
+  "gluco-010",
+  "ha-006",
+  "ha-007",
+  "hear-001",
+  "hear-002",
+  "hear-003",
+  "hear-004",
+  "heat-001",
+  "heat-002",
+  "heat-003",
+  "heat-004",
+  "mas-006",
+  "mas-010",
+  "mas-011",
+  "mas-012",
+  "mas-015",
+  "mass-003",
+  "mass-004",
+  "mass-005",
+  "neb-003",
+  "neb-010",
+  "belt-011",
+  "os-021",
+  "supp-001",
+  "oth-004",
+  "oth-008",
+  "oth-026",
+  "oth-028",
+  "ps-006",
+  "stick-001",
+  "stick-004",
+  "po-002",
+  "steth-007",
+  "ss-014",
+  "strip-002",
+  "strip-003",
+  "strip-004",
+  "strip-007",
+  "tens-001",
+  "tens-002",
+  "wlk-001",
+  "wsd-002",
+  "wsd-004",
+  "wsd-005",
+  "wsd-008",
+  "wsm-001",
+  "wsm-002",
+  "wsm-003",
+]);
+
+function mixMatchDiscount(combined: number): number {
+  return MIX_MATCH_TIERS.find((tier) => combined >= tier.min)?.off ?? 0;
+}
+
+function computeBundleDiscount(lines: { id: string; qty: number; unit_price: number }[]): number {
   if (Date.now() > BUNDLE_DEALS_END_MS + BUNDLE_DEALS_GRACE_MS) return 0;
   const remaining = new Map<string, number>();
   for (const l of lines) remaining.set(l.id, (remaining.get(l.id) ?? 0) + Math.max(0, Number(l.qty) || 0));
@@ -90,6 +171,22 @@ function computeBundleDiscount(lines: { id: string; qty: number }[]): number {
     if (times <= 0) continue;
     for (const id of bundle.ids) remaining.set(id, (remaining.get(id) ?? 0) - times);
     total += bundle.discount * times;
+  }
+  const priceOf = new Map<string, number>();
+  for (const l of lines) if (!priceOf.has(l.id)) priceOf.set(l.id, l.unit_price);
+  const pool: { id: string; price: number }[] = [];
+  for (const [id, qty] of remaining) {
+    const price = priceOf.get(id);
+    if (price == null || !MIX_MATCH_SET.has(id)) continue;
+    for (let i = 0; i < qty; i++) pool.push({ id, price });
+  }
+  pool.sort((a, b) => b.price - a.price || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  while (pool.length > 0) {
+    const unit = pool.shift()!;
+    const j = pool.findIndex((other) => other.id !== unit.id && unit.price + other.price >= MIX_MATCH_MIN_TOTAL);
+    if (j < 0) continue;
+    const [partner] = pool.splice(j, 1);
+    total += mixMatchDiscount(unit.price + partner.price);
   }
   return total;
 }
@@ -1045,7 +1142,7 @@ Deno.serve(
   const [{ data: products, error: productsErr }, { data: costRows }] = await Promise.all([
     serviceClient
       .from("products")
-      .select("id, name, price, active, stock, size_options, variant_options")
+      .select("id, name, cat, price, active, stock, size_options, variant_options")
       .in("id", productIds),
     // Cost snapshot for the Net Profit Report — see product_costs (admin-only
     // table, but service-role bypasses RLS). Missing rows default to 0/unknown,
@@ -1070,6 +1167,23 @@ Deno.serve(
     }
     if (!product.active) {
       return json({ error: `Product is no longer available: ${item.id}` }, 400, origin);
+    }
+  }
+
+  // Karachi-only products can't be ordered for any other city.
+  if (!/karachi/i.test((ship.city ?? "").trim())) {
+    const karachiOnly = items
+      .map((item) => productMap.get(item.id)!)
+      .filter((product) => KARACHI_ONLY_CATEGORIES.has(product.cat));
+    if (karachiOnly.length > 0) {
+      const names = [...new Set(karachiOnly.map((product) => product.name))].join(", ");
+      return json(
+        {
+          error: `${names} can only be delivered in Karachi. Please remove it from your cart or change the delivery city to Karachi.`,
+        },
+        400,
+        origin,
+      );
     }
   }
 

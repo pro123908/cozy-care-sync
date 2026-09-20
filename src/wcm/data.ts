@@ -234,12 +234,126 @@ export function bundlesActive(now: number = Date.now()): boolean {
   return now <= BUNDLE_DEALS_END_MS;
 }
 
+// ---------------------------------------------------------------------------
+// Mix & match: any TWO different products from this pool, combined price
+// >= Rs 2,500, get a tiered discount. Pool = products with a margin >= Rs 400
+// (and >= 12%, price <= Rs 8,000, no size/variant choice), excluding
+// wheelchairs and commode/shower chairs. Fixed BUNDLES take priority; only
+// leftover units are paired. Mirrored in place-order/index.ts (keep the pool,
+// tiers and pairing algorithm identical).
+// ---------------------------------------------------------------------------
+
+export const MIX_MATCH_MIN_TOTAL = 2500;
+export const MIX_MATCH_TIERS = [
+  { min: 7000, off: 300 },
+  { min: 4000, off: 200 },
+  { min: 2500, off: 100 },
+];
+
+export const MIX_MATCH_IDS: string[] = [
+  "bd-012",
+  "bp-dig-002",
+  "bp-dig-003",
+  "bp-dig-004",
+  "bp-dig-005",
+  "bp-dig-008",
+  "bp-dig-011",
+  "bp-man-007",
+  "bpump-002",
+  "gluco-001",
+  "gluco-002",
+  "gluco-003",
+  "gluco-008",
+  "gluco-010",
+  "ha-006",
+  "ha-007",
+  "hear-001",
+  "hear-002",
+  "hear-003",
+  "hear-004",
+  "heat-001",
+  "heat-002",
+  "heat-003",
+  "heat-004",
+  "mas-006",
+  "mas-010",
+  "mas-011",
+  "mas-012",
+  "mas-015",
+  "mass-003",
+  "mass-004",
+  "mass-005",
+  "neb-003",
+  "neb-010",
+  "belt-011",
+  "os-021",
+  "supp-001",
+  "oth-004",
+  "oth-008",
+  "oth-026",
+  "oth-028",
+  "ps-006",
+  "stick-001",
+  "stick-004",
+  "po-002",
+  "steth-007",
+  "ss-014",
+  "strip-002",
+  "strip-003",
+  "strip-004",
+  "strip-007",
+  "tens-001",
+  "tens-002",
+  "wlk-001",
+  "wsd-002",
+  "wsd-004",
+  "wsd-005",
+  "wsd-008",
+  "wsm-001",
+  "wsm-002",
+  "wsm-003",
+];
+const MIX_MATCH_SET = new Set(MIX_MATCH_IDS);
+
+export function isMixMatchProduct(id: string): boolean {
+  return MIX_MATCH_SET.has(id);
+}
+
+/** Discount for two products whose prices add up to `combined`. */
+export function mixMatchDiscount(combined: number): number {
+  return MIX_MATCH_TIERS.find((tier) => combined >= tier.min)?.off ?? 0;
+}
+
+/** Greedy pairing, highest price first, partner must be a different product. */
+function pairMixMatch(units: { id: string; price: number }[]) {
+  const pool = [...units].sort((a, b) => b.price - a.price || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const pairs: { a: string; b: string; discount: number }[] = [];
+  const leftover: { id: string; price: number }[] = [];
+  while (pool.length > 0) {
+    const unit = pool.shift()!;
+    const j = pool.findIndex((other) => other.id !== unit.id && unit.price + other.price >= MIX_MATCH_MIN_TOTAL);
+    if (j < 0) {
+      leftover.push(unit);
+      continue;
+    }
+    const [partner] = pool.splice(j, 1);
+    pairs.push({ a: unit.id, b: partner.id, discount: mixMatchDiscount(unit.price + partner.price) });
+  }
+  return { pairs, leftover };
+}
+
+export type BundleLine = { id: string; qty: number; /** unit price — needed for mix & match */ price?: number };
+
 export type BundleResult = {
-  /** Total Rs discount across every bundle that matched. */
+  /** Total Rs discount: fixed bundles + mix & match pairs. */
   total: number;
   applied: { bundle: Bundle; times: number }[];
   /** Bundles where the cart has one product but not its partner yet. */
   suggestions: { bundle: Bundle; haveId: string; missingId: string }[];
+  /** Mix & match pairs that matched (already included in `total`). */
+  mixPairs: { a: string; b: string; discount: number }[];
+  /** Eligible mix & match units still without a partner. */
+  mixLeftover: { id: string; price: number }[];
 };
 
 /**
@@ -247,8 +361,8 @@ export type BundleResult = {
  * product shared by two bundles (the BP monitor) is only discounted once per
  * unit — the bigger discount wins. Sizes/variants are ignored.
  */
-export function computeBundles(lines: { id: string; qty: number }[]): BundleResult {
-  if (!bundlesActive()) return { total: 0, applied: [], suggestions: [] };
+export function computeBundles(lines: BundleLine[]): BundleResult {
+  if (!bundlesActive()) return { total: 0, applied: [], suggestions: [], mixPairs: [], mixLeftover: [] };
   const remaining = new Map<string, number>();
   for (const l of lines) remaining.set(l.id, (remaining.get(l.id) ?? 0) + Math.max(0, Number(l.qty) || 0));
   const inCart = new Set(lines.filter((l) => l.qty > 0).map((l) => l.id));
@@ -273,7 +387,26 @@ export function computeBundles(lines: { id: string; qty: number }[]): BundleResu
     if (ra > 0 && rb <= 0 && !inCart.has(b)) suggestions.push({ bundle, haveId: a, missingId: b });
     else if (rb > 0 && ra <= 0 && !inCart.has(a)) suggestions.push({ bundle, haveId: b, missingId: a });
   }
-  return { total, applied, suggestions };
+  // Mix & match on whatever eligible units the fixed bundles left over.
+  const priceOf = new Map<string, number>();
+  for (const l of lines) if (l.price != null && !priceOf.has(l.id)) priceOf.set(l.id, l.price);
+  const units: { id: string; price: number }[] = [];
+  for (const [id, qty] of remaining) {
+    const price = priceOf.get(id);
+    if (price == null || !isMixMatchProduct(id)) continue;
+    for (let i = 0; i < qty; i++) units.push({ id, price });
+  }
+  const { pairs: mixPairs, leftover: mixLeftover } = pairMixMatch(units);
+  for (const pair of mixPairs) total += pair.discount;
+  return { total, applied, suggestions, mixPairs, mixLeftover };
+}
+
+// Wheelchairs and commode/shower chairs are delivered in Karachi only. Mirrored
+// in place-order/index.ts, which rejects such orders for any other city.
+export const KARACHI_ONLY_CATEGORIES = ["wheelchairs", "camote-chairs"];
+
+export function isKarachiOnlyProduct(product: { cat?: string | null }): boolean {
+  return KARACHI_ONLY_CATEGORIES.includes(product.cat ?? "");
 }
 
 /** True when the delivery city is Karachi (case/whitespace-insensitive). */

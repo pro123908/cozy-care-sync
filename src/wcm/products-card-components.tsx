@@ -5,6 +5,7 @@ import {
   PKR,
   bundlesActive,
   bestBundleFor,
+  isMixMatchProduct,
   getDisplayPrice,
   getProductBadge,
   getSelectableOptions,
@@ -411,6 +412,7 @@ export function ProductCard({
   const resolvedRating = Number(userRating || p.rating || 0);
   const showReviewSummary = resolvedReviewCount > 0;
   const bundleDeal = bestBundleFor(p.id);
+  const mixMatchDeal = !bundleDeal && bundlesActive() && isMixMatchProduct(p.id);
   const badge = getProductBadge(p);
   const primaryTag = badge?.label ?? "";
   const primaryTagTone = badge?.tone ?? "slate";
@@ -607,6 +609,22 @@ export function ProductCard({
             <span style={{ fontWeight: 700 }}>{resolvedRating.toFixed(1)}</span>
             <span>·</span>
             <span>{resolvedReviewCount} reviews</span>
+          </div>
+        )}
+        {mixMatchDeal && (
+          <div
+            style={{
+              alignSelf: "flex-start",
+              padding: "3px 8px",
+              borderRadius: 999,
+              background: "var(--pill-success-bg)",
+              color: "var(--pill-success-fg)",
+              fontSize: compact ? 11 : 11.5,
+              fontWeight: 700,
+              lineHeight: 1.3,
+            }}
+          >
+            Mix &amp; match · save up to {PKR(300)}
           </div>
         )}
         {bundleDeal && (

@@ -5,6 +5,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { BundleDeals, getBundleOffers } from "@/wcm/products-card-components";
 import { Btn } from "@/wcm/ui";
 import { BundleCountdownTiles, useBundlesActive } from "@/wcm/bundle-clock";
+import { MixMatchBuilder } from "@/wcm/mix-match-builder";
 import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/deals")({
@@ -92,7 +93,7 @@ function DealsPage() {
               </span>
             </div>
             <p style={{ margin: "6px 0 0", fontSize: 13.5, color: "var(--ink-3)", lineHeight: 1.45 }}>
-              Buy together and save — free delivery, applied automatically.
+              Buy together and save — pick a ready-made bundle or build your own. Free delivery, applied automatically.
               {productsLoaded && offers.length > 0 ? ` ${offers.length} bundles.` : ""}
             </p>
           </div>
@@ -127,7 +128,13 @@ function DealsPage() {
           <Btn onClick={() => navigate({ to: "/" })}>Browse all products</Btn>
         </div>
       ) : (
-        <BundleDeals products={products} isMobile={isMobile} layout="grid" />
+        <>
+          <MixMatchBuilder products={products} isMobile={isMobile} />
+          <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", margin: "0 0 10px" }}>
+            <span aria-hidden="true">🎁</span> Ready-made bundles
+          </div>
+          <BundleDeals products={products} isMobile={isMobile} layout="grid" />
+        </>
       )}
     </div>
   );

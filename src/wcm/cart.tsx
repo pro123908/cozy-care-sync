@@ -6,6 +6,7 @@ import {
   computeShipping,
   computeBundles,
   isKarachiCity,
+  isKarachiOnlyProduct,
   FREE_SHIPPING_THRESHOLD,
   FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
   SHIPPING_COST,
@@ -20,6 +21,7 @@ import type { SelectOption } from "./ui";
 import { getSupabase } from "@/integrations/supabase/client";
 import { trackBundleClick } from "@/lib/meta-pixel";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
+import { BundleAppliedTracker } from "./bundle-tracking";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
@@ -95,7 +97,7 @@ export function CartDrawer({
   const subtotal = items.reduce((s, x) => s + getUnitPrice(x.p, x.size) * x.qty, 0);
   // The delivery city isn't known until checkout, so show the Karachi estimate
   // here (the advertised offer). Checkout recomputes this from the entered city.
-  const bundles = computeBundles(items.map((x) => ({ id: x.id, qty: x.qty })));
+  const bundles = computeBundles(items.map((x) => ({ id: x.id, qty: x.qty, price: getUnitPrice(x.p, x.size) })));
   const shipping = computeShipping(subtotal, "Karachi", bundles.total > 0);
   const total = subtotal + shipping - bundles.total;
   // Best still-open bundle: cart has one product of a pair but not its partner.
@@ -126,6 +128,11 @@ export function CartDrawer({
 
   return (
     <>
+      <BundleAppliedTracker
+        bundles={bundles}
+        nameOf={(id) => catalog.find((p) => p.id === id)?.name ?? id}
+        source="cart"
+      />
       <div
         onClick={onClose}
         style={{
@@ -362,6 +369,23 @@ export function CartDrawer({
             background: "var(--card-2)",
           }}
         >
+          {items.some((x) => isKarachiOnlyProduct(x.p)) && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--pill-warn-bg)",
+                color: "var(--pill-warn-fg)",
+                fontSize: 12.5,
+                fontWeight: 600,
+                lineHeight: 1.4,
+              }}
+            >
+              <span aria-hidden="true">📍</span> {items.filter((x) => isKarachiOnlyProduct(x.p)).map((x) => x.p.name).join(", ")}{" "}
+              can only be delivered in Karachi.
+            </div>
+          )}
           {bundleTip?.partner && (
             <div
               style={{
@@ -671,7 +695,10 @@ export function CheckoutContent({
   // Recompute delivery from the entered city so it stays in sync with what the
   // server actually charges: free only for Karachi orders over the threshold.
   // The `shipping` prop from the cart is just a pre-address estimate.
-  const bundles = computeBundles(items.map((x) => ({ id: x.p.id, qty: x.qty })));
+  const bundles = computeBundles(items.map((x) => ({ id: x.p.id, qty: x.qty, price: getUnitPrice(x.p, x.size) })));
+  // Wheelchairs / commode chairs ship in Karachi only (place-order enforces it too).
+  const karachiOnlyItems = items.filter((x) => isKarachiOnlyProduct(x.p));
+  const karachiOnlyBlocked = karachiOnlyItems.length > 0 && !!ship.city.trim() && !isKarachiCity(ship.city);
   const effectiveShipping = computeShipping(subtotal, ship.city, bundles.total > 0);
   const freeDeliveryMissedForCity =
     effectiveShipping > 0 && subtotal >= FREE_SHIPPING_THRESHOLD && !isKarachiCity(ship.city);
@@ -720,6 +747,7 @@ export function CheckoutContent({
     if (!isValidPkPhone(ship.phone)) e.phone = "Enter a valid Pakistani mobile number";
     if (!ship.address.trim()) e.address = "Required";
     if (!ship.city.trim()) e.city = "Required";
+    else if (karachiOnlyBlocked) e.city = "Some items in your cart can only be delivered in Karachi";
     setErrs(e);
     const firstKey = Object.keys(e)[0];
     if (firstKey) {
@@ -794,6 +822,11 @@ export function CheckoutContent({
         border: "1px solid var(--line)",
       }}
     >
+      <BundleAppliedTracker
+        bundles={bundles}
+        nameOf={(id) => items.find((x) => x.p.id === id)?.p.name ?? id}
+        source="checkout"
+      />
       <div
         style={{
           display: "flex",
@@ -1026,6 +1059,30 @@ export function CheckoutContent({
                   sub={`Across Pakistan · ${effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}`}
                   right={effectiveShipping === 0 ? "Free" : PKR(effectiveShipping)}
                 />
+                {karachiOnlyBlocked && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 10,
+                      background: "var(--pill-rose-bg)",
+                      border: "1.5px solid var(--pill-rose-fg)",
+                      borderRadius: 10,
+                      padding: "10px 12px",
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: "var(--pill-rose-fg)",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    <span aria-hidden="true">📍</span>
+                    <span>
+                      {karachiOnlyItems.map((x) => x.p.name).join(", ")} can only be delivered in Karachi. Remove{" "}
+                      {karachiOnlyItems.length > 1 ? "them" : "it"} from your cart to deliver to{" "}
+                      {ship.city.trim()}, or change the city to Karachi.
+                    </span>
+                  </div>
+                )}
                 {freeDeliveryMissedForCity && (
                   <div
                     style={{

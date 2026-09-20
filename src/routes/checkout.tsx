@@ -42,7 +42,7 @@ function CheckoutPage() {
   );
   // City isn't known yet at this fallback stage — estimate against Karachi (the
   // checkout default). CheckoutContent recomputes from the entered city.
-  const fallbackBundles = computeBundles(fallbackItems.map((item) => ({ id: item.id, qty: item.qty })));
+  const fallbackBundles = computeBundles(fallbackItems.map((item) => ({ id: item.id, qty: item.qty, price: getUnitPrice(item.p, item.size) })));
   const fallbackShipping = computeShipping(fallbackSubtotal, "Karachi", fallbackBundles.total > 0);
   const fallbackTotal = fallbackSubtotal + fallbackShipping - fallbackBundles.total;
 

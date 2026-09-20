@@ -227,26 +227,53 @@ export function trackMetaEventOnce(
   return true;
 }
 
-export type BundleClickSource = "home page" | "deals page" | "product page" | "cart";
+export type BundleClickSource =
+  | "home page"
+  | "deals page"
+  | "product page"
+  | "cart"
+  | "checkout"
+  | "mix & match";
 
-/**
- * A shopper clicked "Add both" / the cart's bundle tip. Local-only event
- * (logged to meta_events for the admin feed, never forwarded to Meta's
- * Conversions API). Both product ids ride in content_ids; the human label
- * and the surface it was clicked on go in meta_events.event_detail.
- */
-export function trackBundleClick(input: {
+export type BundleEventName = "BundleClick" | "BundleBuilderPick" | "BundleBuildClick" | "BundleApplied";
+
+type BundleEventInput = {
   productIds: string[];
+  /** Human label: "<A> + <B>" or the product being acted on. */
   label: string;
   source: BundleClickSource;
-  /** Bundle price after discount, in PKR. */
-  value: number;
-}) {
-  trackMetaEvent("BundleClick", {
+  /** Bundle price after discount, in PKR (when known). */
+  value?: number;
+  /** Extra flat string detail, e.g. { slot: "first", discount: "200" }. */
+  extra?: Record<string, string>;
+};
+
+function bundleEventPayload(input: BundleEventInput) {
+  return {
     content_ids: input.productIds,
     content_type: "product_group",
-    value: input.value,
-    currency: "PKR",
-    detail: { label: input.label, source: input.source },
-  });
+    ...(input.value != null ? { value: input.value, currency: "PKR" } : {}),
+    // Stored in meta_events.event_detail (flat strings — see meta-track's sanitizeDetail).
+    detail: { label: input.label, source: input.source, ...input.extra },
+  };
+}
+
+/**
+ * Bundle interaction events. All are local-only (logged to meta_events for the
+ * admin feed, never forwarded to Meta's Conversions API):
+ *  - BundleClick: "Add both" on a ready-made bundle or the mix & match builder
+ *  - BundleBuilderPick: a product picked in the "Build your own bundle" card
+ *  - BundleBuildClick: the "Build a bundle" button on a product page
+ *  - BundleApplied: a bundle actually formed in the cart/checkout (once per pair per session)
+ */
+export function trackBundleEvent(name: BundleEventName, input: BundleEventInput) {
+  trackMetaEvent(name, bundleEventPayload(input));
+}
+
+export function trackBundleClick(input: BundleEventInput) {
+  trackBundleEvent("BundleClick", input);
+}
+
+export function trackBundleAppliedOnce(pairKey: string, input: BundleEventInput) {
+  trackMetaEventOnce(`bundle_applied:${pairKey}`, "BundleApplied", bundleEventPayload(input));
 }

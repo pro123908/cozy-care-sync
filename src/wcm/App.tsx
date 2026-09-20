@@ -196,7 +196,7 @@ function resolveCheckoutSnapshot(
     .filter((item): item is CheckoutLine => Boolean(item.p));
   if (items.length === 0) return null;
   const subtotal = items.reduce((sum, item) => sum + getUnitPrice(item.p, item.size) * item.qty, 0);
-  const bundles = computeBundles(items.map((item) => ({ id: item.p.id, qty: item.qty })));
+  const bundles = computeBundles(items.map((item) => ({ id: item.p.id, qty: item.qty, price: getUnitPrice(item.p, item.size) })));
   const shipping = computeShipping(subtotal, "Karachi", bundles.total > 0);
   return { items, subtotal, shipping, total: subtotal + shipping - bundles.total };
 }

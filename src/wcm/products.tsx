@@ -9,6 +9,8 @@ import {
   normalizeVariantOptions,
   FREE_SHIPPING_THRESHOLD,
   BUNDLES,
+  isMixMatchProduct,
+  isKarachiOnlyProduct,
   bundlesActive,
   computeBundles,
   type Product,
@@ -19,7 +21,7 @@ import { useWcm, useTestimonials } from "./context";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import type { CartLine, Testimonial } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { trackMetaEvent, trackBundleClick } from "@/lib/meta-pixel";
+import { trackMetaEvent, trackBundleClick, trackBundleEvent } from "@/lib/meta-pixel";
 import { trackPdpEvent, usePdpAnalyticsSession, usePdpSectionDwell } from "@/lib/pdpAnalytics";
 import {
   CategoryRail,
@@ -576,7 +578,12 @@ export function ProductsPage({
           const p = products.find((pr) => pr.id === c.id);
           return p ? s + getUnitPrice(p, c.size) * c.qty : s;
         }, 0);
-        const cartBundles = computeBundles(cart.map((c) => ({ id: c.id, qty: c.qty })));
+        const cartBundles = computeBundles(
+          cart.map((c) => {
+            const p = products.find((pr) => pr.id === c.id);
+            return { id: c.id, qty: c.qty, price: p ? getUnitPrice(p, c.size) : undefined };
+          }),
+        );
         if (cartSubtotal <= 0 || cartSubtotal >= FREE_SHIPPING_THRESHOLD || cartBundles.total > 0) return null;
         return (
           <div
@@ -1423,6 +1430,7 @@ export function ProductDetail({
   const { products, productsLoaded, categories, categoriesLoaded, wishlist, toggleWishlist } =
     useWcm();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   useBundlesActive();
   const { trackView } = useRecentlyViewed();
   const [qty, setQty] = useState(1);
@@ -2239,8 +2247,81 @@ export function ProductDetail({
               >
                 Inclusive of all taxes · Free delivery over Rs {FREE_SHIPPING_THRESHOLD.toLocaleString()}
               </div>
+              {isKarachiOnlyProduct(product) && (
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginTop: 8,
+                    padding: "5px 11px",
+                    borderRadius: 999,
+                    background: "var(--pill-warn-bg)",
+                    color: "var(--pill-warn-fg)",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                  }}
+                >
+                  <span aria-hidden="true">📍</span> Delivered in Karachi only
+                </div>
+              )}
             </div>
           </Section>
+          {hasMultipleImages && (
+            <div className="wcm-detail-thumbs-mobile">
+              {thumbIndexes.map((i) => (
+                <button
+                  key={`mobile-thumb-${i}`}
+                  onClick={() => goToView(i)}
+                  aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
+                  style={{
+                    position: "relative",
+                    aspectRatio: "1/1",
+                    borderRadius: 9,
+                    border: "1px solid var(--line)",
+                    background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
+                    opacity: i === activeView ? 1 : 0.7,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    ...(i === activeView
+                      ? {
+                          borderColor: "var(--blue-600)",
+                          boxShadow: "0 0 0 2px var(--pill-info-bg)",
+                        }
+                      : {}),
+                  }}
+                >
+                  {detailMedia[i].type === "video" ? (
+                    <>
+                      <video
+                        src={detailMedia[i].src}
+                        muted
+                        preload="metadata"
+                        onLoadedMetadata={(e) => {
+                          // 0.1s still lands inside a fade-in on edited
+                          // clips (title card fading in from black); 1.5s
+                          // reliably clears that without needing per-video
+                          // tuning. Browsers clamp the seek for shorter clips.
+                          e.currentTarget.currentTime = Math.min(1.5, e.currentTarget.duration / 2 || 1.5);
+                        }}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <PlayBadge />
+                    </>
+                  ) : (
+                    <ProductPhoto
+                      src={detailMedia[i].src}
+                      alt={`${product.name} thumbnail ${i + 1}`}
+                      containerStyle={{ width: "100%", height: "100%" }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
           {isPolysling && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>
@@ -2448,6 +2529,112 @@ export function ProductDetail({
               </div>
             </div>
           )}
+          {(bundleOffers.length > 0 || (bundlesActive() && isMixMatchProduct(product.id))) && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            {bundleOffers.length === 0 && bundlesActive() && isMixMatchProduct(product.id) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  background: "var(--pill-success-bg)",
+                  color: "var(--pill-success-fg)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                }}
+              >
+                <span style={{ minWidth: 0 }}>
+                  Mix &amp; match · save up to {PKR(300)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    trackBundleEvent("BundleBuildClick", {
+                      productIds: [product.id],
+                      label: product.name,
+                      source: "product page",
+                    });
+                    navigate({ to: "/deals" });
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    border: "1.5px solid currentColor",
+                    background: "transparent",
+                    color: "inherit",
+                    borderRadius: 8,
+                    padding: "6px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                  }}
+                >
+                  Build a bundle
+                </button>
+              </div>
+            )}
+            {bundleOffers.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <BundleCountdown style={{ alignSelf: "flex-start" }} />
+                {bundleOffers.map(({ bundle, partner }) => (
+                  <div
+                    key={bundle.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      background: "var(--pill-success-bg)",
+                      color: "var(--pill-success-fg)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <span style={{ minWidth: 0 }}>
+                      <span aria-hidden="true">🎁</span> Bundle &amp; save{" "}
+                      <strong style={{ fontWeight: 800 }}>{PKR(bundle.discount)}</strong> + free delivery — buy
+                      with {partner.name} ({PKR(partner.price)})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackBundleClick({
+                          productIds: [product.id, partner.id],
+                          label: `${product.name} + ${partner.name}`,
+                          source: "product page",
+                          value: resolvedUnitPrice + partner.price - bundle.discount,
+                        });
+                        addToCart(product, 1, variantKey);
+                        addToCart(partner, 1);
+                      }}
+                      style={{
+                        flexShrink: 0,
+                        border: "1.5px solid currentColor",
+                        background: "transparent",
+                        color: "inherit",
+                        borderRadius: 8,
+                        padding: "6px 12px",
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Add both
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            </div>
+          )}
           <div className="wcm-add-row">
             <div
               className="wcm-add-qty"
@@ -2517,62 +2704,6 @@ export function ProductDetail({
                 }}
               >
                 Max 5 units per order
-              </div>
-            )}
-            {bundleOffers.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <BundleCountdown style={{ alignSelf: "flex-start" }} />
-                {bundleOffers.map(({ bundle, partner }) => (
-                  <div
-                    key={bundle.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 10,
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      background: "var(--pill-success-bg)",
-                      color: "var(--pill-success-fg)",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    <span style={{ minWidth: 0 }}>
-                      <span aria-hidden="true">🎁</span> Bundle &amp; save{" "}
-                      <strong style={{ fontWeight: 800 }}>{PKR(bundle.discount)}</strong> + free delivery — buy
-                      with {partner.name} ({PKR(partner.price)})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        trackBundleClick({
-                          productIds: [product.id, partner.id],
-                          label: `${product.name} + ${partner.name}`,
-                          source: "product page",
-                          value: resolvedUnitPrice + partner.price - bundle.discount,
-                        });
-                        addToCart(product, 1, variantKey);
-                        addToCart(partner, 1);
-                      }}
-                      style={{
-                        flexShrink: 0,
-                        border: "1.5px solid currentColor",
-                        background: "transparent",
-                        color: "inherit",
-                        borderRadius: 8,
-                        padding: "6px 12px",
-                        fontSize: 12.5,
-                        fontWeight: 800,
-                        fontFamily: "inherit",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add both
-                    </button>
-                  </div>
-                ))}
               </div>
             )}
             <Btn
@@ -2698,61 +2829,6 @@ export function ProductDetail({
               <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
             </button>
           </div>
-          {hasMultipleImages && (
-            <div className="wcm-detail-thumbs-mobile">
-              {thumbIndexes.map((i) => (
-                <button
-                  key={`mobile-thumb-${i}`}
-                  onClick={() => goToView(i)}
-                  aria-label={detailMedia[i].type === "video" ? `Play video ${i + 1}` : `Show image ${i + 1}`}
-                  style={{
-                    position: "relative",
-                    aspectRatio: "1/1",
-                    borderRadius: 9,
-                    border: "1px solid var(--line)",
-                    background: `linear-gradient(135deg, var(--bg-elev), var(--chip))`,
-                    opacity: i === activeView ? 1 : 0.7,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    cursor: "pointer",
-                    ...(i === activeView
-                      ? {
-                          borderColor: "var(--blue-600)",
-                          boxShadow: "0 0 0 2px var(--pill-info-bg)",
-                        }
-                      : {}),
-                  }}
-                >
-                  {detailMedia[i].type === "video" ? (
-                    <>
-                      <video
-                        src={detailMedia[i].src}
-                        muted
-                        preload="metadata"
-                        onLoadedMetadata={(e) => {
-                          // 0.1s still lands inside a fade-in on edited
-                          // clips (title card fading in from black); 1.5s
-                          // reliably clears that without needing per-video
-                          // tuning. Browsers clamp the seek for shorter clips.
-                          e.currentTarget.currentTime = Math.min(1.5, e.currentTarget.duration / 2 || 1.5);
-                        }}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                      <PlayBadge />
-                    </>
-                  ) : (
-                    <ProductPhoto
-                      src={detailMedia[i].src}
-                      alt={`${product.name} thumbnail ${i + 1}`}
-                      containerStyle={{ width: "100%", height: "100%" }}
-                    />
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
           <div ref={descriptionSectionRef}>
             <Section className="wcm-detail-about" style={{ padding: 16 }}>
               <div

@@ -476,7 +476,64 @@ export type SelectOption = {
   // Optional per-option tint — when the selected option carries one, it's
   // applied to the trigger too.
   color?: { bg: string; color: string };
+  // Thumbnail shown before the label (menu rows and the trigger). Setting the
+  // key at all (even to null) opts the option into a thumbnail slot: a missing
+  // or broken image falls back to an initials avatar so rows stay aligned.
+  image?: string | null;
 };
+
+function SelectThumb({ src, label, size }: { src?: string | null; label: string; size: number }) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+        style={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          borderRadius: 8,
+          objectFit: "contain",
+          background: "var(--surface)",
+        }}
+      />
+    );
+  }
+  // Initials of the first two words of the name (the part before " — Rs …").
+  const initials = label
+    .split(" — ")[0]
+    .split(/\s+/)
+    .filter((word) => /^[A-Za-z]/.test(word))
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: 8,
+        background: "var(--surface)",
+        border: "1px solid var(--line)",
+        color: "var(--ink-3)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: Math.round(size * 0.36),
+        fontWeight: 800,
+        letterSpacing: 0.3,
+      }}
+    >
+      {initials || "•"}
+    </span>
+  );
+}
 
 function levenshtein(a: string, b: string): number {
   if (a === b) return 0;
@@ -688,13 +745,17 @@ export function Select({
       >
         <span
           style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            minWidth: 0,
             color: active || value ? undefined : "var(--ink-4)",
           }}
         >
-          {active?.label || value || placeholder || "Select"}
+          {active && active.image !== undefined && <SelectThumb src={active.image} label={active.label} size={28} />}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {active?.label || value || placeholder || "Select"}
+          </span>
         </span>
         <span
           style={{
@@ -764,6 +825,7 @@ export function Select({
                     }}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      {opt.image !== undefined && <SelectThumb src={opt.image} label={opt.label} size={36} />}
                       {opt.color && (
                         <span
                           style={{
