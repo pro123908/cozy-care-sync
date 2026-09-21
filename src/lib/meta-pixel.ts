@@ -283,3 +283,34 @@ export function trackBundleClick(input: BundleEventInput) {
 export function trackBundleAppliedOnce(pairKey: string, input: BundleEventInput) {
   trackMetaEventOnce(`bundle_applied:${pairKey}`, "BundleApplied", bundleEventPayload(input));
 }
+
+/**
+ * Send an event while the page is being hidden/closed. `fetch` with the
+ * Supabase auth headers needs a CORS preflight, which often can't finish
+ * before the page freezes (exit events were getting lost); `sendBeacon` to a
+ * same-origin relay (middleware.ts `/t/presence`, which adds the headers
+ * server-side) is delivered reliably. Only SiteExit/SiteReturn are accepted by
+ * the relay. Falls back to a keepalive fetch if sendBeacon is unavailable.
+ */
+export function beaconMetaEvent(eventName: string, payload?: MetaEventPayload) {
+  if (typeof window === "undefined") return;
+  const body: Record<string, unknown> = {
+    event_name: eventName,
+    custom_data: payload || {},
+    event_source_url: window.location.href,
+  };
+  const visitorId = getOrCreateVisitorId();
+  if (visitorId) body.visitor_id = visitorId;
+  try {
+    if (
+      typeof navigator !== "undefined" &&
+      navigator.sendBeacon &&
+      navigator.sendBeacon("/t/presence", new Blob([JSON.stringify(body)], { type: "application/json" }))
+    ) {
+      return;
+    }
+  } catch {
+    // fall through to the fetch fallback
+  }
+  void forwardMetaEvent(eventName, payload, { keepalive: true });
+}

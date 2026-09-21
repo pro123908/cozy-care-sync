@@ -145,6 +145,42 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
   return new Response(null, { status: 204 });
 }
 
+// Same-origin relay for SiteExit / SiteReturn (see src/lib/siteExit.ts,
+// beaconMetaEvent in src/lib/meta-pixel.ts). These fire while the page is being
+// hidden or closed, when a cross-origin fetch with Supabase's auth headers (which
+// needs a CORS preflight) often never completes — so the client uses
+// navigator.sendBeacon to this same-origin path and we forward to meta-track
+// server-side. ONLY the two presence events are relayed (never an open proxy
+// into meta-track), the body is size-capped, and it always answers 204. The
+// visitor's IP / user agent are forwarded so meta-track's geo lookup still sees
+// the visitor rather than Vercel.
+const PRESENCE_EVENTS = new Set(["SiteExit", "SiteReturn"]);
+
+async function proxyPresenceTrack(request: Request): Promise<Response> {
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) return new Response(null, { status: 204 });
+  try {
+    const raw = await request.text();
+    if (!raw || raw.length > 4000) return new Response(null, { status: 204 });
+    const body = JSON.parse(raw) as { event_name?: string };
+    if (!body.event_name || !PRESENCE_EVENTS.has(body.event_name)) return new Response(null, { status: 204 });
+
+    await fetch(`${SUPABASE_URL}/functions/v1/meta-track`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_SECRET_KEY,
+        Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
+        "x-forwarded-for": (request.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "",
+        "user-agent": request.headers.get("user-agent") || "",
+      },
+      body: raw,
+    });
+  } catch {
+    // Best-effort — a dropped presence event isn't worth surfacing.
+  }
+  return new Response(null, { status: 204 });
+}
+
 // First-party proxy for GA4 hit collection: gtag.js is configured (see
 // src/lib/ga.ts, transport_url) to send hits here instead of directly to
 // google-analytics.com. Ad/privacy blocklists near-universally target that
@@ -650,6 +686,10 @@ export default async function middleware(request: Request) {
 
   if (pathname === "/t/pdp" && request.method === "POST") {
     return proxyPdpTrack(request);
+  }
+
+  if (pathname === "/t/presence" && request.method === "POST") {
+    return proxyPresenceTrack(request);
   }
 
   if (pathname === "/sitemap.xml") {

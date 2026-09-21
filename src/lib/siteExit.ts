@@ -1,4 +1,4 @@
-import { trackMetaEvent } from "./meta-pixel";
+import { beaconMetaEvent } from "./meta-pixel";
 
 // SiteExit: one local-only event each time the page is hidden or closed, with
 // how long the visitor actually had the site in view. Browsers can't report a
@@ -60,13 +60,14 @@ export function initSiteExitTracking(): () => void {
     if (exitSent) return;
     exitSent = true;
     hiddenAt = now;
-    trackMetaEvent(
+    beaconMetaEvent(
       "SiteExit",
       {
         content_type: "site",
-        detail: { seconds: String(Math.round(activeMs / 1000)), page: window.location.pathname, reason },
+        // `at` = the visitor's own clock: the admin orders exit/return by it, since the
+        // server-side insert order can flip when two events are sent moments apart.
+        detail: { seconds: String(Math.round(activeMs / 1000)), page: window.location.pathname, reason, at: String(now) },
       },
-      { keepalive: true },
     );
   };
 
@@ -81,9 +82,9 @@ export function initSiteExitTracking(): () => void {
     startVisible();
     if (awaySeconds !== null) {
       hiddenAt = null;
-      trackMetaEvent("SiteReturn", {
+      beaconMetaEvent("SiteReturn", {
         content_type: "site",
-        detail: { away_seconds: String(awaySeconds), page: window.location.pathname },
+        detail: { away_seconds: String(awaySeconds), page: window.location.pathname, at: String(Date.now()) },
       });
     }
   };
