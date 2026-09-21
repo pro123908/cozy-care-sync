@@ -39,10 +39,18 @@ const selectStyle: React.CSSProperties = {
  * The discount comes from computeBundles (same logic the cart and place-order
  * use), so what's shown here is what the order will get.
  */
-export function MixMatchBuilder({ products, isMobile }: { products: Product[]; isMobile: boolean }) {
+export function MixMatchBuilder({
+  products,
+  isMobile,
+  initialFirstId = "",
+}: {
+  products: Product[];
+  isMobile: boolean;
+  initialFirstId?: string;
+}) {
   const { addToCart } = useWcm();
   const active = useBundlesActive();
-  const [aId, setAId] = useState("");
+  const [aId, setAId] = useState(initialFirstId);
   const [bId, setBId] = useState("");
 
   const choices = useMemo<Choice[]>(() => {

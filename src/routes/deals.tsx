@@ -9,6 +9,11 @@ import { MixMatchBuilder } from "@/wcm/mix-match-builder";
 import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/deals")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    // Product id to preselect as the first pick in the mix & match builder
+    // (set by the PDP's "Build a bundle" button).
+    first: typeof search.first === "string" ? search.first : "",
+  }),
   head: () => ({
     links: [{ rel: "canonical", href: canonicalUrl("/deals") }],
     meta: [
@@ -39,6 +44,7 @@ function DealsPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const active = useBundlesActive();
+  const { first } = Route.useSearch();
 
   const offers = getBundleOffers(products);
   const maxSaving = offers.length > 0 ? Math.max(...offers.map((o) => o.bundle.discount)) : 300;
@@ -129,7 +135,7 @@ function DealsPage() {
         </div>
       ) : (
         <>
-          <MixMatchBuilder products={products} isMobile={isMobile} />
+          <MixMatchBuilder products={products} isMobile={isMobile} initialFirstId={first} />
           <div style={{ fontSize: 13, fontWeight: 800, color: "var(--ink)", margin: "0 0 10px" }}>
             <span aria-hidden="true">🎁</span> Ready-made bundles
           </div>

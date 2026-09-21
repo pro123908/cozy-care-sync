@@ -2561,7 +2561,7 @@ export function ProductDetail({
                       label: product.name,
                       source: "product page",
                     });
-                    navigate({ to: "/deals" });
+                    navigate({ to: "/deals", search: { first: product.id } });
                   }}
                   style={{
                     flexShrink: 0,
