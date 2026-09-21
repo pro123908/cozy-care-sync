@@ -229,13 +229,13 @@ export function bestBundleFor(productId: string): Bundle | undefined {
 }
 
 /**
- * Bundle deals run until this instant (Wed 23 Sep 2026, 11:59 PM Pakistan
+ * Bundle deals run until this instant (Tue 6 Oct 2026, 11:59 PM Pakistan
  * time). After it, computeBundles/bestBundleFor return nothing, so the
  * discount, chips, rails and bundle free-delivery all stop. Mirrored in
  * place-order/index.ts, which also enforces it server-side. To extend the
  * deals, change it in BOTH places and redeploy both.
  */
-export const BUNDLE_DEALS_END_MS = new Date("2026-09-23T23:59:59+05:00").getTime();
+export const BUNDLE_DEALS_END_MS = new Date("2026-10-06T23:59:59+05:00").getTime();
 
 export function bundlesActive(now: number = Date.now()): boolean {
   return now <= BUNDLE_DEALS_END_MS;
