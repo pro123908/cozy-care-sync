@@ -236,6 +236,7 @@ export function trackMetaEventOnce(
 export type BundleClickSource =
   | "home page"
   | "deals page"
+  | "bundle page"
   | "product page"
   | "cart"
   | "checkout"

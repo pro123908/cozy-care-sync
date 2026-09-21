@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BUNDLES,
+  bundleSlug,
   PKR,
   bundlesActive,
   bestBundleFor,
@@ -1162,51 +1163,46 @@ export function BundleDeals({
               <div style={thumb}>
                 <ProductImage product={b} />
               </div>
-              <div
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <span
                 style={{
-                  marginLeft: "auto",
-                  alignSelf: "flex-start",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap: 5,
+                  padding: "3px 9px",
+                  borderRadius: 999,
+                  background: "var(--pill-success-bg)",
+                  color: "var(--pill-success-fg)",
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
                 }}
               >
-                <span
-                  style={{
-                    padding: "3px 9px",
-                    borderRadius: 999,
-                    background: "var(--pill-success-bg)",
-                    color: "var(--pill-success-fg)",
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Save {PKR(bundle.discount)}
-                </span>
-                <span
-                  style={{
-                    padding: "3px 9px",
-                    borderRadius: 999,
-                    background: "var(--pill-teal-bg)",
-                    color: "var(--pill-teal-fg)",
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <span aria-hidden="true">🚚</span> Free delivery
-                </span>
-              </div>
+                Save {PKR(bundle.discount)}
+              </span>
+              <span
+                style={{
+                  padding: "3px 9px",
+                  borderRadius: 999,
+                  background: "var(--pill-teal-bg)",
+                  color: "var(--pill-teal-fg)",
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span aria-hidden="true">🚚</span> Free delivery
+              </span>
             </div>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.35 }}>
+            <Link
+              to="/bundles/$bundleId"
+              params={{ bundleId: bundleSlug(bundle) }}
+              style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.35, textDecoration: "none" }}
+            >
               <div>{a.name}</div>
               <div>
                 <span style={{ color: "var(--blue-700)", fontWeight: 900, fontSize: 16, marginRight: 5 }}>+</span>
                 {b.name}
               </div>
-            </div>
+            </Link>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
               <div>
                 <span style={{ fontWeight: 800, fontSize: 16, color: "var(--ink)" }}>

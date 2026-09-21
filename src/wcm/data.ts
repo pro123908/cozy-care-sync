@@ -216,6 +216,12 @@ export const BUNDLES: Bundle[] = [
   { id: "supp-001+oth-002", ids: ["supp-001", "oth-002"], discount: 100 },
 ];
 
+/** URL segment for a bundle's landing page, e.g. "bd-012-and-wsd-002". */
+export const bundleSlug = (b: Bundle) => b.ids.join("-and-");
+
+export const findBundleBySlug = (slug: string): Bundle | undefined =>
+  BUNDLES.find((b) => bundleSlug(b) === slug);
+
 /** Highest-discount bundle a product belongs to, if any (for card badges). */
 export function bestBundleFor(productId: string): Bundle | undefined {
   if (!bundlesActive()) return undefined;

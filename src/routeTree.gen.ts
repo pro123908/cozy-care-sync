@@ -29,6 +29,7 @@ import { Route as CategoriesIndexRouteImport } from './routes/categories/index'
 import { Route as ProductsProductIdRouteImport } from './routes/products/$productId'
 import { Route as OrdersOrderIdRouteImport } from './routes/orders/$orderId'
 import { Route as CategoriesCategoryIdRouteImport } from './routes/categories/$categoryId'
+import { Route as BundlesBundleIdRouteImport } from './routes/bundles/$bundleId'
 
 const WishlistRoute = WishlistRouteImport.update({
   id: '/wishlist',
@@ -130,6 +131,11 @@ const CategoriesCategoryIdRoute = CategoriesCategoryIdRouteImport.update({
   path: '/categories/$categoryId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BundlesBundleIdRoute = BundlesBundleIdRouteImport.update({
+  id: '/bundles/$bundleId',
+  path: '/bundles/$bundleId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
+  '/bundles/$bundleId': typeof BundlesBundleIdRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
+  '/bundles/$bundleId': typeof BundlesBundleIdRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/track-order': typeof TrackOrderRoute
   '/wishlist': typeof WishlistRoute
+  '/bundles/$bundleId': typeof BundlesBundleIdRoute
   '/categories/$categoryId': typeof CategoriesCategoryIdRoute
   '/orders/$orderId': typeof OrdersOrderIdRoute
   '/products/$productId': typeof ProductsProductIdRoute
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
+    | '/bundles/$bundleId'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
+    | '/bundles/$bundleId'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/track-order'
     | '/wishlist'
+    | '/bundles/$bundleId'
     | '/categories/$categoryId'
     | '/orders/$orderId'
     | '/products/$productId'
@@ -283,6 +295,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   TrackOrderRoute: typeof TrackOrderRoute
   WishlistRoute: typeof WishlistRoute
+  BundlesBundleIdRoute: typeof BundlesBundleIdRoute
   CategoriesCategoryIdRoute: typeof CategoriesCategoryIdRoute
   OrdersOrderIdRoute: typeof OrdersOrderIdRoute
   CategoriesIndexRoute: typeof CategoriesIndexRoute
@@ -431,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CategoriesCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bundles/$bundleId': {
+      id: '/bundles/$bundleId'
+      path: '/bundles/$bundleId'
+      fullPath: '/bundles/$bundleId'
+      preLoaderRoute: typeof BundlesBundleIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   TrackOrderRoute: TrackOrderRoute,
   WishlistRoute: WishlistRoute,
+  BundlesBundleIdRoute: BundlesBundleIdRoute,
   CategoriesCategoryIdRoute: CategoriesCategoryIdRoute,
   OrdersOrderIdRoute: OrdersOrderIdRoute,
   CategoriesIndexRoute: CategoriesIndexRoute,
