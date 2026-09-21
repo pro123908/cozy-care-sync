@@ -161,8 +161,12 @@ async function proxyPresenceTrack(request: Request): Promise<Response> {
   try {
     const raw = await request.text();
     if (!raw || raw.length > 4000) return new Response(null, { status: 204 });
-    const body = JSON.parse(raw) as { event_name?: string };
+    const body = JSON.parse(raw) as { event_name?: string; relay_ip?: string };
     if (!body.event_name || !PRESENCE_EVENTS.has(body.event_name)) return new Response(null, { status: 204 });
+    // Supabase overwrites x-forwarded-for with the relay's address, so hand the
+    // visitor's IP to meta-track in the body (it only honours it for these events).
+    const visitorIp = (request.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
+    body.relay_ip = visitorIp;
 
     await fetch(`${SUPABASE_URL}/functions/v1/meta-track`, {
       method: "POST",
@@ -173,7 +177,7 @@ async function proxyPresenceTrack(request: Request): Promise<Response> {
         "x-forwarded-for": (request.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "",
         "user-agent": request.headers.get("user-agent") || "",
       },
-      body: raw,
+      body: JSON.stringify(body),
     });
   } catch {
     // Best-effort — a dropped presence event isn't worth surfacing.

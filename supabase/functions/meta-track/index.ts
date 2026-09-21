@@ -89,8 +89,15 @@ function sanitizeDetail(raw: unknown): Record<string, string> | null {
   return Object.keys(out).length > 0 ? out : null;
 }
 
+// SiteExit/SiteReturn arrive via the storefront's same-origin relay (middleware.ts
+// /t/presence), so the caller IP Supabase sees is the relay's, not the visitor's.
+// For these two local-only events (never forwarded to Meta) the relay passes the
+// visitor's IP in `relay_ip`; other events ignore it.
+const RELAYED_PRESENCE_EVENTS = new Set(["SiteExit", "SiteReturn"]);
+
 type Body = {
   event_name?: string;
+  relay_ip?: string;
   event_id?: string;
   event_source_url?: string;
   custom_data?: Record<string, unknown>;
@@ -194,7 +201,11 @@ serve(async (req) => {
     : null;
   const eventSearchString =
     typeof customData.search_string === "string" ? customData.search_string.slice(0, 500) : null;
-  const clientIp = (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
+  const relayIp =
+    RELAYED_PRESENCE_EVENTS.has(eventName) && typeof body.relay_ip === "string" && /^[0-9a-fA-F:.]{3,45}$/.test(body.relay_ip)
+      ? body.relay_ip
+      : "";
+  const clientIp = relayIp || (req.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || "";
   const userAgent = req.headers.get("user-agent") || "";
   const geo = await resolveGeo(clientIp);
 
