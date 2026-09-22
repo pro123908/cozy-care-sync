@@ -72,6 +72,7 @@ export const CATEGORIES: Category[] = [
   { id: "bp-digital", name: "BP Digital", count: 0 },
   { id: "bp-manual", name: "BP Manual", count: 0 },
   { id: "weight-scale", name: "Weight Scale", count: 0 },
+  { id: "mobility", name: "Mobility", count: 0 },
   { id: "camote-chairs", name: "Camote Chairs", count: 0 },
   { id: "walkers", name: "Imported Walkers", count: 0 },
   { id: "patient-sticks", name: "Patient Sticks", count: 0 },

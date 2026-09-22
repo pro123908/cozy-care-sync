@@ -4,7 +4,7 @@ import { useWcm } from "@/wcm/context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Icons } from "@/wcm/icons";
 import { Btn } from "@/wcm/ui";
-import { BundleDeals, ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
+import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
 import { canonicalUrl } from "@/lib/seo";
 
 export const Route = createFileRoute("/categories/$categoryId")({
@@ -52,7 +52,9 @@ function CategoryProductsPage() {
   const categoryIdsForProducts =
     resolvedCategoryId === "orthobelts-supports"
       ? ["orthobelts-supports", "ortho-belts", "supports"]
-      : [resolvedCategoryId];
+      : resolvedCategoryId === "mobility"
+        ? ["mobility", "wheelchairs", "walkers", "patient-sticks", "camote-chairs"]
+        : [resolvedCategoryId];
 
   const categoryProducts = products.filter((p) => categoryIdsForProducts.includes(p.cat));
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
@@ -146,10 +148,6 @@ function CategoryProductsPage() {
           Shop all
         </Btn>
       </div>
-
-      {productsLoaded && categoryProducts.length > 0 && (
-        <BundleDeals products={products} isMobile={isMobile} forProducts={categoryProducts} />
-      )}
 
       {!productsLoaded ? (
         <div
