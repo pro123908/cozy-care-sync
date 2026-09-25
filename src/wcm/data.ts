@@ -17,6 +17,7 @@ export type Product = {
   block_when_out_of_stock?: boolean;
   tags: string[];
   blurb: string;
+  features?: string[];
   swatch: string;
   image_url?: string | null;
   gallery_images?: string[] | null;

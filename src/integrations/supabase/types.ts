@@ -425,6 +425,7 @@ export type Database = {
         Row: {
           active: boolean
           block_when_out_of_stock: boolean
+          features: string[]
           blurb: string
           brand: string
           cat: string
@@ -457,6 +458,7 @@ export type Database = {
         Insert: {
           active?: boolean
           block_when_out_of_stock?: boolean
+          features?: string[]
           blurb?: string
           brand?: string
           cat?: string
@@ -489,6 +491,7 @@ export type Database = {
         Update: {
           active?: boolean
           block_when_out_of_stock?: boolean
+          features?: string[]
           blurb?: string
           brand?: string
           cat?: string

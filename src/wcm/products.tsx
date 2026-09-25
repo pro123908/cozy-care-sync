@@ -2885,13 +2885,74 @@ export function ProductDetail({
                   letterSpacing: 0.3,
                   color: "var(--ink-3)",
                   textTransform: "uppercase",
+                  ...(product.features && product.features.length > 0
+                    ? { fontSize: 13, color: "var(--ink)", marginBottom: 8 }
+                    : {}),
                 }}
               >
-                About this product
+                {product.features && product.features.length > 0 ? "Key features" : "About this product"}
               </div>
-              <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14, lineHeight: 1.55 }}>
-                {product.blurb}
-              </p>
+              {product.features && product.features.length > 0 ? (
+                <ul
+                  style={{
+                    margin: 0,
+                    padding: "2px 12px",
+                    listStyle: "none",
+                    borderRadius: 12,
+                    background: "var(--pill-success-bg)",
+                    border: "1px solid rgba(22, 163, 74, 0.25)",
+                  }}
+                >
+                  {product.features.map((f, i) => (
+                    <li
+                      key={f}
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        padding: "8px 0",
+                        borderTop: i > 0 ? "1px solid rgba(22, 163, 74, 0.2)" : "none",
+                        color: "var(--ink)",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 99,
+                          background: "#16a34a",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="#fff"
+                          strokeWidth="3.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0, color: "var(--ink-2)", fontSize: 14, lineHeight: 1.55 }}>
+                  {product.blurb}
+                </p>
+              )}
             </Section>
           </div>
           <div className="wcm-product-badges">

@@ -797,6 +797,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             block_when_out_of_stock: r.block_when_out_of_stock ?? false,
             tags: r.tags ?? [],
             blurb: r.blurb,
+            features: Array.isArray(r.features) ? r.features : [],
             swatch: r.swatch,
             image_url: r.image_url ?? undefined,
             gallery_images: Array.isArray(r.gallery_images) ? r.gallery_images : [],
