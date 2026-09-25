@@ -34,6 +34,7 @@ type ProductRow = {
   price: number;
   active: boolean;
   stock: string;
+  block_when_out_of_stock?: boolean;
   size_options?: SizeOption[] | null;
   variant_options?: VariantOption[] | null;
 };
@@ -78,10 +79,10 @@ const BUNDLES: { ids: [string, string]; discount: number }[] = [
 ];
 
 // Bundle deals end at a fixed instant — mirror of BUNDLE_DEALS_END_MS in the
-// storefront's data.ts (Wed 23 Sep 2026, 11:59 PM PKT). Enforced here so the
+// storefront's data.ts (Tue 6 Oct 2026, 11:59 PM PKT). Enforced here so the
 // discount and bundle free-delivery genuinely stop; a short grace covers a
 // shopper who saw the discount at checkout just before the deadline.
-const BUNDLE_DEALS_END_MS = new Date("2026-09-23T23:59:59+05:00").getTime();
+const BUNDLE_DEALS_END_MS = new Date("2026-10-06T23:59:59+05:00").getTime();
 const BUNDLE_DEALS_GRACE_MS = 5 * 60 * 1000;
 
 // Mix & match — mirror of MIX_MATCH_* / pairMixMatch in the storefront's
@@ -199,21 +200,21 @@ const ORDER_NOTIFY_EMAIL = Deno.env.get("ORDER_NOTIFY_EMAIL") || "";
 // WhatsApp order confirmations go out via Meta's WhatsApp Cloud API (migrated
 // off Twilio 2026-07-15 — the business number now lives on Cloud API, not a
 // BSP). Needs: the phone number's Cloud API ID, a token with
-// whatsapp_business_messaging, and the approved "order_confirmation_request"
-// utility template (verified against its live body in WhatsApp Manager
-// 2026-07-20 — "order_confirmation_final" referenced in older comments here
-// does not exist in the account). Its body has 8 positional variables in
-// this exact order: 1 name, 2 order code, 3 item count, 4 items summary,
-// 5 total, 6 payment, 7 address, 8 phone. "Estimated delivery: 3-5 working
-// days" and the Confirm/Cancel instructions line are static template text,
-// not variables. The template's Confirm/Cancel quick-reply buttons have no
-// payload set at creation, so the payload MUST be supplied per-send via a
-// "button" component (see sendWhatsAppOrderConfirmation) — without it the
+// whatsapp_business_messaging, and the approved "order_confirmation_v2"
+// utility template (cut over 2026-09-10 from the retired 8-variable
+// "order_confirmation_request" — see [[project_whatsapp_order_confirmation_v2_template]]).
+// Its body has 9 positional variables in this exact order: 1 order number,
+// 2 total, 3 name, 4 phone, 5 address, 6 city, 7 country, 8 payment method,
+// 9 products list. "Estimated delivery: 3-5 working days" and the
+// Confirm/Cancel instructions line are static template text, not variables.
+// The template's Confirm/Cancel quick-reply buttons have no payload set at
+// creation, so the payload MUST be supplied per-send via a "button"
+// component (see sendWhatsAppOrderConfirmation) — without it the
 // CONFIRM:<order_code>/CANCEL:<order_code> payload whatsapp-inbound expects
 // won't be there.
 const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") || "";
 const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") || "";
-const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation_request";
+const WHATSAPP_TEMPLATE_NAME = Deno.env.get("WHATSAPP_TEMPLATE_NAME") || "order_confirmation_v2";
 const WHATSAPP_TEMPLATE_LANG = Deno.env.get("WHATSAPP_TEMPLATE_LANG") || "en";
 const WHATSAPP_GRAPH_VERSION = Deno.env.get("WHATSAPP_GRAPH_VERSION") || "v21.0";
 // Left unset until a "you earned a coupon" template is submitted to and
@@ -333,6 +334,28 @@ function logPurchaseValueTrend(value: number): void {
   }
 }
 
+// Checking out with one of these phone numbers skips the live Meta Purchase
+// CAPI send, so test orders placed on the real site (not just localhost)
+// don't inflate the ad account's purchase/ROAS numbers. Meta attributes
+// purchases by identity match (phone/email/IP via Advanced Matching), not
+// just ad clicks — a test checkout with no real ad interaction can still
+// land on an active campaign if the phone/email/IP has any prior signal
+// Meta associates with the ads. Comma-separated so more than one test number
+// can be used; override via the META_TEST_PHONE_NUMBERS env var.
+const META_TEST_PHONE_NUMBERS = new Set(
+  (Deno.env.get("META_TEST_PHONE_NUMBERS") || "03000000000")
+    .split(",")
+    .map((p) => normalizePhone(p.trim()))
+    .filter(Boolean),
+);
+
+function isTestPurchase(phone: string | undefined, eventSourceUrl: string): boolean {
+  if (phone && META_TEST_PHONE_NUMBERS.has(normalizePhone(phone))) return true;
+  // Local dev hits this same live edge function/pixel (no staging split), so
+  // a checkout run from a dev server should never count as a real purchase.
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(eventSourceUrl);
+}
+
 async function sendMetaPurchaseEvent(input: {
   orderId: string;
   total: number;
@@ -351,6 +374,34 @@ async function sendMetaPurchaseEvent(input: {
   eventSourceUrl: string;
 }) {
   const purchaseValue = Number(input.total.toFixed(2));
+
+  if (isTestPurchase(input.phone, input.eventSourceUrl)) {
+    console.info("[meta-capi] skipping Purchase for test order", {
+      eventId: input.orderId,
+      eventSourceUrl: input.eventSourceUrl,
+    });
+    await logMetaEvent({
+      event_name: "Purchase",
+      event_id: input.orderId,
+      status: "skipped",
+      reason: "Test order (test phone number or localhost origin)",
+      value: purchaseValue,
+      currency: "PKR",
+      num_items: input.numItems,
+      content_ids: input.itemIds,
+      has_email: Boolean(input.email),
+      has_phone: Boolean(input.phone),
+      event_source_url: input.eventSourceUrl,
+      user_agent: input.userAgent,
+      ip_address: input.clientIp,
+      visitor_id: input.visitorId || null,
+      geo_city: input.geoCity,
+      geo_region: input.geoRegion,
+      geo_country: input.geoCountry,
+    });
+    return;
+  }
+
   if (!Number.isFinite(purchaseValue) || purchaseValue <= 0) {
     console.warn("[meta-capi] skipping Purchase with invalid value", {
       eventName: "Purchase",
@@ -742,37 +793,43 @@ function toWhatsAppNumber(rawPhone: string): string | null {
 }
 
 // WhatsApp templates can't loop over a variable-length item list, so a
-// human-readable one-line summary ("2x Foo, 1x Bar") is built here instead of
-// sending a per-item breakdown. Capped at 3 named items so the message stays
-// short and readable even for large orders.
+// human-readable summary is built here instead of sending a per-item
+// breakdown. One bullet per line (not a bare comma-joined string — that
+// rendered cramped with no spacing, per user screenshot 2026-08-29) and
+// capped at 3 named items so the message stays readable even for large
+// orders.
 function buildItemsSummary(
   items: Array<{ id: string; qty: number }>,
   productMap: Map<string, ProductRow>,
 ): string {
   const MAX_NAMED = 3;
   const named = items.map((item) => `${item.qty}x ${productMap.get(item.id)?.name || item.id}`);
-  if (named.length <= MAX_NAMED) return named.join(", ");
+  // Joined with " | " rather than "\n" — WhatsApp template params reject
+  // new-line/tab characters at send time (Meta error 132018), which was
+  // silently failing every multi-item order's confirmation until this fix.
+  if (named.length <= MAX_NAMED) return named.map((n) => `• ${n}`).join(" | ");
   const remaining = named.length - MAX_NAMED;
-  return `${named.slice(0, MAX_NAMED).join(", ")} and ${remaining} more item${remaining === 1 ? "" : "s"}`;
+  return `${named.slice(0, MAX_NAMED).map((n) => `• ${n}`).join(" | ")} | and ${remaining} more item${remaining === 1 ? "" : "s"}`;
 }
 
 // Business-initiated (the customer checked out on the website, not on
 // WhatsApp) — outside any open customer-service window, so this must use a
-// pre-approved template rather than a free-form message. order_confirmation_request's
-// approved body has 8 positional variables ({{1}}..{{8}}) in exactly this
-// order: 1 customer name, 2 order code, 3 item count, 4 items summary,
-// 5 total, 6 payment, 7 address, 8 phone. The "Estimated delivery" line and
-// the Confirm/Cancel instructions are static template text, not variables.
-// The template's Confirm/Cancel quick-reply buttons have no payload baked in
-// at creation, so it's supplied here per-send as a "button" component —
-// whatsapp-inbound's handleButtonTap expects exactly "CONFIRM:<order_code>"
-// / "CANCEL:<order_code>".
+// pre-approved template rather than a free-form message. order_confirmation_v2's
+// approved body has 9 positional variables ({{1}}..{{9}}) in exactly this
+// order: 1 order number, 2 total, 3 name, 4 phone, 5 address, 6 city,
+// 7 country, 8 payment method, 9 products list. The "Estimated delivery"
+// line and the Confirm/Cancel instructions are static template text, not
+// variables. The template's Confirm/Cancel quick-reply buttons have no
+// payload baked in at creation, so it's supplied here per-send as a
+// "button" component — whatsapp-inbound's handleButtonTap expects exactly
+// "CONFIRM:<order_code>" / "CANCEL:<order_code>".
 async function sendWhatsAppOrderConfirmation(input: {
   phone: string;
   customerName: string;
   orderId: string;
   orderRowId: string | null;
   address: string;
+  city: string;
   items: Array<{ id: string; qty: number; size?: string; unit_price: number }>;
   itemsSummary: string;
   total: number;
@@ -789,7 +846,6 @@ async function sendWhatsAppOrderConfirmation(input: {
   const to = toWhatsAppNumber(input.phone);
   if (!to) return;
 
-  const itemCount = input.items.reduce((sum, item) => sum + item.qty, 0);
   const textParam = (text: string) => ({ type: "text", text });
   const payload = {
     messaging_product: "whatsapp",
@@ -802,14 +858,15 @@ async function sendWhatsAppOrderConfirmation(input: {
         {
           type: "body",
           parameters: [
-            textParam(input.customerName || "there"),
             textParam(input.orderId),
-            textParam(String(itemCount)),
-            textParam(input.itemsSummary),
             textParam(input.total.toLocaleString()),
-            textParam(input.pay),
-            textParam(input.address),
+            textParam(input.customerName || "there"),
             textParam(`+${to}`),
+            textParam(input.address),
+            textParam(input.city),
+            textParam("Pakistan"),
+            textParam(input.pay),
+            textParam(input.itemsSummary),
           ],
         },
         {
@@ -1142,7 +1199,7 @@ Deno.serve(
   const [{ data: products, error: productsErr }, { data: costRows }] = await Promise.all([
     serviceClient
       .from("products")
-      .select("id, name, cat, price, active, stock, size_options, variant_options")
+      .select("id, name, cat, price, active, stock, block_when_out_of_stock, size_options, variant_options")
       .in("id", productIds),
     // Cost snapshot for the Net Profit Report — see product_costs (admin-only
     // table, but service-role bypasses RLS). Missing rows default to 0/unknown,
@@ -1168,6 +1225,16 @@ Deno.serve(
     if (!product.active) {
       return json({ error: `Product is no longer available: ${item.id}` }, 400, origin);
     }
+  }
+
+  // Products flagged block_when_out_of_stock can't be ordered while out of
+  // stock (mirror of isOutOfStockBlocked in the storefront's src/wcm/data.ts).
+  const outOfStock = items
+    .map((item) => productMap.get(item.id)!)
+    .filter((product) => product.block_when_out_of_stock && product.stock === "Out of stock");
+  if (outOfStock.length > 0) {
+    const names = [...new Set(outOfStock.map((product) => product.name))].join(", ");
+    return json({ error: `${names} is currently out of stock. Please remove it from your cart.` }, 400, origin);
   }
 
   // Karachi-only products can't be ordered for any other city.
@@ -1360,7 +1427,8 @@ Deno.serve(
     customerName: ship.name.trim(),
     orderId,
     orderRowId: insertedOrder?.id ?? null,
-    address: `${ship.address}, ${ship.city}`,
+    address: ship.address,
+    city: ship.city,
     items: orderItems,
     itemsSummary: buildItemsSummary(orderItems, productMap),
     total,

@@ -8,6 +8,7 @@ import {
   getDisplayPrice,
   getProductBadge,
   getSelectableOptions,
+  isOutOfStockBlocked,
   type Category,
   type Product,
 } from "./data";
@@ -479,6 +480,24 @@ export function ProductCard({
             -{Math.round((1 - p.price / p.was) * 100)}%
           </div>
         )}
+        {isOutOfStockBlocked(p) && (
+          <div
+            style={{
+              position: "absolute",
+              left: 8,
+              bottom: 8,
+              zIndex: 3,
+              padding: compact ? "2px 8px" : "3px 10px",
+              borderRadius: 99,
+              background: "rgba(15, 23, 42, 0.9)",
+              color: "#fff",
+              fontSize: compact ? 11.5 : 12.5,
+              fontWeight: 800,
+            }}
+          >
+            Out of stock
+          </div>
+        )}
         <button
           className="wcm-card-hover-action wcm-card-wishlist-btn"
           onClick={(e) => {
@@ -697,9 +716,11 @@ export function ProductCard({
                 }
                 onAdd(p);
               }}
-              disabled={!hasSelectableOptions && cartQty >= 5}
+              disabled={isOutOfStockBlocked(p) || (!hasSelectableOptions && cartQty >= 5)}
               aria-label={
-                hasSelectableOptions
+                isOutOfStockBlocked(p)
+                  ? "Out of stock"
+                  : hasSelectableOptions
                   ? "Choose a size"
                   : isInCart
                     ? `Add one more to cart (currently ${cartQty})`
@@ -989,6 +1010,8 @@ export function getBundleOffers(products: Product[]) {
     const [a, b] = bundle.ids.map((id) => products.find((p) => p.id === id));
     // Skip pairs needing an option pick — "Add both" can't choose for the buyer.
     if (!a || !b || getSelectableOptions(a).length > 0 || getSelectableOptions(b).length > 0) return [];
+    // Can't buy a bundle containing a product that's blocked while out of stock.
+    if (isOutOfStockBlocked(a) || isOutOfStockBlocked(b)) return [];
     return [{ bundle, a, b }];
   }).sort((x, y) => y.bundle.discount - x.bundle.discount);
 }

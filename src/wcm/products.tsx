@@ -12,6 +12,8 @@ import {
   BUNDLES,
   isMixMatchProduct,
   isKarachiOnlyProduct,
+  isOutOfStockBlocked,
+  outOfStockWhatsAppUrl,
   bundlesActive,
   computeBundles,
   type Product,
@@ -1456,12 +1458,12 @@ export function ProductDetail({
   // Bundle deals this product is part of, with the partner product resolved
   // from the live catalog (skipped when the partner is unavailable or needs
   // an option picked, since "Add both" can't choose one for the buyer).
-  const bundleOffers = (bundlesActive() ? BUNDLES : []).filter((b) => b.ids.includes(product.id))
+  const bundleOffers = (bundlesActive() && !isOutOfStockBlocked(product) ? BUNDLES : []).filter((b) => b.ids.includes(product.id))
     .sort((a, b) => b.discount - a.discount)
     .flatMap((bundle) => {
       const partnerId = bundle.ids[0] === product.id ? bundle.ids[1] : bundle.ids[0];
       const partner = products.find((p) => p.id === partnerId);
-      if (!partner || getSelectableOptions(partner).length > 0) return [];
+      if (!partner || getSelectableOptions(partner).length > 0 || isOutOfStockBlocked(partner)) return [];
       return [{ bundle, partner }];
     })
     .slice(0, 2);
@@ -2242,6 +2244,7 @@ export function ProductDetail({
                 {product.was && product.was > resolvedUnitPrice && (
                   <Pill tone="rose">Save {PKR(product.was - resolvedUnitPrice)}</Pill>
                 )}
+                {isOutOfStockBlocked(product) && <Pill tone="rose">Out of stock</Pill>}
               </div>
               <div
                 className="wcm-detail-tax-note"
@@ -2733,10 +2736,20 @@ export function ProductDetail({
               full
               size="lg"
               icon={Icons.cart}
-              onClick={() => addToCart(product, qty, variantKey)}
+              onClick={() =>
+                isOutOfStockBlocked(product)
+                  ? window.open(outOfStockWhatsAppUrl(product.name), "_blank", "noopener,noreferrer")
+                  : addToCart(product, qty, variantKey)
+              }
               style={{ minHeight: 50 }}
             >
-              <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+              {isOutOfStockBlocked(product) ? (
+                <span>Out of stock — pre-book on WhatsApp</span>
+              ) : (
+                <>
+                  <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+                </>
+              )}
             </Btn>
             <Btn
               variant="outline"
@@ -2833,7 +2846,11 @@ export function ProductDetail({
               </button>
             </div>
             <button
-              onClick={() => addToCart(product, qty, variantKey)}
+              onClick={() =>
+                isOutOfStockBlocked(product)
+                  ? window.open(outOfStockWhatsAppUrl(product.name), "_blank", "noopener,noreferrer")
+                  : addToCart(product, qty, variantKey)
+              }
               className="wcm-pdp-sticky-add"
               style={{
                 border: "none",
@@ -2849,7 +2866,13 @@ export function ProductDetail({
                 minHeight: 44,
               }}
             >
-              <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+              {isOutOfStockBlocked(product) ? (
+                <span>Pre-book on WhatsApp</span>
+              ) : (
+                <>
+                  <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
+                </>
+              )}
             </button>
           </div>
           <div ref={descriptionSectionRef}>

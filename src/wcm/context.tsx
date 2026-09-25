@@ -20,6 +20,7 @@ import {
   type Order,
   type OrderReview,
   getUnitPrice,
+  isOutOfStockBlocked,
   normalizeSizeOptions,
   normalizeVariantOptions,
 } from "./data";
@@ -612,6 +613,16 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadOrders]);
 
+  // A product can go out of stock (with blocking on) while it's already sitting
+  // in a saved cart — drop those lines once the live catalog has loaded so the
+  // customer can't reach checkout with an item place-order would reject.
+  useEffect(() => {
+    if (!productsLoaded) return;
+    const blocked = new Set(products.filter(isOutOfStockBlocked).map((p) => p.id));
+    if (blocked.size === 0) return;
+    setCart((c) => (c.some((x) => blocked.has(x.id)) ? c.filter((x) => !blocked.has(x.id)) : c));
+  }, [productsLoaded, products]);
+
   const cartCount = cart.reduce((s, c) => s + c.qty, 0);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -624,6 +635,10 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
   const ADD_TO_CART_COOLDOWN_MS = 1500;
 
   const addToCart = (p: Product, qty = 1, size?: string) => {
+    if (isOutOfStockBlocked(p)) {
+      push(`${p.name} is out of stock`, { tone: "red" });
+      return;
+    }
     const normalizedSize =
       size || (p.size_options && p.size_options.length > 0 ? p.size_options[0].size : undefined);
     const dedupeKey = `${p.id}::${normalizedSize || ""}`;
@@ -779,6 +794,7 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
             confirmed_sales_count: Number(r.confirmed_sales_count ?? 0),
             daraz_delivered_sales_count: Number(r.daraz_delivered_sales_count ?? 0),
             stock: r.stock,
+            block_when_out_of_stock: r.block_when_out_of_stock ?? false,
             tags: r.tags ?? [],
             blurb: r.blurb,
             swatch: r.swatch,

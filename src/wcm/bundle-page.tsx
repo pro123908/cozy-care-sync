@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { PKR, findBundleBySlug, getSelectableOptions, getProductSeoPathSegment, type Product } from "./data";
+import { PKR, findBundleBySlug, getSelectableOptions, getProductSeoPathSegment, isOutOfStockBlocked, type Product } from "./data";
 import { useWcm } from "./context";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Btn, ProductImage } from "./ui";
@@ -31,6 +31,9 @@ export function BundlePage({ slug }: { slug: string }) {
   // pick ("Add both" can't choose it for the buyer).
   if (!bundle || !a || !b || getSelectableOptions(a).length > 0 || getSelectableOptions(b).length > 0) {
     return <Notice title="Bundle not found" text="This bundle isn't available." />;
+  }
+  if (isOutOfStockBlocked(a) || isOutOfStockBlocked(b)) {
+    return <Notice title="This bundle is out of stock" text="One of the products in this bundle is currently out of stock." />;
   }
   if (!active) {
     return <Notice title="This bundle offer has ended" text="You can still buy both products at their regular prices." />;

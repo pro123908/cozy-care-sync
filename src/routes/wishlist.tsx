@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useWcm } from "@/wcm/context";
-import { PKR, getProductSeoPathSegment } from "@/wcm/data";
+import { PKR, getProductSeoPathSegment, isOutOfStockBlocked } from "@/wcm/data";
 import { ProductImage, Btn } from "@/wcm/ui";
 import { Icons } from "@/wcm/icons";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
@@ -216,10 +216,11 @@ function WishlistPage() {
                 <Btn
                   full
                   onClick={() => addToCart(p)}
+                  disabled={isOutOfStockBlocked(p)}
                   icon={Icons.cart}
                   style={{ marginTop: "auto" }}
                 >
-                  Add to cart
+                  {isOutOfStockBlocked(p) ? "Out of stock" : "Add to cart"}
                 </Btn>
               </div>
             </div>

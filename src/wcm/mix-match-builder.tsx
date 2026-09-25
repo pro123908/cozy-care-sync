@@ -8,6 +8,7 @@ import {
   getUnitPrice,
   isMixMatchProduct,
   type Product,
+  isOutOfStockBlocked,
 } from "./data";
 import { useWcm } from "./context";
 import { useBundlesActive } from "./bundle-clock";
@@ -56,7 +57,7 @@ export function MixMatchBuilder({
   const choices = useMemo<Choice[]>(() => {
     const list: Choice[] = [];
     for (const p of products) {
-      if (!isMixMatchProduct(p.id)) continue;
+      if (!isMixMatchProduct(p.id) || isOutOfStockBlocked(p)) continue;
       const options = getSelectableOptions(p);
       if (options.length > 1) continue; // "Add both" can't pick an option for the buyer
       const variant = options[0]?.label;

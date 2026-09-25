@@ -14,6 +14,7 @@ export type Product = {
   confirmed_sales_count?: number;
   daraz_delivered_sales_count?: number;
   stock: string;
+  block_when_out_of_stock?: boolean;
   tags: string[];
   blurb: string;
   swatch: string;
@@ -415,6 +416,22 @@ export const KARACHI_ONLY_CATEGORIES = ["wheelchairs", "camote-chairs"];
 
 export function isKarachiOnlyProduct(product: { cat?: string | null }): boolean {
   return KARACHI_ONLY_CATEGORIES.includes(product.cat ?? "");
+}
+
+// Products flagged block_when_out_of_stock (admin: Products → "Block orders
+// when out of stock") show an "Out of stock" badge and can't be ordered while
+// stock is 0. Unflagged products keep the order-then-source behaviour: no
+// badge, orders allowed even at 0 stock. Mirrored in place-order/index.ts.
+export function isOutOfStockBlocked(
+  product: { block_when_out_of_stock?: boolean | null; stock?: string } | null | undefined,
+): boolean {
+  return !!product && !!product.block_when_out_of_stock && product.stock === "Out of stock";
+}
+
+/** wa.me link for pre-booking a product that's blocked while out of stock. */
+export function outOfStockWhatsAppUrl(productName: string): string {
+  const message = `Hi, I'd like to pre-book ${productName} (currently out of stock). When will it be available?`;
+  return `https://wa.me/923442345500?text=${encodeURIComponent(message)}`;
 }
 
 /** True when the delivery city is Karachi (case/whitespace-insensitive). */
