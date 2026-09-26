@@ -54,7 +54,9 @@ function CategoryProductsPage() {
       ? ["orthobelts-supports", "ortho-belts", "supports"]
       : resolvedCategoryId === "mobility"
         ? ["mobility", "wheelchairs", "walkers", "patient-sticks", "camote-chairs"]
-        : [resolvedCategoryId];
+        : resolvedCategoryId === "warmth-pain-relief"
+          ? ["warmth-pain-relief", "heating-pad", "massagers", "tens-machine"]
+          : [resolvedCategoryId];
 
   const categoryProducts = products.filter((p) => categoryIdsForProducts.includes(p.cat));
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
