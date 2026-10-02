@@ -928,6 +928,62 @@ function sortTestimonials(items: Testimonial[], productId?: string): Testimonial
   });
 }
 
+// Review body clamped to 2 lines. Reports whether the text is actually cut
+// off (scrollHeight > clientHeight) so the card only becomes tappable — and
+// shows "Read more" — for reviews that have more to reveal.
+function ClampedReviewText({
+  text,
+  accent,
+  onClampChange,
+}: {
+  text: string;
+  accent: string;
+  onClampChange: (clamped: boolean) => void;
+}) {
+  const ref = useRef<HTMLParagraphElement | null>(null);
+  const [clamped, setClamped] = useState(false);
+  const cbRef = useRef(onClampChange);
+  cbRef.current = onClampChange;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => {
+      const next = el.scrollHeight > el.clientHeight + 1;
+      setClamped(next);
+      cbRef.current(next);
+    };
+    check();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  return (
+    <>
+      <p
+        ref={ref}
+        style={{
+          margin: "10px 0 0",
+          fontSize: 13.5,
+          lineHeight: 1.45,
+          color: "var(--ink-2)",
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
+      >
+        {text}
+      </p>
+      {clamped && (
+        <span style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: accent }}>Read more</span>
+      )}
+    </>
+  );
+}
+
 function formatReviewDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
@@ -951,6 +1007,8 @@ function TestimonialsSection({ productId }: { productId?: string }) {
   const navigate = useNavigate();
   const productName = (id: string) => products.find((p) => p.id === id)?.name || id;
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [openReview, setOpenReview] = useState<Testimonial | null>(null);
+  const [clampedIds, setClampedIds] = useState<Set<string>>(() => new Set());
   const isMobile = useIsMobile();
   const railRef = useRef<HTMLDivElement | null>(null);
   const swipeTimeoutRef = useRef<number | null>(null);
@@ -1079,6 +1137,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                   search_string: t.reviewer_name,
                 });
                 if (opensScreenshot) setLightbox(t.screenshot_url);
+                else if (clampedIds.has(t.id)) setOpenReview(t);
               }}
               style={{
                 flex: `0 0 ${cardWidth}px`,
@@ -1089,7 +1148,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                 background: cardBg,
                 display: "flex",
                 flexDirection: "column",
-                cursor: opensScreenshot ? "zoom-in" : "default",
+                cursor: opensScreenshot ? "zoom-in" : clampedIds.has(t.id) ? "pointer" : "default",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -1128,20 +1187,19 @@ function TestimonialsSection({ productId }: { productId?: string }) {
               </div>
 
               {t.review_text && (
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    fontSize: 13.5,
-                    lineHeight: 1.45,
-                    color: "var(--ink-2)",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {t.review_text}
-                </p>
+                <ClampedReviewText
+                  text={t.review_text}
+                  accent={accent}
+                  onClampChange={(c) =>
+                    setClampedIds((prev) => {
+                      if (prev.has(t.id) === c) return prev;
+                      const next = new Set(prev);
+                      if (c) next.add(t.id);
+                      else next.delete(t.id);
+                      return next;
+                    })
+                  }
+                />
               )}
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto", paddingTop: 14 }}>
@@ -1173,6 +1231,74 @@ function TestimonialsSection({ productId }: { productId?: string }) {
           );
         })}
       </div>
+
+      {openReview && (
+        <div
+          onClick={() => setOpenReview(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, zIndex: 1000 }}
+        >
+          <div
+            role="dialog"
+            aria-label={`Review by ${openReview.reviewer_name}`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 520,
+              width: "100%",
+              maxHeight: "85vh",
+              overflow: "auto",
+              background: "var(--card)",
+              border: "1px solid var(--line)",
+              borderRadius: isMobile ? "16px 16px 0 0" : 14,
+              padding: 18,
+            }}
+          >
+            {(() => {
+              const accent = testimonialAccent(openReview.source);
+              return (
+                <>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <ReviewerAvatar name={openReview.reviewer_name} accent={accent} size={34} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{openReview.reviewer_name}</div>
+                        <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
+                          {productName(openReview.product_id)} · {formatReviewDate(openReview.review_date ?? openReview.created_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setOpenReview(null)}
+                      aria-label="Close review"
+                      style={{ border: "none", background: "transparent", color: "var(--ink-4)", cursor: "pointer", flexShrink: 0 }}
+                    >
+                      {Icons.close}
+                    </button>
+                  </div>
+                  {openReview.rating != null && (
+                    <div style={{ marginTop: 12 }}>
+                      <ReviewStars rating={openReview.rating} size={16} inView />
+                    </div>
+                  )}
+                  <p style={{ margin: "12px 0 0", fontSize: 14.5, lineHeight: 1.55, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
+                    {openReview.review_text}
+                  </p>
+                  {openReview.source_url && (
+                    <a
+                      href={openReview.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 14, fontSize: 12, fontWeight: 700, color: accent }}
+                    >
+                      View original
+                      <ArrowIcon color={accent} />
+                    </a>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {lightbox && (
         <div
