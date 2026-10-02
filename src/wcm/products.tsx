@@ -1289,7 +1289,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                       rel="noopener noreferrer"
                       style={{ display: "inline-flex", alignItems: "center", gap: 3, marginTop: 14, fontSize: 12, fontWeight: 700, color: accent }}
                     >
-                      View original
+                      {openReview.source === "facebook" ? "View on Facebook" : openReview.source === "daraz" ? "View on Daraz" : "View original"}
                       <ArrowIcon color={accent} />
                     </a>
                   )}
