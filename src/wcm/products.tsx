@@ -3109,7 +3109,9 @@ export function ProductDetail({
       </div>
 
       <div ref={reviewsSectionRef}>
-        <TestimonialsSection productId={product.id} />
+        {/* keyed so navigating PDP→PDP (e.g. via a review's product pill) remounts the
+            rail at scrollLeft 0 instead of inheriting the previous product's scroll offset */}
+        <TestimonialsSection key={product.id} productId={product.id} />
       </div>
 
       {(!productsLoaded || related.length > 0) && (
