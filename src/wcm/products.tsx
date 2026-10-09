@@ -36,6 +36,7 @@ import {
 } from "./products-card-components";
 import { Hero, TrustRibbon } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
+import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import {
   PRODUCTS_PAGE_SIZE,
   SORT_OPTIONS,
@@ -1768,6 +1769,7 @@ export function ProductDetail({
   usePdpSectionDwell(heroContainerRef, product.id, () => (activeMedia?.type === "video" ? "video" : "gallery"));
   usePdpSectionDwell(descriptionSectionRef, product.id, "description", { viewedEvent: "description_viewed" });
   usePdpSectionDwell(reviewsSectionRef, product.id, "reviews", { viewedEvent: "reviews_viewed" });
+  const recentViewers = useRecentViewCount(product.id);
 
   useEffect(() => {
     setActiveView(0);
@@ -2341,10 +2343,15 @@ export function ProductDetail({
             </h1>
             {(() => {
               const totalSold = (product.confirmed_sales_count ?? 0) + (product.daraz_delivered_sales_count ?? 0);
-              if (totalSold <= 0) return null;
+              if (totalSold <= 0 && !recentViewers) return null;
               return (
-                <div style={{ display: "flex", alignItems: "center", marginTop: 6 }}>
-                  <Pill tone="green">🔥 {totalSold}+ sold</Pill>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                  {totalSold > 0 && <Pill tone="green">🔥 {totalSold}+ sold</Pill>}
+                  {recentViewers ? (
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-3)" }}>
+                      {recentViewers} viewed in the last 24 hours
+                    </span>
+                  ) : null}
                 </div>
               );
             })()}
@@ -3130,6 +3137,8 @@ export function ProductDetail({
             rail at scrollLeft 0 instead of inheriting the previous product's scroll offset */}
         <TestimonialsSection key={product.id} productId={product.id} />
       </div>
+
+      <ProductQuestions key={product.id} productId={product.id} productName={product.name} />
 
       {(!productsLoaded || related.length > 0) && (
         <div>

@@ -291,7 +291,8 @@ export type EngagementEventName =
   | "FinderResultClick"
   | "FinderWhatsAppClick"
   | "QuickViewOpen"
-  | "QuickViewDetailsClick";
+  | "QuickViewDetailsClick"
+  | "QuestionAsked";
 
 type EngagementEventInput = {
   /** Human label shown in the admin feed (what was viewed / the shopper's answers). */
