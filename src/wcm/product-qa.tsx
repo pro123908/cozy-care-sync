@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { trackEngagementEvent } from "@/lib/meta-pixel";
 import { Btn, Section } from "./ui";
@@ -207,8 +207,28 @@ export function ProductQuestions({
 
   const similar = useMemo(() => findSimilar(question, questions), [question, questions]);
 
+  // One "similar answer shown" event per time the form is opened (not per keystroke).
+  const similarTrackedRef = useRef(false);
+  useEffect(() => {
+    if (similar.length === 0 || similarTrackedRef.current) return;
+    similarTrackedRef.current = true;
+    trackEngagementEvent("QuestionSimilarShown", {
+      label: productName,
+      source: "product page",
+      productIds: [productId],
+      // Public, already-published question text only; never what the shopper typed.
+      extra: { matched: similar[0].question.slice(0, 150) },
+    });
+  }, [similar, productId, productName]);
+
   const vote = (id: string) => {
     if (voted.has(id)) return;
+    const votedQuestion = questions.find((q) => q.id === id);
+    trackEngagementEvent("QuestionVoted", {
+      label: `${productName}: ${(votedQuestion?.question ?? "").slice(0, 120)}`,
+      source: "product page",
+      productIds: [productId],
+    });
     const next = new Set(voted).add(id);
     setVoted(next);
     try {
@@ -303,6 +323,12 @@ export function ProductQuestions({
             size="sm"
             variant="outline"
             onClick={() => {
+              similarTrackedRef.current = false;
+              trackEngagementEvent("QuestionFormOpen", {
+                label: productName,
+                source: "product page",
+                productIds: [productId],
+              });
               setFormOpen(true);
               setSent(false);
             }}
