@@ -19,6 +19,7 @@ import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
+import { CartFlyer } from "./cart-fly";
 import { useBundlesActive } from "./bundle-clock";
 import { initSiteExitTracking } from "@/lib/siteExit";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -129,6 +130,7 @@ function AppLayout() {
         onCartClose={() => setCartOpen(false)}
       />
       <WhatsAppFloatingChat />
+      <CartFlyer />
 
       <Suspense fallback={null}>
         <CartDrawer
@@ -1046,6 +1048,7 @@ function Header({
             <button
               onClick={onCartOpen}
               aria-label="Cart"
+              data-cart-target=""
               className="wcm-desktop-only"
               style={{ ...iconBtn, position: "relative" }}
             >
@@ -1586,6 +1589,7 @@ function BottomNav({
       {items.map((it) => (
         <button
           key={it.id}
+          data-cart-target={it.id === "cart" ? "" : undefined}
           onClick={it.action}
           style={{
             position: "relative",

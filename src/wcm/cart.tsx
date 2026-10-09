@@ -7,6 +7,7 @@ import {
   computeBundles,
   isKarachiCity,
   isKarachiOnlyProduct,
+  isOutOfStockBlocked,
   FREE_SHIPPING_THRESHOLD,
   FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
   SHIPPING_COST,
@@ -19,13 +20,15 @@ import { Icons } from "./icons";
 import { ProductImage, Btn, TextField, Section, Row, Select } from "./ui";
 import type { SelectOption } from "./ui";
 import { getSupabase } from "@/integrations/supabase/client";
-import { trackBundleClick } from "@/lib/meta-pixel";
+import { trackBundleClick, trackEngagementEvent } from "@/lib/meta-pixel";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import { BundleAppliedTracker } from "./bundle-tracking";
 
 type CartLine = { id: string; qty: number; size?: string };
 type CartItem = CartLine & { p: Product };
 const MAX_QTY_PER_PRODUCT = 5;
+// Only suggest quick adds when the gap is small enough for an impulse add-on.
+const QUICK_ADD_MAX_GAP = 1500;
 const CITY_OPTIONS: SelectOption[] = PAKISTAN_CITIES.map((city) => ({ value: city, label: city }));
 
 // Pakistani mobile numbers only — same normalization/validation as the admin
@@ -111,6 +114,38 @@ export function CartDrawer({
       return [...c, { id: partner.id, qty: 1 }];
     });
   };
+  // Quick adds that close the gap to the next free-delivery tier (Rs 2,000 Karachi,
+  // then Rs 5,000 everywhere): in stock, one price, not Karachi-only, not already in
+  // the cart. Items that unlock the tier in one tap come first, then the closest below.
+  const nextTarget =
+    subtotal >= FREE_SHIPPING_THRESHOLD ? FREE_SHIPPING_THRESHOLD_OTHER_CITIES : FREE_SHIPPING_THRESHOLD;
+  const deliveryGap = nextTarget - subtotal;
+  const cartIds = new Set(items.map((x) => x.id));
+  const gapPicks =
+    subtotal > 0 &&
+    deliveryGap > 0 &&
+    deliveryGap <= QUICK_ADD_MAX_GAP &&
+    !(bundles.total > 0 && subtotal < FREE_SHIPPING_THRESHOLD)
+      ? catalog
+          .filter(
+            (p) =>
+              !cartIds.has(p.id) &&
+              p.price > 0 &&
+              p.price <= 3000 &&
+              p.stock !== "Out of stock" &&
+              !isOutOfStockBlocked(p) &&
+              !p.size_options?.length &&
+              !p.variant_options?.length &&
+              !isKarachiOnlyProduct(p),
+          )
+          .sort(
+            (a, b) =>
+              Number(a.price < deliveryGap) - Number(b.price < deliveryGap) ||
+              Math.abs(a.price - deliveryGap) - Math.abs(b.price - deliveryGap) ||
+              (b.delivered_sales_count ?? 0) - (a.delivered_sales_count ?? 0),
+          )
+          .slice(0, 3)
+      : [];
   const update = (id: string, size: string | undefined, qty: number) => {
     if (qty <= 0) {
       const item = items.find((x) => x.id === id && x.size === size);
@@ -547,6 +582,57 @@ export function CartDrawer({
                   }}
                 />
               </div>
+              {gapPicks.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-4)", marginBottom: 6 }}>
+                    Quick add
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {gapPicks.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          addBundlePartner(p);
+                          trackEngagementEvent("DeliveryNudgeAdd", {
+                            label: p.name,
+                            source: "cart",
+                            productIds: [p.id],
+                            extra: { gap: String(deliveryGap) },
+                          });
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          maxWidth: "100%",
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          border: "1px solid var(--line)",
+                          background: "var(--card)",
+                          color: "var(--ink-2)",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        <span
+                          style={{
+                            minWidth: 0,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          + {p.name}
+                        </span>
+                        <span style={{ flexShrink: 0, color: "var(--ink-4)" }}>{PKR(p.price)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <Btn

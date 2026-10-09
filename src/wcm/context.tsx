@@ -11,6 +11,7 @@ import React, {
 import { getSupabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { useToasts } from "./ui";
+import { CART_ADD_EVENT, CART_FLY_MS, type CartAddDetail } from "./cart-fly";
 import type { WcmUser } from "./auth";
 import {
   CATEGORIES,
@@ -707,7 +708,13 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
       // Surface the cart instead of leaving the shopper on the product page
       // with nothing but a toast — the drawer's own "Checkout" button is the
       // next step toward actually completing the order.
-      setCartOpen(true);
+      // Let the fly-to-cart thumbnail land before the drawer covers the cart icon.
+      const flyDetail: CartAddDetail = { image: p.image_url ?? null };
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent(CART_ADD_EVENT, { detail: flyDetail }));
+      }
+      if (flyDetail.handled) window.setTimeout(() => setCartOpen(true), CART_FLY_MS - 100);
+      else setCartOpen(true);
     }
 
     if (hitLimit) {

@@ -37,6 +37,7 @@ import {
 import { Hero, TrustRibbon } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
+import { PairsWellWith } from "./pairs-well-with";
 import {
   PRODUCTS_PAGE_SIZE,
   SORT_OPTIONS,
@@ -3105,6 +3106,7 @@ export function ProductDetail({
               )}
             </Section>
           </div>
+          <PairsWellWith product={product} />
           <div className="wcm-product-badges">
             {[
               { i: Icons.shield, t: "100% authentic", s: "Direct from brands" },

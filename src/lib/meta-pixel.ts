@@ -295,7 +295,8 @@ export type EngagementEventName =
   | "QuestionAsked"
   | "QuestionFormOpen"
   | "QuestionSimilarShown"
-  | "QuestionVoted";
+  | "QuestionVoted"
+  | "DeliveryNudgeAdd";
 
 type EngagementEventInput = {
   /** Human label shown in the admin feed (what was viewed / the shopper's answers). */

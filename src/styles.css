@@ -1853,3 +1853,16 @@
     margin: 0 auto;
   }
 }
+
+/* Cart icon bump when a fly-to-cart thumbnail lands (cart-fly.tsx) */
+@keyframes wcmCartBump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+.wcm-cart-bump {
+  animation: wcmCartBump 0.42s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wcm-cart-bump { animation: none; }
+}
