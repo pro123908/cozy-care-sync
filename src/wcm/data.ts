@@ -14,6 +14,7 @@ export type Product = {
   confirmed_sales_count?: number;
   daraz_delivered_sales_count?: number;
   stock: string;
+  stock_count?: number;
   block_when_out_of_stock?: boolean;
   tags: string[];
   blurb: string;
@@ -428,6 +429,20 @@ export function isOutOfStockBlocked(
   product: { block_when_out_of_stock?: boolean | null; stock?: string } | null | undefined,
 ): boolean {
   return !!product && !!product.block_when_out_of_stock && product.stock === "Out of stock";
+}
+
+// "Limited stock available" notice on the product page — opted in per product, not
+// global, shown when stock_count is 0-5 (0 included: orders are still taken and
+// sourced afterward unless block_when_out_of_stock is on). K-89 = ha-007.
+const LIMITED_STOCK_PRODUCT_IDS = new Set(["ha-007"]);
+export const LIMITED_STOCK_THRESHOLD = 5;
+
+export function limitedStockLeft(
+  product: { id?: string; stock_count?: number | null } | null | undefined,
+): number | null {
+  if (!product?.id || !LIMITED_STOCK_PRODUCT_IDS.has(product.id)) return null;
+  const n = product.stock_count;
+  return typeof n === "number" && n >= 0 && n <= LIMITED_STOCK_THRESHOLD ? n : null;
 }
 
 /** wa.me link for pre-booking a product that's blocked while out of stock. */

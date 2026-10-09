@@ -13,6 +13,7 @@ import {
   isMixMatchProduct,
   isKarachiOnlyProduct,
   isOutOfStockBlocked,
+  limitedStockLeft,
   outOfStockWhatsAppUrl,
   bundlesActive,
   computeBundles,
@@ -2371,6 +2372,9 @@ export function ProductDetail({
                   <Pill tone="rose">Save {PKR(product.was - resolvedUnitPrice)}</Pill>
                 )}
                 {isOutOfStockBlocked(product) && <Pill tone="rose">Out of stock</Pill>}
+                {!isOutOfStockBlocked(product) && limitedStockLeft(product) !== null && (
+                  <Pill tone="amber">Limited stock available</Pill>
+                )}
               </div>
               <div
                 className="wcm-detail-tax-note"
