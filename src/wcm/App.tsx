@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Icons, WellcareWordmark } from "./icons";
 import { Pill, ProductImageFallback } from "./ui";
@@ -74,7 +74,12 @@ function AppLayout() {
   // "Left the site" event (page hidden/closed) with the visitor's active time.
   useEffect(() => initSiteExitTracking(), []);
 
-  useEffect(() => {
+  // A layout effect on purpose: React runs every layout effect of a commit before any
+  // passive effect, and child effects before parent ones. As a passive effect here,
+  // PageView fired AFTER the product page's ViewContent whenever the catalog was
+  // already loaded (in-app navigation), so the feed showed "viewed product" before
+  // "viewed page" for about 1 in 5 visits.
+  useLayoutEffect(() => {
     if (!pathname) return;
     if (lastTrackedPathRef.current === pathname) return;
     lastTrackedPathRef.current = pathname;
