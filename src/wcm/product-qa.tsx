@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getSupabase } from "@/integrations/supabase/client";
 import { trackEngagementEvent } from "@/lib/meta-pixel";
 import { Btn, Section } from "./ui";
@@ -72,7 +72,92 @@ type PublicQuestion = {
   asker_name: string | null;
   answer: string;
   answered_at: string | null;
+  pinned?: boolean;
+  same_count?: number;
 };
+
+// Questions with at least this many "same question" votes get a "Common question" tag.
+const COMMON_QUESTION_VOTES = 3;
+const VOTED_STORAGE_KEY = "wcm_qa_voted";
+
+const STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "does",
+  "this",
+  "that",
+  "with",
+  "have",
+  "has",
+  "are",
+  "what",
+  "how",
+  "can",
+  "will",
+  "you",
+  "your",
+  "its",
+  "come",
+  "comes",
+  "any",
+  "ka",
+  "ki",
+  "ke",
+  "hai",
+  "hain",
+  "kya",
+  "mein",
+  "main",
+  "se",
+  "ye",
+  "yeh",
+  "aur",
+  "please",
+  "pls",
+  "plz",
+]);
+
+function questionTokens(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)) {
+    const word = raw.length > 3 && raw.endsWith("s") ? raw.slice(0, -1) : raw;
+    if (word.length >= 3 && !STOPWORDS.has(word)) out.add(word);
+  }
+  return out;
+}
+
+/** Up to 2 already-answered questions that share meaningful words with what is being typed. */
+function findSimilar(text: string, list: PublicQuestion[]): PublicQuestion[] {
+  if (text.trim().length < 4) return [];
+  const typed = questionTokens(text);
+  if (typed.size === 0) return [];
+  return list
+    .map((q) => {
+      const other = questionTokens(`${q.question}`);
+      let shared = 0;
+      for (const t of typed) if (other.has(t)) shared += 1;
+      const score = other.size === 0 ? 0 : shared / Math.min(typed.size, other.size);
+      return { q, shared, score };
+    })
+    .filter((m) => m.shared >= 1 && m.score >= 0.5)
+    .sort((a, b) => b.score - a.score || b.shared - a.shared)
+    .slice(0, 2)
+    .map((m) => m.q);
+}
+
+function loadVoted(): Set<string> {
+  try {
+    const raw = window.localStorage.getItem(VOTED_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
 
 const VISIBLE_QUESTIONS = 3;
 
@@ -115,6 +200,28 @@ export function ProductQuestions({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState(""); // honeypot, never shown to people
+  const [voted, setVoted] = useState<Set<string>>(() => new Set());
+  const [voteCounts, setVoteCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => setVoted(loadVoted()), []);
+
+  const similar = useMemo(() => findSimilar(question, questions), [question, questions]);
+
+  const vote = (id: string) => {
+    if (voted.has(id)) return;
+    const next = new Set(voted).add(id);
+    setVoted(next);
+    try {
+      window.localStorage.setItem(VOTED_STORAGE_KEY, JSON.stringify([...next]));
+    } catch {
+      // Voting still works for this visit without storage.
+    }
+    void callRpc("vote_product_question", { p_question_id: id })
+      .then(({ data, error: rpcError }) => {
+        if (!rpcError && typeof data === "number") setVoteCounts((c) => ({ ...c, [id]: data }));
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -239,6 +346,35 @@ export function ProductQuestions({
               style={{ ...fieldStyle, resize: "vertical", minHeight: 76 }}
             />
           </label>
+          {similar.length > 0 && (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "var(--chip-2)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>
+                Already answered
+              </div>
+              {similar.map((q) => (
+                <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "var(--ink)" }}>
+                    {q.question}
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "var(--ink-2)", whiteSpace: "pre-line" }}>
+                    {q.answer}
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                Still need to ask? Send your question below.
+              </div>
+            </div>
+          )}
           <div
             style={{
               display: "grid",
@@ -312,29 +448,75 @@ export function ProductQuestions({
         )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {shown.map((q) => (
-            <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", lineHeight: 1.35 }}>
-                {q.question}
-              </div>
-              <div
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.5,
-                  color: "var(--ink-2)",
-                  paddingLeft: 12,
-                  borderLeft: "3px solid var(--pill-teal-fg)",
-                  whiteSpace: "pre-line",
-                }}
-              >
-                {q.answer}
-                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
-                  Wellcare Mart
-                  {q.asker_name ? ` · asked by ${q.asker_name}` : ""}
+          {shown.map((q) => {
+            const votes = voteCounts[q.id] ?? q.same_count ?? 0;
+            const iVoted = voted.has(q.id);
+            const common = q.pinned || votes >= COMMON_QUESTION_VOTES;
+            return (
+              <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div
+                  style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}
+                >
+                  <div
+                    style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)", lineHeight: 1.35 }}
+                  >
+                    {q.question}
+                  </div>
+                  {common && (
+                    <span
+                      style={{
+                        padding: "1px 8px",
+                        borderRadius: 999,
+                        background: "var(--pill-teal-bg)",
+                        color: "var(--pill-teal-fg)",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Common question
+                    </span>
+                  )}
                 </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    lineHeight: 1.5,
+                    color: "var(--ink-2)",
+                    paddingLeft: 12,
+                    borderLeft: "3px solid var(--pill-teal-fg)",
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {q.answer}
+                  <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 4 }}>
+                    Wellcare Mart
+                    {q.asker_name ? ` · asked by ${q.asker_name}` : ""}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => vote(q.id)}
+                  disabled={iVoted}
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: "3px 10px",
+                    borderRadius: 999,
+                    border: "1px solid var(--line)",
+                    background: iVoted ? "var(--pill-teal-bg)" : "var(--card)",
+                    color: iVoted ? "var(--pill-teal-fg)" : "var(--ink-3)",
+                    cursor: iVoted ? "default" : "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {iVoted ? "You have this question too" : "I have this question too"}
+                  {votes > 0 ? ` · ${votes}` : ""}
+                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {questions.length > VISIBLE_QUESTIONS && (
             <button
               type="button"
