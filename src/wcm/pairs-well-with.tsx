@@ -12,7 +12,7 @@ import {
   type Product,
 } from "./data";
 import { Btn, ProductImage, Section } from "./ui";
-import { trackBundleClick } from "@/lib/meta-pixel";
+import { trackBundleClick, trackEngagementEvent } from "@/lib/meta-pixel";
 
 // Compatible add-ons for a product, taken from the curated BUNDLES pairs (meter +
 // its matching strips, BP monitor + stethoscope, ...). It is deliberately NOT called
@@ -65,11 +65,17 @@ export function PairsWellWith({ product }: { product: Product }) {
             getSelectableOptions(partner).length > 0 || getSelectableOptions(product).length > 0;
           const pairTotal =
             getDisplayPrice(product) + getDisplayPrice(partner) - (dealOn ? discount : 0);
-          const open = () =>
+          const open = () => {
+            trackEngagementEvent("PairsWellWithClick", {
+              label: `${product.name} → ${partner.name}`,
+              source: "product page",
+              productIds: [product.id, partner.id],
+            });
             navigate({
               to: "/products/$productId",
               params: { productId: getProductSeoPathSegment(partner, products) },
             });
+          };
           return (
             <div key={partner.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button

@@ -17,9 +17,12 @@ import {
 } from "./data";
 import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
-import { trackMetaEvent } from "@/lib/meta-pixel";
+import { trackEngagementEvent, trackMetaEvent } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
 import { CartFlyer } from "./cart-fly";
+import { CompareModalHost, CompareTray } from "./compare";
+import { VoiceSearchButton } from "./voice-search";
+import { TextSizeButton, TextSizeRow } from "./text-size";
 import { useBundlesActive } from "./bundle-clock";
 import { initSiteExitTracking } from "@/lib/siteExit";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -117,7 +120,7 @@ function AppLayout() {
         onSignOut={onSignOut}
       />
       <main
-        className="wcm-main"
+        className="wcm-main wcm-zoomable"
         style={{ width: "100%", maxWidth: 1240, margin: "0 auto", flex: 1 }}
       >
         <Outlet />
@@ -131,6 +134,8 @@ function AppLayout() {
       />
       <WhatsAppFloatingChat />
       <CartFlyer />
+      <CompareTray />
+      <CompareModalHost />
 
       <Suspense fallback={null}>
         <CartDrawer
@@ -404,7 +409,7 @@ function Header({
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const { wishlist, products, cart, productsLoaded, checkoutData } = useWcm();
+  const { wishlist, products, cart, productsLoaded, checkoutData, push } = useWcm();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isProducts = pathname === "/" || pathname.startsWith("/products");
   const isCategories = pathname.startsWith("/categories");
@@ -630,6 +635,7 @@ function Header({
         </div>
       </div>
       <header
+        className="wcm-zoomable"
         style={{
           position: "sticky",
           top: 0,
@@ -719,7 +725,7 @@ function Header({
                 onBlur={() => setTimeout(() => { setDropOpen(false); setHighlightedIdx(-1); }, 150)}
                 style={{
                   width: "100%",
-                  padding: "11px 14px 11px 42px",
+                  padding: "11px 44px 11px 42px",
                   borderRadius:
                     dropOpen && (suggestions.length > 0 || suggestLoading || !search.trim()) ? "18px 18px 0 0" : 99,
                   border: "1px solid var(--line)",
@@ -740,6 +746,24 @@ function Header({
                   e.currentTarget.style.boxShadow = "none";
                   e.currentTarget.style.borderRadius = "99px";
                 }}
+              />
+              <VoiceSearchButton
+                style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", zIndex: 2 }}
+                onTranscript={(text) => {
+                  setSearch(text);
+                  setDropOpen(true);
+                }}
+                onFinal={(text) => {
+                  trackEngagementEvent("VoiceSearch", { label: text, source: "header" });
+                  goSearchPage(text);
+                }}
+                onMessage={(message) => push(message, { tone: "amber" })}
+                onStart={() =>
+                  trackEngagementEvent("VoiceSearchStart", { label: "Mic tapped", source: "header" })
+                }
+                onError={(code) =>
+                  trackEngagementEvent("VoiceSearchError", { label: code, source: "header" })
+                }
               />
               {dropOpen && (suggestions.length > 0 || suggestLoading || !search.trim()) && (
                 <div
@@ -1045,6 +1069,9 @@ function Header({
                 style={{ width: 18, height: 18, objectFit: "contain", display: "block" }}
               />
             </button>
+            <span className="wcm-desktop-only" style={{ display: "inline-flex" }}>
+              <TextSizeButton style={iconBtn} />
+            </span>
             <button
               onClick={onCartOpen}
               aria-label="Cart"
@@ -1365,6 +1392,7 @@ function Header({
             >
               {Icons.truck} Track an order
             </button>
+            <TextSizeRow />
             {user && (
               <>
                 <button
@@ -1739,6 +1767,7 @@ const iconBtn: React.CSSProperties = {
 function Footer() {
   return (
     <footer
+      className="wcm-zoomable"
       style={{ background: "var(--card)", borderTop: "1px solid var(--line)", marginTop: "auto" }}
     >
       <div

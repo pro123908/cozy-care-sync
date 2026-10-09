@@ -296,7 +296,20 @@ export type EngagementEventName =
   | "QuestionFormOpen"
   | "QuestionSimilarShown"
   | "QuestionVoted"
-  | "DeliveryNudgeAdd";
+  | "DeliveryNudgeAdd"
+  | "CompareAdd"
+  | "CompareView"
+  | "VoiceSearch"
+  | "DeliveryCityPicked"
+  | "TextSizeChanged"
+  | "FinderAddToCart"
+  | "FinderCategoryClick"
+  | "QuickViewAddToCart"
+  | "PairsWellWithClick"
+  | "CompareOpen"
+  | "CompareAddToCart"
+  | "VoiceSearchStart"
+  | "VoiceSearchError";
 
 type EngagementEventInput = {
   /** Human label shown in the admin feed (what was viewed / the shopper's answers). */
@@ -340,9 +353,9 @@ function currentPageLabel(): string {
   return path;
 }
 
-/** QuickViewOpen / QuickViewDetailsClick for a product card's quick-view popup. */
+/** QuickViewOpen / QuickViewDetailsClick / QuickViewAddToCart for a card's quick-view popup. */
 export function trackQuickView(
-  name: "QuickViewOpen" | "QuickViewDetailsClick",
+  name: "QuickViewOpen" | "QuickViewDetailsClick" | "QuickViewAddToCart",
   product: { id: string; name: string },
 ) {
   trackEngagementEvent(name, {

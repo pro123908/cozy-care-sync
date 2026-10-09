@@ -72,6 +72,19 @@ const ALLOWED_EVENTS = new Set([
   "QuestionSimilarShown",
   "QuestionVoted",
   "DeliveryNudgeAdd",
+  "CompareAdd",
+  "CompareView",
+  "VoiceSearch",
+  "DeliveryCityPicked",
+  "TextSizeChanged",
+  "FinderAddToCart",
+  "FinderCategoryClick",
+  "QuickViewAddToCart",
+  "PairsWellWithClick",
+  "CompareOpen",
+  "CompareAddToCart",
+  "VoiceSearchStart",
+  "VoiceSearchError",
 ]);
 
 // UI-engagement events that should only be logged to meta_events for the
@@ -98,6 +111,19 @@ const LOCAL_ONLY_EVENTS = new Set([
   "QuestionSimilarShown",
   "QuestionVoted",
   "DeliveryNudgeAdd",
+  "CompareAdd",
+  "CompareView",
+  "VoiceSearch",
+  "DeliveryCityPicked",
+  "TextSizeChanged",
+  "FinderAddToCart",
+  "FinderCategoryClick",
+  "QuickViewAddToCart",
+  "PairsWellWithClick",
+  "CompareOpen",
+  "CompareAddToCart",
+  "VoiceSearchStart",
+  "VoiceSearchError",
 ]);
 
 // Flat string->string context for events that carry it (BundleClick sends

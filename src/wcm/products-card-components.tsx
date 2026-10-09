@@ -18,6 +18,7 @@ import { useWcm, useProductRatings } from "./context";
 import { trackBundleClick, trackQuickView } from "@/lib/meta-pixel";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import type { CartLine } from "./context";
+import { CompareToggleButton } from "./compare";
 
 // Loaded on first open so the dialog code stays out of the listing chunk.
 const QuickViewDialog = lazy(() =>
@@ -588,6 +589,11 @@ export function ProductCard({
             <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
+        <CompareToggleButton
+          product={p}
+          variant="icon"
+          style={{ position: "absolute", top: compact ? 72 : 76, left: 8, zIndex: 3 }}
+        />
         {isInCart && (
           <span
             key={`qty-badge-${p.id}-${cartQty}`}

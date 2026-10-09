@@ -38,6 +38,7 @@ import { Hero, TrustRibbon } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import { PairsWellWith } from "./pairs-well-with";
+import { CompareToggleButton } from "./compare";
 import {
   PRODUCTS_PAGE_SIZE,
   SORT_OPTIONS,
@@ -2051,7 +2052,7 @@ export function ProductDetail({
       </button>
       <TrustRibbon compact />
       <div className="wcm-detail-cols" style={{ alignItems: "start" }}>
-        <Section className="wcm-detail-media" style={{ padding: 18 }}>
+        <Section className="wcm-detail-media wcm-unzoom" style={{ padding: 18 }}>
           <div
             className="wcm-detail-media-hero"
             ref={heroContainerRef}
@@ -2344,7 +2345,6 @@ export function ProductDetail({
             </h1>
             {(() => {
               const totalSold = (product.confirmed_sales_count ?? 0) + (product.daraz_delivered_sales_count ?? 0);
-              if (totalSold <= 0 && !recentViewers) return null;
               return (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                   {totalSold > 0 && <Pill tone="green">🔥 {totalSold}+ sold</Pill>}
@@ -2353,6 +2353,7 @@ export function ProductDetail({
                       {recentViewers} viewed in the last 24 hours
                     </span>
                   ) : null}
+                  <CompareToggleButton product={product} variant="pill" />
                 </div>
               );
             })()}

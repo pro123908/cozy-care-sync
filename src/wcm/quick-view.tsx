@@ -14,6 +14,7 @@ import { Icons } from "./icons";
 import { Btn, ProductImage, ProductPhoto, Stars } from "./ui";
 import { gaEvent } from "@/lib/ga";
 import { trackQuickView } from "@/lib/meta-pixel";
+import { CompareToggleButton } from "./compare";
 
 const MAX_QTY = 5;
 
@@ -321,6 +322,7 @@ export function QuickViewDialog({ product, onClose }: { product: Product; onClos
                   disabled={blocked}
                   icon={Icons.cart}
                   onClick={() => {
+                    trackQuickView("QuickViewAddToCart", product);
                     addToCart(product, qty, selected);
                     onClose();
                   }}
@@ -328,23 +330,26 @@ export function QuickViewDialog({ product, onClose }: { product: Product; onClos
                   {blocked ? "Out of stock" : "Add to cart"}
                 </Btn>
               </div>
-              <button
-                type="button"
-                onClick={openFull}
-                style={{
-                  alignSelf: "flex-start",
-                  padding: 0,
-                  border: "none",
-                  background: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "var(--blue-700)",
-                }}
-              >
-                View full details
-              </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+                <CompareToggleButton product={product} variant="text" />
+                <button
+                  type="button"
+                  onClick={openFull}
+                  style={{
+                    alignSelf: "flex-start",
+                    padding: 0,
+                    border: "none",
+                    background: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--blue-700)",
+                  }}
+                >
+                  View full details
+                </button>
+              </div>
             </div>
           </div>
         </DialogPrimitive.Content>

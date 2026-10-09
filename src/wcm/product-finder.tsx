@@ -383,6 +383,12 @@ function ResultRow({
               onClick={() => {
                 addToCart(product);
                 gaEvent("finder_add_to_cart", { item_id: product.id });
+                trackEngagementEvent("FinderAddToCart", {
+                  label: product.name,
+                  source: "finder",
+                  productIds: [product.id],
+                  extra: { position: String(position) },
+                });
               }}
             >
               {blocked ? "Out of stock" : "Add to cart"}
@@ -736,9 +742,13 @@ export function ProductFinder({
             {categorySlug ? (
               <Btn
                 variant="outline"
-                onClick={() =>
-                  navigate({ to: "/categories/$categoryId", params: { categoryId: categorySlug } })
-                }
+                onClick={() => {
+                  trackEngagementEvent("FinderCategoryClick", {
+                    label: categoryName || categorySlug,
+                    source: "finder",
+                  });
+                  navigate({ to: "/categories/$categoryId", params: { categoryId: categorySlug } });
+                }}
               >
                 See all{categoryName ? ` ${categoryName}` : ""}
               </Btn>
