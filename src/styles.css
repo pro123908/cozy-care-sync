@@ -1783,3 +1783,73 @@
     font-size: 11px;
   }
 }
+
+/* ============ Quick view (product card popup) ============ */
+.wcm-qv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(15, 23, 42, 0.55);
+  animation: fadeIn 0.18s ease;
+}
+.wcm-qv-content {
+  position: fixed;
+  z-index: 91;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  animation: popIn 0.18s ease;
+}
+.wcm-qv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 22px;
+}
+.wcm-qv-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--ink-3);
+  cursor: pointer;
+}
+@media (max-width: 767px) {
+  .wcm-qv-content {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    transform: none;
+    width: 100%;
+    max-height: 88vh;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    border-bottom: none;
+    animation: slideUp 0.22s ease;
+  }
+  .wcm-qv-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  /* Keep the photo short enough that price + Add to cart stay above the fold */
+  .wcm-qv-photo {
+    width: min(100%, 34vh) !important;
+    margin: 0 auto;
+  }
+}

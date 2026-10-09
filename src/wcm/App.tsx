@@ -402,6 +402,7 @@ function Header({
   const isProducts = pathname === "/" || pathname.startsWith("/products");
   const isCategories = pathname.startsWith("/categories");
   const isDeals = pathname.startsWith("/deals");
+  const isFinder = pathname.startsWith("/finder");
   const isOrders = pathname.startsWith("/orders");
 
   useEffect(() => {
@@ -947,6 +948,13 @@ function Header({
                 icon={Icons.filter}
               >
                 Categories
+              </NavBtn>
+              <NavBtn
+                active={isFinder}
+                onClick={() => navigate({ to: "/finder", search: { need: undefined, from: "header" } })}
+                icon={Icons.sparkle}
+              >
+                Find product
               </NavBtn>
               {bundlesOn && (
                 <NavBtn
@@ -1533,6 +1541,16 @@ function BottomNav({
         navigate({ to: "/categories" });
       },
       active: isCategories,
+    },
+    {
+      id: "finder",
+      label: "Find",
+      icon: Icons.sparkle,
+      action: () => {
+        onCartClose?.();
+        navigate({ to: "/finder", search: { need: undefined, from: "bottom bar" } });
+      },
+      active: !isCartActive && pathname.startsWith("/finder"),
     },
     ...(bundlesOn
       ? [

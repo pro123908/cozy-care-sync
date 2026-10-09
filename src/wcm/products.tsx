@@ -35,6 +35,7 @@ import {
   RecentlyViewedRail,
 } from "./products-card-components";
 import { Hero, TrustRibbon } from "./products-marketing-components";
+import { ProductFinderEntry } from "./product-finder";
 import {
   PRODUCTS_PAGE_SIZE,
   SORT_OPTIONS,
@@ -353,6 +354,7 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <TrustRibbon />
+      <ProductFinderEntry isMobile={isMobile} />
       {!productsLoaded && (
         <div style={{ height: isMobile ? 258 : 305, minWidth: 0 }} aria-hidden="true" />
       )}

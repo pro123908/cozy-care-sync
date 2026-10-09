@@ -61,6 +61,12 @@ const ALLOWED_EVENTS = new Set([
   "BundleApplied",
   "SiteExit",
   "SiteReturn",
+  "FinderStart",
+  "FinderResults",
+  "FinderResultClick",
+  "FinderWhatsAppClick",
+  "QuickViewOpen",
+  "QuickViewDetailsClick",
 ]);
 
 // UI-engagement events that should only be logged to meta_events for the
@@ -76,6 +82,12 @@ const LOCAL_ONLY_EVENTS = new Set([
   "BundleApplied",
   "SiteExit",
   "SiteReturn",
+  "FinderStart",
+  "FinderResults",
+  "FinderResultClick",
+  "FinderWhatsAppClick",
+  "QuickViewOpen",
+  "QuickViewDetailsClick",
 ]);
 
 // Flat string->string context for events that carry it (BundleClick sends

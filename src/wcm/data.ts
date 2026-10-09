@@ -448,6 +448,11 @@ export function limitedStockLeft(
 /** wa.me link for pre-booking a product that's blocked while out of stock. */
 export function outOfStockWhatsAppUrl(productName: string): string {
   const message = `Hi, I'd like to pre-book ${productName} (currently out of stock). When will it be available?`;
+  return whatsAppChatUrl(message);
+}
+
+/** wa.me link to the store's WhatsApp with a prefilled message. */
+export function whatsAppChatUrl(message: string): string {
   return `https://wa.me/923442345500?text=${encodeURIComponent(message)}`;
 }
 

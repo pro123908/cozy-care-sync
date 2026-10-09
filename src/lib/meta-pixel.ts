@@ -285,6 +285,76 @@ export function trackBundleAppliedOnce(pairKey: string, input: BundleEventInput)
   trackMetaEventOnce(`bundle_applied:${pairKey}`, "BundleApplied", bundleEventPayload(input));
 }
 
+export type EngagementEventName =
+  | "FinderStart"
+  | "FinderResults"
+  | "FinderResultClick"
+  | "FinderWhatsAppClick"
+  | "QuickViewOpen"
+  | "QuickViewDetailsClick";
+
+type EngagementEventInput = {
+  /** Human label shown in the admin feed (what was viewed / the shopper's answers). */
+  label: string;
+  /** Where it happened ("home page", "category page", "finder", ...). */
+  source?: string;
+  productIds?: string[];
+  /** Extra flat string detail, e.g. { position: "1" }. */
+  extra?: Record<string, string>;
+};
+
+function engagementPayload(input: EngagementEventInput) {
+  return {
+    ...(input.productIds?.length ? { content_ids: input.productIds, content_type: "product" } : {}),
+    detail: {
+      label: input.label,
+      ...(input.source ? { source: input.source } : {}),
+      ...input.extra,
+    },
+  };
+}
+
+/**
+ * Product finder + quick view interaction events. All local-only (logged to
+ * meta_events for the admin feed, never forwarded to Meta's Conversions API).
+ */
+export function trackEngagementEvent(name: EngagementEventName, input: EngagementEventInput) {
+  trackMetaEvent(name, engagementPayload(input));
+}
+
+/** Friendly page name for the admin feed, from the current pathname. */
+function currentPageLabel(): string {
+  if (typeof window === "undefined") return "";
+  const path = window.location.pathname;
+  if (path === "/") return "home page";
+  if (path.startsWith("/categories")) return "category page";
+  if (path.startsWith("/search")) return "search results";
+  if (path.startsWith("/deals")) return "deals page";
+  if (path.startsWith("/products")) return "product page";
+  if (path.startsWith("/wishlist")) return "saved items";
+  return path;
+}
+
+/** QuickViewOpen / QuickViewDetailsClick for a product card's quick-view popup. */
+export function trackQuickView(
+  name: "QuickViewOpen" | "QuickViewDetailsClick",
+  product: { id: string; name: string },
+) {
+  trackEngagementEvent(name, {
+    label: product.name,
+    source: currentPageLabel(),
+    productIds: [product.id],
+  });
+}
+
+export function trackEngagementEventOnce(
+  storageKey: string,
+  name: EngagementEventName,
+  input: EngagementEventInput,
+) {
+  trackMetaEventOnce(`engagement:${storageKey}`, name, engagementPayload(input));
+}
+
 /**
  * Send an event while the page is being hidden/closed. `fetch` with the
  * Supabase auth headers needs a CORS preflight, which often can't finish

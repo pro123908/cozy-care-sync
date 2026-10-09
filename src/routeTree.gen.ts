@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PrescriptionRouteImport } from './routes/prescription'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as MapRouteImport } from './routes/map'
+import { Route as FinderRouteImport } from './routes/finder'
 import { Route as FaqsRouteImport } from './routes/faqs'
 import { Route as DealsRouteImport } from './routes/deals'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -69,6 +70,11 @@ const PoliciesRoute = PoliciesRouteImport.update({
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinderRoute = FinderRouteImport.update({
+  id: '/finder',
+  path: '/finder',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqsRoute = FaqsRouteImport.update({
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
+  '/finder': typeof FinderRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
+  '/finder': typeof FinderRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/deals': typeof DealsRoute
   '/faqs': typeof FaqsRoute
+  '/finder': typeof FinderRoute
   '/map': typeof MapRoute
   '/policies': typeof PoliciesRoute
   '/prescription': typeof PrescriptionRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/deals'
     | '/faqs'
+    | '/finder'
     | '/map'
     | '/policies'
     | '/prescription'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/deals'
     | '/faqs'
+    | '/finder'
     | '/map'
     | '/policies'
     | '/prescription'
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/deals'
     | '/faqs'
+    | '/finder'
     | '/map'
     | '/policies'
     | '/prescription'
@@ -287,6 +299,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DealsRoute: typeof DealsRoute
   FaqsRoute: typeof FaqsRoute
+  FinderRoute: typeof FinderRoute
   MapRoute: typeof MapRoute
   PoliciesRoute: typeof PoliciesRoute
   PrescriptionRoute: typeof PrescriptionRoute
@@ -358,6 +371,13 @@ declare module '@tanstack/react-router' {
       path: '/map'
       fullPath: '/map'
       preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finder': {
+      id: '/finder'
+      path: '/finder'
+      fullPath: '/finder'
+      preLoaderRoute: typeof FinderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faqs': {
@@ -474,6 +494,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DealsRoute: DealsRoute,
   FaqsRoute: FaqsRoute,
+  FinderRoute: FinderRoute,
   MapRoute: MapRoute,
   PoliciesRoute: PoliciesRoute,
   PrescriptionRoute: PrescriptionRoute,

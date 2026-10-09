@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BUNDLES,
@@ -15,9 +15,14 @@ import {
 import { Icons } from "./icons";
 import { ProductImage, Stars, Pill } from "./ui";
 import { useWcm, useProductRatings } from "./context";
-import { trackBundleClick } from "@/lib/meta-pixel";
+import { trackBundleClick, trackQuickView } from "@/lib/meta-pixel";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import type { CartLine } from "./context";
+
+// Loaded on first open so the dialog code stays out of the listing chunk.
+const QuickViewDialog = lazy(() =>
+  import("./quick-view").then((m) => ({ default: m.QuickViewDialog })),
+);
 
 export function CategoryRail({
   active,
@@ -396,6 +401,7 @@ export function ProductCard({
   const selectableOptions = getSelectableOptions(p);
   const hasSelectableOptions = selectableOptions.length > 0;
   const [showSizePicker, setShowSizePicker] = useState(false);
+  const [quickViewOpen, setQuickViewOpen] = useState(false);
   const sizePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -429,6 +435,7 @@ export function ProductCard({
   };
 
   return (
+    <>
     <div
       className="wcm-product-card"
       style={{
@@ -536,6 +543,49 @@ export function ProductCard({
             strokeLinejoin="round"
           >
             <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+          </svg>
+        </button>
+        <button
+          className="wcm-card-hover-action wcm-card-wishlist-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            trackQuickView("QuickViewOpen", p);
+            setQuickViewOpen(true);
+          }}
+          aria-label={`Quick view ${p.name}`}
+          title="Quick view"
+          style={{
+            position: "absolute",
+            top: compact ? 40 : 42,
+            left: 8,
+            zIndex: 3,
+            width: compact ? 26 : 28,
+            height: compact ? 26 : 28,
+            borderRadius: 99,
+            background: "var(--card)",
+            border: "1px solid var(--line-2)",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--ink-2)",
+            boxShadow: "0 8px 14px -10px rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(6px)",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <svg
+            width="15"
+            height="15"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
         {isInCart && (
@@ -821,6 +871,12 @@ export function ProductCard({
         </div>
       </div>
     </div>
+    {quickViewOpen && (
+      <Suspense fallback={null}>
+        <QuickViewDialog product={p} onClose={() => setQuickViewOpen(false)} />
+      </Suspense>
+    )}
+    </>
   );
 }
 
