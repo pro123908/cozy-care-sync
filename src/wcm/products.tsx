@@ -1137,8 +1137,10 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                   content_ids: [t.product_id],
                   search_string: t.reviewer_name,
                 });
-                if (opensScreenshot) setLightbox(t.screenshot_url);
-                else if (clampedIds.has(t.id)) setOpenReview(t);
+                // Truncated text wins: "Read more" must reach the full text,
+                // and the sheet offers the screenshot from there.
+                if (clampedIds.has(t.id)) setOpenReview(t);
+                else if (opensScreenshot) setLightbox(t.screenshot_url);
               }}
               style={{
                 flex: `0 0 ${cardWidth}px`,
@@ -1149,7 +1151,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                 background: cardBg,
                 display: "flex",
                 flexDirection: "column",
-                cursor: opensScreenshot ? "zoom-in" : clampedIds.has(t.id) ? "pointer" : "default",
+                cursor: clampedIds.has(t.id) ? "pointer" : opensScreenshot ? "zoom-in" : "default",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -1283,6 +1285,15 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                   <p style={{ margin: "12px 0 0", fontSize: 14.5, lineHeight: 1.55, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
                     {openReview.review_text}
                   </p>
+                  {openReview.screenshot_url && (
+                    <button
+                      type="button"
+                      onClick={() => setLightbox(openReview.screenshot_url)}
+                      style={{ display: "inline-flex", alignItems: "center", marginTop: 14, marginRight: 14, padding: 0, border: "none", background: "transparent", fontSize: 12, fontWeight: 700, color: accent, cursor: "pointer" }}
+                    >
+                      View screenshot
+                    </button>
+                  )}
                   {openReview.source_url && (
                     <a
                       href={openReview.source_url}
