@@ -14,7 +14,6 @@ import {
   isKarachiOnlyProduct,
   isOutOfStockBlocked,
   limitedStockLeft,
-  outOfStockWhatsAppUrl,
   bundlesActive,
   computeBundles,
   type Product,
@@ -38,6 +37,7 @@ import { Hero, TrustRibbon } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import { PairsWellWith } from "./pairs-well-with";
+import { contactOnWhatsApp } from "./out-of-stock";
 import { CompareToggleButton } from "./compare";
 import {
   PRODUCTS_PAGE_SIZE,
@@ -2817,7 +2817,8 @@ export function ProductDetail({
             <div
               className="wcm-add-qty"
               style={{
-                display: "inline-flex",
+                // Nothing to quantify when the only action is "Contact on WhatsApp".
+                display: isOutOfStockBlocked(product) ? "none" : "inline-flex",
                 alignItems: "center",
                 gap: 0,
                 border: "1px solid var(--line)",
@@ -2887,16 +2888,16 @@ export function ProductDetail({
             <Btn
               full
               size="lg"
-              icon={Icons.cart}
+              icon={isOutOfStockBlocked(product) ? Icons.whatsapp : Icons.cart}
               onClick={() =>
                 isOutOfStockBlocked(product)
-                  ? window.open(outOfStockWhatsAppUrl(product.name), "_blank", "noopener,noreferrer")
+                  ? contactOnWhatsApp(product, "product page")
                   : addToCart(product, qty, variantKey)
               }
               style={{ minHeight: 50 }}
             >
               {isOutOfStockBlocked(product) ? (
-                <span>Out of stock — pre-book on WhatsApp</span>
+                <span>Contact on WhatsApp</span>
               ) : (
                 <>
                   <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}
@@ -2942,7 +2943,8 @@ export function ProductDetail({
             <div
               className="wcm-add-qty"
               style={{
-                display: "inline-flex",
+                // Nothing to quantify when the only action is "Contact on WhatsApp".
+                display: isOutOfStockBlocked(product) ? "none" : "inline-flex",
                 alignItems: "center",
                 gap: 0,
                 border: "1px solid var(--line)",
@@ -3000,7 +3002,7 @@ export function ProductDetail({
             <button
               onClick={() =>
                 isOutOfStockBlocked(product)
-                  ? window.open(outOfStockWhatsAppUrl(product.name), "_blank", "noopener,noreferrer")
+                  ? contactOnWhatsApp(product, "sticky bar")
                   : addToCart(product, qty, variantKey)
               }
               className="wcm-pdp-sticky-add"
@@ -3019,7 +3021,7 @@ export function ProductDetail({
               }}
             >
               {isOutOfStockBlocked(product) ? (
-                <span>Pre-book on WhatsApp</span>
+                <span>Contact on WhatsApp</span>
               ) : (
                 <>
                   <span>{inCart ? "Update cart" : "Add to cart"}</span> · {PKR(resolvedUnitPrice * qty)}

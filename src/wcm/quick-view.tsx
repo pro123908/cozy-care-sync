@@ -15,6 +15,7 @@ import { Btn, ProductImage, ProductPhoto, Stars } from "./ui";
 import { gaEvent } from "@/lib/ga";
 import { trackQuickView } from "@/lib/meta-pixel";
 import { CompareToggleButton } from "./compare";
+import { contactOnWhatsApp } from "./out-of-stock";
 
 const MAX_QTY = 5;
 
@@ -319,15 +320,18 @@ export function QuickViewDialog({ product, onClose }: { product: Product; onClos
                 </div>
                 <Btn
                   full
-                  disabled={blocked}
-                  icon={Icons.cart}
+                  icon={blocked ? Icons.whatsapp : Icons.cart}
                   onClick={() => {
+                    if (blocked) {
+                      contactOnWhatsApp(product, "quick view");
+                      return;
+                    }
                     trackQuickView("QuickViewAddToCart", product);
                     addToCart(product, qty, selected);
                     onClose();
                   }}
                 >
-                  {blocked ? "Out of stock" : "Add to cart"}
+                  {blocked ? "Contact on WhatsApp" : "Add to cart"}
                 </Btn>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>

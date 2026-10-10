@@ -309,7 +309,8 @@ export type EngagementEventName =
   | "CompareOpen"
   | "CompareAddToCart"
   | "VoiceSearchStart"
-  | "VoiceSearchError";
+  | "VoiceSearchError"
+  | "OutOfStockWhatsAppClick";
 
 type EngagementEventInput = {
   /** Human label shown in the admin feed (what was viewed / the shopper's answers). */

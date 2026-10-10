@@ -85,6 +85,7 @@ const ALLOWED_EVENTS = new Set([
   "CompareAddToCart",
   "VoiceSearchStart",
   "VoiceSearchError",
+  "OutOfStockWhatsAppClick",
 ]);
 
 // UI-engagement events that should only be logged to meta_events for the
@@ -124,6 +125,7 @@ const LOCAL_ONLY_EVENTS = new Set([
   "CompareAddToCart",
   "VoiceSearchStart",
   "VoiceSearchError",
+  "OutOfStockWhatsAppClick",
 ]);
 
 // Flat string->string context for events that carry it (BundleClick sends

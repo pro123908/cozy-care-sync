@@ -10,6 +10,7 @@ import {
   type Product,
 } from "./data";
 import { compareRemove } from "./compare";
+import { contactOnWhatsApp } from "./out-of-stock";
 import { describeReviews, useReviewStats } from "./review-stats";
 import { Btn, ProductImage, Stars } from "./ui";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -235,8 +236,11 @@ export function CompareView({
       <Btn
         size="sm"
         full={full}
-        disabled={isOutOfStockBlocked(p)}
         onClick={() => {
+          if (isOutOfStockBlocked(p)) {
+            contactOnWhatsApp(p, source);
+            return;
+          }
           trackEngagementEvent("CompareAddToCart", {
             label: p.name,
             source,
@@ -246,7 +250,7 @@ export function CompareView({
           addToCart(p);
         }}
       >
-        {isOutOfStockBlocked(p) ? "Out of stock" : "Add to cart"}
+        {isOutOfStockBlocked(p) ? "Contact on WhatsApp" : "Add to cart"}
       </Btn>
     );
 
