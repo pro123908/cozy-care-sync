@@ -431,6 +431,14 @@ export function isOutOfStockBlocked(
   return !!product && !!product.block_when_out_of_stock && product.stock === "Out of stock";
 }
 
+// Curated in-stock substitute shown on the product page while the product is out of
+// stock (see out-of-stock-alternative.tsx). Hand-picked on purpose: a wrong
+// suggestion is worse than none. First in-stock, active entry wins.
+// K-89 (ha-007) -> C-109 (ha-010): both rechargeable Axon hearing aids.
+export const OUT_OF_STOCK_ALTERNATIVES: Record<string, string[]> = {
+  "ha-007": ["ha-010"],
+};
+
 // "Limited stock available" notice on the product page — opted in per product, not
 // global, shown when stock_count is 0-5 (0 included: orders are still taken and
 // sourced afterward unless block_when_out_of_stock is on). K-89 = ha-007.

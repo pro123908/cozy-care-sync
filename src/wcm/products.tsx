@@ -37,6 +37,7 @@ import { Hero, TrustRibbon } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import { PairsWellWith } from "./pairs-well-with";
+import { OutOfStockAlternative } from "./out-of-stock-alternative";
 import { contactOnWhatsApp } from "./out-of-stock";
 import { CompareToggleButton } from "./compare";
 import {
@@ -3029,6 +3030,7 @@ export function ProductDetail({
               )}
             </button>
           </div>
+          <OutOfStockAlternative product={product} />
           <div ref={descriptionSectionRef}>
             <Section className="wcm-detail-about" style={{ padding: 16 }}>
               <div
