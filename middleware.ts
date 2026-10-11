@@ -19,6 +19,7 @@ import {
   notFoundMarkdownBody,
   prefersMarkdown,
 } from "./src/lib/agentReadiness";
+import { buildOfferPolicies } from "./src/lib/merchantSeo";
 import {
   buildCategoryDescription,
   buildCategorySeoTitle,
@@ -236,13 +237,13 @@ const RESPONSE_HEADERS_BASE = {
 const HTML_HEADERS = { ...RESPONSE_HEADERS_BASE, "content-type": "text/html; charset=utf-8" };
 const MARKDOWN_HEADERS = { ...RESPONSE_HEADERS_BASE, "content-type": "text/markdown; charset=utf-8" };
 
-type LiveProduct = Product;
+type LiveProduct = Product & { updated_at?: string };
 
 async function fetchProducts(): Promise<LiveProduct[]> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return [];
   try {
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/products?select=id,name,brand,cat,price,was,stock,blurb,image_url,tags,delivered_sales_count,size_options,variant_options&active=eq.true&order=sort_order.asc`,
+      `${SUPABASE_URL}/rest/v1/products?select=id,name,brand,cat,price,was,stock,blurb,image_url,tags,delivered_sales_count,size_options,variant_options,updated_at&active=eq.true&order=sort_order.asc`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
     );
     if (!res.ok) return [];
@@ -264,6 +265,7 @@ async function fetchProducts(): Promise<LiveProduct[]> {
       image_url: r.image_url ?? undefined,
       size_options: Array.isArray(r.size_options) ? r.size_options : [],
       variant_options: Array.isArray(r.variant_options) ? r.variant_options : [],
+      updated_at: r.updated_at ?? undefined,
     }));
   } catch {
     return [];
@@ -466,7 +468,7 @@ const FAQS: Array<{ q: string; a: string }> = [
     q: "What are your delivery timelines?",
     a: "Most orders are delivered within 3 to 5 working days depending on your city and product availability.",
   },
-  { q: "Can I return a product?", a: "Yes, eligible products can be returned according to our Returns & Refund policy." },
+  { q: "Can I return a product?", a: "Yes. Damaged, defective, or incorrect products can be returned or exchanged if the issue is reported within 3 days of delivery and the product is unused and in its original packaging. See our Returns & Refund policy for details." },
   {
     q: "How do I contact support?",
     a: "You can use the Contact/Map page for location details and support channels.",
@@ -521,7 +523,7 @@ function renderPolicies(): PageContent {
 <p>Customers can contact us anytime for questions related to their personal information.</p>
 <h2>Return / Refund Policy</h2>
 <p>At Wellcare Mart, we aim to provide reliable medical and healthcare products at affordable prices.</p>
-<p>Returns &amp; exchanges are accepted only if the product is damaged, defective, or incorrect at delivery; the issue is reported within 24 hours of receiving the product; and the product is unused, unopened, and in its original packaging.</p>
+<p>Returns &amp; exchanges are accepted only if the product is damaged, defective, or incorrect at delivery; the issue is reported within 3 days of receiving the product; and the product is unused, unopened, and in its original packaging.</p>
 <p>Due to the nature of medical and healthcare products, some items such as masks, gloves, diapers, hygiene products, disposable items, and personal-use medical products may not be returnable once opened or used.</p>
 <p>Refunds, replacements, or exchanges will be processed after verification by our team.</p>
 <h2>Shipping / Service Policy</h2>
@@ -557,6 +559,17 @@ function renderCategoriesIndex(categories: Category[]): PageContent {
   };
 }
 
+// Which product `cat` values a category page lists (some categories are groups, as in the app).
+function categoryProductCats(resolvedCategoryId: string): string[] {
+  return resolvedCategoryId === "orthobelts-supports"
+    ? ["orthobelts-supports", "ortho-belts", "supports"]
+    : resolvedCategoryId === "mobility"
+      ? ["mobility", "wheelchairs", "walkers", "patient-sticks", "camote-chairs"]
+      : resolvedCategoryId === "warmth-pain-relief"
+        ? ["warmth-pain-relief", "heating-pad", "massagers", "tens-machine"]
+        : [resolvedCategoryId];
+}
+
 function renderCategory(rawCategoryId: string, products: LiveProduct[], categories: Category[]): PageContent | null {
   const resolvedCategoryId =
     rawCategoryId === "weight-scale-digital" || rawCategoryId === "weight-scale-manual"
@@ -572,14 +585,7 @@ function renderCategory(rawCategoryId: string, products: LiveProduct[], categori
       : undefined);
   if (!category) return null;
 
-  const categoryIds =
-    resolvedCategoryId === "orthobelts-supports"
-      ? ["orthobelts-supports", "ortho-belts", "supports"]
-      : resolvedCategoryId === "mobility"
-        ? ["mobility", "wheelchairs", "walkers", "patient-sticks", "camote-chairs"]
-        : resolvedCategoryId === "warmth-pain-relief"
-          ? ["warmth-pain-relief", "heating-pad", "massagers", "tens-machine"]
-          : [resolvedCategoryId];
+  const categoryIds = categoryProductCats(resolvedCategoryId);
 
   const categoryProducts = products.filter((p) => categoryIds.includes(p.cat));
   const itemsHtml = categoryProducts.map((p) => productCardHtml(p, products)).join("");
@@ -636,6 +642,7 @@ function renderProduct(rawProductId: string, products: LiveProduct[]): PageConte
       priceCurrency: "PKR",
       price: product.price,
       availability: product.stock === "Out of stock" ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+      ...buildOfferPolicies(product.price),
     },
   };
 
@@ -666,15 +673,31 @@ async function renderSitemap(): Promise<Response | null> {
   const [products, categories] = await Promise.all([fetchProducts(), fetchCategories()]);
   if (!products.length) return null;
 
-  const urls = [
-    ...STATIC_PAGES.map((path) => `${SITE_URL}${path}`),
-    ...categories.map((c) => `${SITE_URL}/categories/${c.id}`),
-    ...products.map((p) => `${SITE_URL}/products/${getProductSeoPathSegment(p, products)}`),
+  // <lastmod> only where it is real: a product's own updated_at, and for a category the
+  // newest updated_at among the products it lists. Static pages have none, so they get none.
+  const newest = (cats: string[]) =>
+    products
+      .filter((p) => cats.includes(p.cat) && p.updated_at)
+      .map((p) => p.updated_at as string)
+      .sort()
+      .pop();
+  const entries: { loc: string; lastmod?: string }[] = [
+    ...STATIC_PAGES.map((path) => ({ loc: `${SITE_URL}${path}` })),
+    ...categories.map((c) => ({
+      loc: `${SITE_URL}/categories/${c.id}`,
+      lastmod: newest(categoryProductCats(c.id)),
+    })),
+    ...products.map((p) => ({
+      loc: `${SITE_URL}/products/${getProductSeoPathSegment(p, products)}`,
+      lastmod: p.updated_at,
+    })),
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((loc) => `  <url><loc>${loc}</loc></url>`).join("\n")}
+${entries
+  .map((e) => `  <url><loc>${e.loc}</loc>${e.lastmod ? `<lastmod>${new Date(e.lastmod).toISOString()}</lastmod>` : ""}</url>`)
+  .join("\n")}
 </urlset>
 `;
 

@@ -3112,7 +3112,7 @@ export function ProductDetail({
           <div className="wcm-product-badges">
             {[
               { i: Icons.shield, t: "100% authentic", s: "Direct from brands" },
-              { i: Icons.refresh, t: "3-day returns", s: "No questions asked" },
+              { i: Icons.refresh, t: "3-day damage returns", s: "For damaged or defective items" },
               { i: Icons.truck, t: "3-5 working days", s: "Delivered nationwide" },
             ].map((b) => (
               <div

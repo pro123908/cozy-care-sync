@@ -79,7 +79,7 @@ export function buildCategoryDescription(
 ): string {
   const priced = items.filter((p) => p.price > 0);
   if (priced.length === 0) {
-    return `Shop ${name} at ${SITE_NAME}. Cash on delivery across Pakistan, 3-day returns.`;
+    return `Shop ${name} at ${SITE_NAME}. Cash on delivery across Pakistan.`;
   }
   const lowest = Math.min(...priced.map((p) => p.price));
   const counts = new Map<string, number>();
@@ -91,6 +91,6 @@ export function buildCategoryDescription(
   const noun = priced.length === 1 ? "product" : "products";
   const brandPart = brands.length ? ` Brands: ${brands.join(", ")}.` : "";
   return buildMetaDescription(
-    `Shop ${priced.length} ${name} ${noun} online in Pakistan, from Rs ${lowest.toLocaleString("en-PK")}.${brandPart} Cash on delivery, 3-day returns.`,
+    `Shop ${priced.length} ${name} ${noun} online in Pakistan, from Rs ${lowest.toLocaleString("en-PK")}.${brandPart} Cash on delivery.`,
   );
 }

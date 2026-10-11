@@ -11,6 +11,7 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
 import { buildMetaDescription, buildProductSeoTitle, getSeoDescriptor } from "@/lib/productSeo";
+import { buildOfferPolicies } from "@/lib/merchantSeo";
 import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
 
@@ -179,6 +180,7 @@ function ProductPage() {
                 product.stock === "Out of stock"
                   ? "https://schema.org/OutOfStock"
                   : "https://schema.org/InStock",
+              ...buildOfferPolicies(product.price),
             },
           }),
         }}

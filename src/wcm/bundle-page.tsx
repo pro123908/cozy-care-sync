@@ -149,7 +149,7 @@ export function BundlePage({ slug }: { slug: string }) {
 
           <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 14, fontSize: 12.5, fontWeight: 700, color: "var(--ink-3)" }}>
             <span>✔ 100% authentic</span>
-            <span>✔ 3-day returns</span>
+            <span>✔ 3-day returns on damaged items</span>
             <span>✔ Cash on delivery</span>
           </div>
         </div>

@@ -573,7 +573,7 @@ export function Hero({ goTo }: { goTo: (p: "products" | "orders") => void }) {
                   {Icons.shield} 100% authentic
                 </span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  {Icons.refresh} 3-day returns
+                  {Icons.refresh} 3-day returns on damaged items
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18 }}>
@@ -692,7 +692,7 @@ export function TrustRibbon({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`wcm-trust-ribbon${compact ? " wcm-trust-ribbon-compact" : ""}`}>
       <span>{Icons.shield} 100% authentic</span>
-      <span>{Icons.refresh} 3-day returns</span>
+      <span>{Icons.refresh} 3-day returns on damaged items</span>
     </div>
   );
 }

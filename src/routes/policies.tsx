@@ -188,7 +188,7 @@ function PoliciesPage() {
           <ul style={listStyle}>
             <li>The product is damaged, defective, or incorrect at the time of delivery.</li>
             <li>
-              The issue is reported within <strong>24 hours</strong> of receiving the product.
+              The issue is reported within <strong>3 days</strong> of receiving the product.
             </li>
             <li>The product is unused, unopened, and in its original packaging.</li>
           </ul>
