@@ -9,8 +9,8 @@ import { SITE_URL } from "./seo";
 // states the nationwide rule (Rs 5,000), so it never promises more than a shopper
 // outside Karachi gets. Delivery is "3 to 5 working days" per the shipping policy.
 // Returns (confirmed by the owner 2026-10-12): damaged or defective items, reported
-// within 3 days of delivery. Who pays return shipping isn't stated anywhere, so
-// `returnFees` is deliberately left out rather than guessed.
+// within 3 days of delivery, and the store arranges the pickup at no cost to the
+// customer (owner, 2026-10-12) -> FreeReturn, returned by mail/courier pickup.
 
 const FLAT_SHIPPING_RATE = 250;
 const FREE_SHIPPING_FROM = 5000; // nationwide threshold (Karachi's lower Rs 2,000 is not claimed)
@@ -39,6 +39,8 @@ export function buildMerchantReturnPolicy() {
     applicableCountry: "PK",
     returnPolicyCategory: "https://schema.org/MerchantReturnFiniteReturnWindow",
     merchantReturnDays: RETURN_WINDOW_DAYS,
+    returnMethod: "https://schema.org/ReturnByMail",
+    returnFees: "https://schema.org/FreeReturn",
     merchantReturnLink: `${SITE_URL}/policies`,
   };
 }

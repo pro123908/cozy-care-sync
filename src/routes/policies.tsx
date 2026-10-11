@@ -205,6 +205,7 @@ function PoliciesPage() {
           <div style={h3Style}>Processing</div>
           <p style={pStyle}>
             Refunds, replacements, or exchanges will be processed after verification by our team.
+            For damaged or defective items, we arrange the pickup and the customer pays nothing.
           </p>
         </div>
       </div>

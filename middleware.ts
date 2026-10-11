@@ -468,7 +468,7 @@ const FAQS: Array<{ q: string; a: string }> = [
     q: "What are your delivery timelines?",
     a: "Most orders are delivered within 3 to 5 working days depending on your city and product availability.",
   },
-  { q: "Can I return a product?", a: "Yes. Damaged, defective, or incorrect products can be returned or exchanged if the issue is reported within 3 days of delivery and the product is unused and in its original packaging. See our Returns & Refund policy for details." },
+  { q: "Can I return a product?", a: "Yes. Damaged, defective, or incorrect products can be returned or exchanged if the issue is reported within 3 days of delivery and the product is unused and in its original packaging. We arrange the pickup and you pay nothing. See our Returns & Refund policy for details." },
   {
     q: "How do I contact support?",
     a: "You can use the Contact/Map page for location details and support channels.",
@@ -525,7 +525,7 @@ function renderPolicies(): PageContent {
 <p>At Wellcare Mart, we aim to provide reliable medical and healthcare products at affordable prices.</p>
 <p>Returns &amp; exchanges are accepted only if the product is damaged, defective, or incorrect at delivery; the issue is reported within 3 days of receiving the product; and the product is unused, unopened, and in its original packaging.</p>
 <p>Due to the nature of medical and healthcare products, some items such as masks, gloves, diapers, hygiene products, disposable items, and personal-use medical products may not be returnable once opened or used.</p>
-<p>Refunds, replacements, or exchanges will be processed after verification by our team.</p>
+<p>Refunds, replacements, or exchanges will be processed after verification by our team. For damaged or defective items, we arrange the pickup and the customer pays nothing.</p>
 <h2>Shipping / Service Policy</h2>
 <p>Wellcare Mart provides doorstep delivery of medical and healthcare products.</p>
 <p>Orders are typically delivered within 3 to 5 working days, though delivery time may vary based on product availability, customer location, and courier service.</p>

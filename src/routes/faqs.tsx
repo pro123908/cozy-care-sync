@@ -35,7 +35,7 @@ const faqs: Array<{ q: string; a: string }> = [
   },
   {
     q: "Can I return a product?",
-    a: "Yes. Damaged, defective, or incorrect products can be returned or exchanged if the issue is reported within 3 days of delivery and the product is unused and in its original packaging. See our Returns & Refund policy for details.",
+    a: "Yes. Damaged, defective, or incorrect products can be returned or exchanged if the issue is reported within 3 days of delivery and the product is unused and in its original packaging. We arrange the pickup and you pay nothing. See our Returns & Refund policy for details.",
   },
   {
     q: "How do I contact support?",

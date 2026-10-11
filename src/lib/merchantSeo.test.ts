@@ -30,8 +30,10 @@ describe("buildMerchantReturnPolicy", () => {
     expect(p.merchantReturnLink).toBe("https://wellcaremart.pk/policies");
   });
 
-  it("does not invent who pays return shipping", () => {
-    expect("returnFees" in buildMerchantReturnPolicy()).toBe(false);
+  it("states a free return arranged by pickup (owner-confirmed)", () => {
+    const p = buildMerchantReturnPolicy();
+    expect(p.returnFees).toBe("https://schema.org/FreeReturn");
+    expect(p.returnMethod).toBe("https://schema.org/ReturnByMail");
   });
 });
 
