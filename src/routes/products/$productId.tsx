@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   PRODUCTS,
   getProductSeoPathSegment,
@@ -64,6 +64,14 @@ function ProductPage() {
   const { productId } = Route.useParams();
   const { addToCart, cart, products, productsLoaded, user } = useWcm();
   const navigate = useNavigate();
+  const router = useRouter();
+  const goBackToShop = () => {
+    if (router.history.canGoBack()) {
+      router.history.back();
+    } else {
+      navigate({ to: "/" });
+    }
+  };
   // Resolve strictly against the live catalog, and only once it's actually
   // loaded — never fall back to the bundled placeholder PRODUCTS array, and
   // never resolve against `products` while it still holds its pre-load
@@ -179,7 +187,7 @@ function ProductPage() {
         product={product}
         cart={cart}
         addToCart={addToCart}
-        onClose={() => navigate({ to: "/" })}
+        onClose={goBackToShop}
         openProduct={(p) =>
           navigate({
             to: "/products/$productId",
