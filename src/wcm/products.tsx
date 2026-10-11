@@ -1222,7 +1222,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                     rel="noopener noreferrer"
                     onClick={(e) => {
                       e.stopPropagation();
-                      trackMetaEvent("ReviewFacebookClick", {
+                      trackMetaEvent(t.source === "daraz" ? "ReviewDarazClick" : "ReviewFacebookClick", {
                         content_type: "testimonial",
                         content_category: t.source,
                         content_ids: [t.product_id],
