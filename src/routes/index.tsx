@@ -6,12 +6,17 @@ import { canonicalUrl } from "@/lib/seo";
 import { gaEvent } from "@/lib/ga";
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    category:
-      typeof search.category === "string" && search.category !== "all"
-        ? search.category
-        : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const page = Number.parseInt(String(search.page ?? ""), 10);
+    return {
+      category:
+        typeof search.category === "string" && search.category !== "all"
+          ? search.category
+          : undefined,
+      // Page 1 is the default, so only pages 2+ appear in the URL (?page=2).
+      page: Number.isFinite(page) && page > 1 ? page : undefined,
+    };
+  },
   component: IndexPage,
   head: () => ({
     links: [{ rel: "canonical", href: canonicalUrl("/") }],
@@ -37,7 +42,7 @@ export const Route = createFileRoute("/")({
 function IndexPage() {
   const { addToCart, cart, products } = useWcm();
   const navigate = useNavigate();
-  const { category } = useSearch({ from: "/" });
+  const { category, page } = useSearch({ from: "/" });
   return (
     <ProductsPage
       addToCart={addToCart}
@@ -47,6 +52,14 @@ function IndexPage() {
         navigate({
           to: "/",
           search: { category: cat === "all" ? undefined : cat },
+          resetScroll: false,
+        })
+      }
+      page={page}
+      onPageChange={(p) =>
+        navigate({
+          to: "/",
+          search: { category, page: p > 1 ? p : undefined },
           resetScroll: false,
         })
       }
