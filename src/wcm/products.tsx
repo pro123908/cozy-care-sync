@@ -13,6 +13,7 @@ import {
   isMixMatchProduct,
   isKarachiOnlyProduct,
   isOutOfStockBlocked,
+  OUT_OF_STOCK_ALTERNATIVES,
   limitedStockLeft,
   bundlesActive,
   computeBundles,
@@ -38,6 +39,7 @@ import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import { PairsWellWith } from "./pairs-well-with";
 import { OutOfStockAlternative } from "./out-of-stock-alternative";
+import { getRelatedProducts } from "./related-products";
 import { contactOnWhatsApp } from "./out-of-stock";
 import { CompareToggleButton } from "./compare";
 import {
@@ -1672,20 +1674,14 @@ export function ProductDetail({
     (categoriesLoaded ? categories : CATEGORIES).find((c) => c.id === product.cat)?.name ||
     product.category_name ||
     product.cat;
-  const related = (() => {
-    const others = products.filter((p: Product) => p.id !== product.id);
-    const GENERIC_BRANDS = new Set(["imported"]);
-    const brandKey = (product.brand || "").trim().toLowerCase();
-    const hasRealBrand = brandKey.length > 0 && !GENERIC_BRANDS.has(brandKey);
-    const sameBrand = hasRealBrand
-      ? others.filter((p: Product) => (p.brand || "").trim().toLowerCase() === brandKey)
-      : [];
-    const sameBrandIds = new Set(sameBrand.map((p) => p.id));
-    const sameCat = others.filter(
-      (p: Product) => p.cat === product.cat && !sameBrandIds.has(p.id)
-    );
-    return [...sameBrand, ...sameCat].slice(0, 8);
-  })();
+  const related = useMemo(
+    () =>
+      getRelatedProducts(product, products, {
+        limit: 8,
+        alternativeIds: OUT_OF_STOCK_ALTERNATIVES[product.id],
+      }),
+    [product, products],
+  );
   const detailMedia = useMemo(() => {
     const primary = variantImageUrl ? [variantImageUrl] : product.image_url ? [product.image_url] : [];
     const extra = Array.isArray(product.gallery_images) ? product.gallery_images : [];
