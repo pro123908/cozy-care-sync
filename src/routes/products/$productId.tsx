@@ -10,27 +10,9 @@ import { useWcm } from "@/wcm/context";
 import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { canonicalUrl } from "@/lib/seo";
+import { buildMetaDescription, buildProductSeoTitle, getSeoDescriptor } from "@/lib/productSeo";
 import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
 import { gaEvent } from "@/lib/ga";
-
-function getSeoSuffix(cat?: string) {
-  switch (cat) {
-    case "glucometers":
-      return "Blood Glucose Meter";
-    case "bp-digital":
-      return "Digital Blood Pressure Monitor";
-    case "bp-manual":
-      return "Manual BP Apparatus";
-    case "weight-scale":
-      return "Weight Scale";
-    case "nebulizer":
-      return "Nebulizer";
-    case "orthobelts-supports":
-      return "Orthobelt";
-    default:
-      return "Medical Product";
-  }
-}
 
 const ProductDetail = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductDetail })),
@@ -47,11 +29,11 @@ export const Route = createFileRoute("/products/$productId")({
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
     const productName = p?.name || readableFallbackName || "Product";
-    const seoSuffix = getSeoSuffix(p?.cat);
-    const seoTitle = `${productName} ${seoSuffix} — Wellcare Mart`;
-    const description =
+    const seoTitle = buildProductSeoTitle(productName, p?.cat);
+    const description = buildMetaDescription(
       p?.blurb?.trim() ||
-      `${productName} ${seoSuffix} available at Wellcare Mart with trusted delivery across Pakistan.`;
+        `${productName} available at Wellcare Mart with trusted delivery across Pakistan.`,
+    );
     const canonicalPath = p ? getProductSeoPathSegment(p, PRODUCTS) : params.productId;
     const canonical = `https://wellcaremart.pk/products/${canonicalPath}`;
 
@@ -66,7 +48,12 @@ export const Route = createFileRoute("/products/$productId")({
         { property: "og:url", content: canonical },
         { name: "twitter:title", content: `${productName} — Wellcare Mart` },
         { name: "twitter:description", content: description },
-        { name: "keywords", content: `${productName}, ${seoSuffix}, Wellcare Mart, Pakistan` },
+        {
+          name: "keywords",
+          content: [productName, getSeoDescriptor(productName, p?.cat), "Wellcare Mart", "Pakistan"]
+            .filter(Boolean)
+            .join(", "),
+        },
         { name: "robots", content: "index, follow" },
       ],
     };
@@ -100,7 +87,7 @@ function ProductPage() {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
     const productName = product?.name || readableFallbackName || "Product";
-    const description = product?.blurb?.trim() || `${productName} at Wellcare Mart.`;
+    const description = buildMetaDescription(product?.blurb?.trim() || `${productName} at Wellcare Mart.`);
 
     document.title = `${productName} — Wellcare Mart`;
 
@@ -168,10 +155,8 @@ function ProductPage() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Product",
-            name: `${product.name} ${getSeoSuffix(product.cat)}`,
-            alternateName: product.name,
-            description:
-              product.blurb || `${product.name} ${getSeoSuffix(product.cat)} at Wellcare Mart.`,
+            name: product.name,
+            description: product.blurb || `${product.name} at Wellcare Mart.`,
             brand: product.brand || undefined,
             sku: product.id,
             category: product.category_name || product.cat,

@@ -19,6 +19,12 @@ import {
   notFoundMarkdownBody,
   prefersMarkdown,
 } from "./src/lib/agentReadiness";
+import {
+  buildCategoryDescription,
+  buildCategorySeoTitle,
+  buildMetaDescription,
+  buildProductSeoTitle,
+} from "./src/lib/productSeo";
 
 // Human-facing pages (no extension — mirrors vercel.json's SPA rewrite
 // regex), plus /sitemap.xml explicitly since it has one and would otherwise
@@ -264,7 +270,13 @@ async function fetchProducts(): Promise<LiveProduct[]> {
   }
 }
 
-async function fetchCategories(): Promise<Category[]> {
+// Category.id here is the category SLUG — the same key the app's URLs
+// (/categories/<slug>) and every product's `cat` use. The database primary key
+// ("cat-<slug>", with one exception: cat-ortho-belts -> orthobelts-supports) is
+// kept as dbId only so old /categories/cat-* URLs can be redirected.
+type MiddlewareCategory = Category & { dbId?: string };
+
+async function fetchCategories(): Promise<MiddlewareCategory[]> {
   if (!SUPABASE_URL || !SUPABASE_KEY) return CATEGORIES;
   try {
     const res = await fetch(
@@ -274,7 +286,13 @@ async function fetchCategories(): Promise<Category[]> {
     if (!res.ok) return CATEGORIES;
     const rows = (await res.json()) as any[];
     if (!rows.length) return CATEGORIES;
-    return rows.map((r) => ({ id: r.id, name: r.name, count: 0, image_url: r.image_url ?? undefined }));
+    return rows.map((r) => ({
+      id: r.slug || r.id,
+      dbId: r.id,
+      name: r.name,
+      count: 0,
+      image_url: r.image_url ?? undefined,
+    }));
   } catch {
     return CATEGORIES;
   }
@@ -297,6 +315,8 @@ function escapeHtml(value: string): string {
 // without duplicating every page's copy in two formats.
 type PageContent = {
   title: string;
+  /** The page's <h1> (and markdown H1) when it should differ from the <title>. */
+  heading?: string;
   description: string;
   canonical: string;
   ogImage?: string;
@@ -305,7 +325,7 @@ type PageContent = {
 };
 
 function pageShell(content: PageContent): string {
-  const { title, description, canonical, ogImage, bodyHtml, jsonLd } = content;
+  const { title, heading, description, canonical, ogImage, bodyHtml, jsonLd } = content;
   const jsonLdBlocks = jsonLd == null ? [] : Array.isArray(jsonLd) ? jsonLd : [jsonLd];
   const jsonLdHtml = jsonLdBlocks.map((block) => `<script type="application/ld+json">${JSON.stringify(block)}</script>`).join("\n");
   return `<!doctype html>
@@ -327,7 +347,7 @@ ${jsonLdHtml}
 </head>
 <body>
 <main>
-<h1>${escapeHtml(title)}</h1>
+<h1>${escapeHtml(heading ?? title)}</h1>
 ${bodyHtml}
 </main>
 </body>
@@ -335,7 +355,7 @@ ${bodyHtml}
 }
 
 function renderMarkdownDoc(content: PageContent): string {
-  return `# ${content.title}\n\n${content.description}\n\nSource: ${content.canonical}\n\n${htmlFragmentToMarkdown(content.bodyHtml)}\n`;
+  return `# ${content.heading ?? content.title}\n\n${content.description}\n\nSource: ${content.canonical}\n\n${htmlFragmentToMarkdown(content.bodyHtml)}\n`;
 }
 
 function productCardHtml(p: LiveProduct, allProducts: LiveProduct[]): string {
@@ -555,14 +575,19 @@ function renderCategory(rawCategoryId: string, products: LiveProduct[], categori
   const categoryIds =
     resolvedCategoryId === "orthobelts-supports"
       ? ["orthobelts-supports", "ortho-belts", "supports"]
-      : [resolvedCategoryId];
+      : resolvedCategoryId === "mobility"
+        ? ["mobility", "wheelchairs", "walkers", "patient-sticks", "camote-chairs"]
+        : resolvedCategoryId === "warmth-pain-relief"
+          ? ["warmth-pain-relief", "heating-pad", "massagers", "tens-machine"]
+          : [resolvedCategoryId];
 
   const categoryProducts = products.filter((p) => categoryIds.includes(p.cat));
   const itemsHtml = categoryProducts.map((p) => productCardHtml(p, products)).join("");
 
   return {
-    title: `${category.name} — Wellcare Mart`,
-    description: `Browse ${category.name} products at Wellcare Mart.`,
+    title: buildCategorySeoTitle(category.name),
+    heading: category.name,
+    description: buildCategoryDescription(category.name, categoryProducts),
     canonical: `${SITE_URL}/categories/${rawCategoryId}`,
     bodyHtml: categoryProducts.length ? `<ul>${itemsHtml}</ul>` : `<p>No products currently listed in this category.</p>`,
   };
@@ -581,33 +606,15 @@ function renderDeals(products: LiveProduct[]): PageContent {
   };
 }
 
-function getSeoSuffix(cat?: string): string {
-  switch (cat) {
-    case "glucometers":
-      return "Blood Glucose Meter";
-    case "bp-digital":
-      return "Digital Blood Pressure Monitor";
-    case "bp-manual":
-      return "Manual BP Apparatus";
-    case "weight-scale":
-      return "Weight Scale";
-    case "nebulizer":
-      return "Nebulizer";
-    case "orthobelts-supports":
-      return "Orthobelt";
-    default:
-      return "Medical Product";
-  }
-}
-
 function renderProduct(rawProductId: string, products: LiveProduct[]): PageContent | null {
   const resolvedId = resolveProductIdFromParam(rawProductId, products);
   const product = resolvedId ? products.find((p) => p.id === resolvedId) : undefined;
   if (!product) return null;
 
-  const seoSuffix = getSeoSuffix(product.cat);
-  const title = `${product.name} ${seoSuffix} — Wellcare Mart`;
-  const description = product.blurb?.trim() || `${product.name} ${seoSuffix} available at Wellcare Mart with trusted delivery across Pakistan.`;
+  const title = buildProductSeoTitle(product.name, product.cat);
+  // Full text for the page body and the structured data; the <meta> description is a ~155 char cut of it.
+  const fullDescription = product.blurb?.trim() || `${product.name} available at Wellcare Mart with trusted delivery across Pakistan.`;
+  const description = buildMetaDescription(fullDescription);
   const canonicalPath = getProductSeoPathSegment(product, products);
   const canonical = `${SITE_URL}/products/${canonicalPath}`;
   const price = PKR(getDisplayPrice(product));
@@ -616,9 +623,8 @@ function renderProduct(rawProductId: string, products: LiveProduct[]): PageConte
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `${product.name} ${seoSuffix}`,
-    alternateName: product.name,
-    description,
+    name: product.name,
+    description: fullDescription,
     brand: product.brand || undefined,
     sku: product.id,
     category: product.category_name || product.cat,
@@ -635,6 +641,7 @@ function renderProduct(rawProductId: string, products: LiveProduct[]): PageConte
 
   return {
     title,
+    heading: product.name,
     description,
     canonical,
     ogImage: product.image_url || undefined,
@@ -642,7 +649,7 @@ function renderProduct(rawProductId: string, products: LiveProduct[]): PageConte
     bodyHtml: `
 ${product.image_url ? `<img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" width="320" />` : ""}
 <p>${wasHtml}${price}</p>
-<p>${escapeHtml(description)}</p>
+<p>${escapeHtml(fullDescription)}</p>
 ${product.stock === "Out of stock" ? "<p>Out of stock</p>" : "<p>In stock</p>"}
 ${product.brand ? `<p>Brand: ${escapeHtml(product.brand)}</p>` : ""}
 <p>Free same-day delivery in Karachi on orders above Rs 2,000, and free delivery nationwide on orders above Rs 5,000.</p>`,
@@ -702,6 +709,18 @@ export default async function middleware(request: Request) {
     // the static file (via next()) only if the live data fetch itself fails,
     // rather than ever serving an empty/broken sitemap.
     return (await renderSitemap()) || next();
+  }
+
+  // Old /categories/cat-<id> URLs (what the sitemap and bot-facing links used to
+  // use) never resolved in the app. Send every client — browsers included — to
+  // the real /categories/<slug> URL with a permanent redirect.
+  const legacyCategory = pathname.match(/^\/categories\/(cat-[^/]+)\/?$/);
+  if (legacyCategory) {
+    const rawId = decodeURIComponent(legacyCategory[1]);
+    const hit = (await fetchCategories()).find((c) => c.dbId === rawId);
+    if (hit && hit.id !== rawId) {
+      return Response.redirect(`${SITE_URL}/categories/${encodeURIComponent(hit.id)}`, 301);
+    }
   }
 
   const wantsMarkdown = prefersMarkdown(request.headers.get("accept"));

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CATEGORIES, getProductSeoPathSegment } from "@/wcm/data";
 import { useWcm } from "@/wcm/context";
@@ -6,12 +7,13 @@ import { Icons } from "@/wcm/icons";
 import { Btn } from "@/wcm/ui";
 import { ProductCard, ProductCardSkeleton } from "@/wcm/products-card-components";
 import { canonicalUrl } from "@/lib/seo";
+import { buildCategoryDescription, buildCategorySeoTitle } from "@/lib/productSeo";
 
 export const Route = createFileRoute("/categories/$categoryId")({
   head: ({ params }: { params: { categoryId: string } }) => ({
     links: [{ rel: "canonical", href: canonicalUrl(`/categories/${params.categoryId}`) }],
     meta: [
-      { title: `${startCase(params.categoryId)} — Category — Wellcare Mart` },
+      { title: buildCategorySeoTitle(startCase(params.categoryId)) },
       {
         name: "description",
         content: "Browse products in this category at Wellcare Mart.",
@@ -60,6 +62,16 @@ function CategoryProductsPage() {
 
   const categoryProducts = products.filter((p) => categoryIdsForProducts.includes(p.cat));
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
+
+  // The route's head() isn't applied in the browser (the tab kept the homepage title), so
+  // set the title and description here from the real, loaded products — same text bots get.
+  useEffect(() => {
+    if (!category || !productsLoaded) return;
+    document.title = buildCategorySeoTitle(categoryName);
+    document
+      .querySelector('meta[name="description"]')
+      ?.setAttribute("content", buildCategoryDescription(categoryName, categoryProducts));
+  }, [category, categoryName, categoryProducts.length, productsLoaded]);
 
   if (!category) {
     return (
