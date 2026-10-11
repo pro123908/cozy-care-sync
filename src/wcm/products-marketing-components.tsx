@@ -697,6 +697,81 @@ export function TrustRibbon({ compact = false }: { compact?: boolean }) {
   );
 }
 
+// Rounded-DOWN store figures for the homepage (real numbers, checked 2026-10-11:
+// 270 delivered orders, 247 distinct customers with a delivered order, ~46 delivery
+// cities, 198 active products, 4.95 average over 37 showcase reviews from Facebook
+// and Daraz). Rounding down keeps them true as the store grows; bump them by hand
+// every few months rather than showing a live exact count.
+const STORE_STATS = [
+  { icon: Icons.user, value: 240, decimals: 0, suffix: "+", label: "Customers served" },
+  { icon: Icons.pin, value: 40, decimals: 0, suffix: "+", label: "Cities across Pakistan" },
+  { icon: Icons.pkg, value: 190, decimals: 0, suffix: "+", label: "Products" },
+  { icon: Icons.starF, value: 4.9, decimals: 1, suffix: "", label: "Average review rating", sub: "Facebook & Daraz" },
+];
+function CountUp({ value, decimals, suffix, run }: { value: number; decimals: number; suffix: string; run: boolean }) {
+  const [shown, setShown] = useState(run ? value : 0);
+  useEffect(() => {
+    if (!run) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setShown(value);
+      return;
+    }
+    const duration = 1100;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - t0) / duration);
+      setShown(value * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [run, value]);
+  return (
+    <>
+      {shown.toFixed(decimals)}
+      {suffix}
+    </>
+  );
+}
+
+export function StoreStats() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    const el = ref.current;
+    if (seen || !el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [seen]);
+
+  return (
+    <section ref={ref} className="wcm-store-stats" aria-label="Wellcare Mart in numbers">
+      <div className="wcm-store-stats-grid" role="list">
+        {STORE_STATS.map((s) => (
+          <div key={s.label} className="wcm-store-stat" role="listitem">
+            <span className="wcm-store-stat-icon" aria-hidden="true">{s.icon}</span>
+            <div className="wcm-store-stat-value">
+              <CountUp value={s.value} decimals={s.decimals} suffix={s.suffix} run={seen} />
+            </div>
+            <div className="wcm-store-stat-label">{s.label}</div>
+            {s.sub && <div className="wcm-store-stat-sub">{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function FeaturedCollectionsStrip({
   categories,
   onSelect,

@@ -34,7 +34,7 @@ import {
   ProductCardSkeleton,
   RecentlyViewedRail,
 } from "./products-card-components";
-import { Hero, TrustRibbon } from "./products-marketing-components";
+import { Hero, TrustRibbon, StoreStats } from "./products-marketing-components";
 import { ProductFinderEntry } from "./product-finder";
 import { ProductQuestions, useRecentViewCount } from "./product-qa";
 import { PairsWellWith } from "./pairs-well-with";
@@ -360,6 +360,7 @@ export function ProductsPage({
     <div>
       <Hero goTo={goTo} />
       <TrustRibbon />
+      <StoreStats />
       <ProductFinderEntry isMobile={isMobile} />
       {!productsLoaded && (
         <div style={{ height: isMobile ? 258 : 305, minWidth: 0 }} aria-hidden="true" />
@@ -3134,6 +3135,8 @@ export function ProductDetail({
           </div>
         </div>
       </div>
+
+      <StoreStats />
 
       <div ref={reviewsSectionRef}>
         {/* keyed so navigating PDP→PDP (e.g. via a review's product pill) remounts the
