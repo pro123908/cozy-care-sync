@@ -23,6 +23,11 @@ export const Route = createFileRoute("/categories/$categoryId")({
   component: CategoryProductsPage,
 });
 
+// Products pinned to the top of a category page (ads landing page); also pulled in from other categories.
+const CATEGORY_PINNED_PRODUCT_IDS: Record<string, string[]> = {
+  "warmth-pain-relief": ["heat-007", "steam-006"],
+};
+
 function startCase(value: string) {
   return value
     .split("-")
@@ -60,7 +65,14 @@ function CategoryProductsPage() {
           ? ["warmth-pain-relief", "heating-pad", "massagers", "tens-machine"]
           : [resolvedCategoryId];
 
-  const categoryProducts = products.filter((p) => categoryIdsForProducts.includes(p.cat));
+  const pinnedProducts = (CATEGORY_PINNED_PRODUCT_IDS[resolvedCategoryId] ?? [])
+    .map((id) => products.find((p) => p.id === id))
+    .filter((p): p is (typeof products)[number] => !!p);
+  const pinnedIds = new Set(pinnedProducts.map((p) => p.id));
+  const categoryProducts = [
+    ...pinnedProducts,
+    ...products.filter((p) => categoryIdsForProducts.includes(p.cat) && !pinnedIds.has(p.id)),
+  ];
   const cartQtyById = new Map(cart.map((c) => [c.id, c.qty]));
 
   // The route's head() isn't applied in the browser (the tab kept the homepage title), so
