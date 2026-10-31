@@ -17,6 +17,8 @@ dist-ssr
 *.local
 
 # Environment variables — never commit secrets
+.env
+.env.*
 !.env.example
 
 # Wrangler / Cloudflare
@@ -24,6 +26,7 @@ dist-ssr
 .dev.vars
 
 # Editor directories and files
+.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -33,4 +36,4 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
-config.bat
+.env*
