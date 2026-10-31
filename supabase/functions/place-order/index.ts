@@ -1237,6 +1237,23 @@ Deno.serve(
     return json({ error: `${names} is currently out of stock. Please remove it from your cart.` }, 400, origin);
   }
 
+  // Only cities PostEx delivers to (postex_cities, mirrored from PostEx's own
+  // list by the admin app) can be ordered. Fails open: if the table is empty
+  // or unreadable, don't block checkout over a sync gap.
+  {
+    const { data: postexCities, error: postexCitiesErr } = await serviceClient.from("postex_cities").select("name");
+    if (!postexCitiesErr && postexCities && postexCities.length > 0) {
+      const wanted = (ship.city ?? "").trim().toLowerCase();
+      if (!postexCities.some((c: { name: string }) => c.name.trim().toLowerCase() === wanted)) {
+        return json(
+          { error: `Sorry, we can't deliver to ${(ship.city ?? "").trim()} yet. Please choose a city from the list.` },
+          400,
+          origin,
+        );
+      }
+    }
+  }
+
   // Karachi-only products can't be ordered for any other city.
   if (!/karachi/i.test((ship.city ?? "").trim())) {
     const karachiOnly = items

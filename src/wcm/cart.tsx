@@ -13,7 +13,6 @@ import {
   SHIPPING_COST,
   REWARD_COUPON_THRESHOLD,
   REWARD_COUPON_DISCOUNT,
-  PAKISTAN_CITIES,
   type Product,
 } from "./data";
 import { Icons } from "./icons";
@@ -29,7 +28,8 @@ type CartItem = CartLine & { p: Product };
 const MAX_QTY_PER_PRODUCT = 5;
 // Only suggest quick adds when the gap is small enough for an impulse add-on.
 const QUICK_ADD_MAX_GAP = 1500;
-const CITY_OPTIONS: SelectOption[] = PAKISTAN_CITIES.map((city) => ({ value: city, label: city }));
+const FALLBACK_CITIES = ["Islamabad", "Karachi", "Lahore"];
+const CITY_OPTIONS: SelectOption[] = FALLBACK_CITIES.map((city) => ({ value: city, label: city }));
 
 // Pakistani mobile numbers only — same normalization/validation as the admin
 // app's "Add order" dialog (app/orders/page.tsx), so a storefront-placed
@@ -727,24 +727,19 @@ export function CheckoutContent({
     landmark: "",
   });
   const [cityOptions, setCityOptions] = useState<SelectOption[]>(CITY_OPTIONS);
-  // PAKISTAN_CITIES is a static ~120-city list that's missing real Leopards
-  // destination cities (e.g. "Kot Momin"). courier_cities mirrors Leopards'
-  // full ~827-city list, so merge it in once fetched — starting from the
-  // static list means the dropdown still works instantly if this fails.
+  // Only cities PostEx delivers to are selectable. postex_cities is mirrored
+  // from PostEx's own list by the admin app; until it loads (or if it's empty
+  // or the fetch fails) the short fallback list keeps checkout usable.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = await getSupabase();
       const { data, error } = await supabase
-        .from("courier_cities")
+        .from("postex_cities")
         .select("name")
-        .eq("allow_as_destination", true)
         .order("name", { ascending: true });
-      if (cancelled || error || !data) return;
-      const names = new Set(PAKISTAN_CITIES);
-      for (const row of data) names.add(row.name);
-      const merged = Array.from(names).sort((a, b) => a.localeCompare(b));
-      setCityOptions(merged.map((city) => ({ value: city, label: city })));
+      if (cancelled || error || !data || data.length === 0) return;
+      setCityOptions((data as { name: string }[]).map((row) => ({ value: row.name, label: row.name })));
     })();
     return () => {
       cancelled = true;

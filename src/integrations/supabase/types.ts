@@ -96,6 +96,21 @@ export type Database = {
         }
         Relationships: []
       }
+      postex_cities: {
+        Row: {
+          name: string
+          synced_at: string
+        }
+        Insert: {
+          name: string
+          synced_at?: string
+        }
+        Update: {
+          name?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
       homepage_banners: {
         Row: {
           active: boolean
