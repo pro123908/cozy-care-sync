@@ -14,6 +14,7 @@ import {
   isKarachiOnlyProduct,
   isOutOfStockBlocked,
   OUT_OF_STOCK_ALTERNATIVES,
+  PINNED_RELATED_PRODUCTS,
   limitedStockLeft,
   bundlesActive,
   computeBundles,
@@ -1680,6 +1681,7 @@ export function ProductDetail({
       getRelatedProducts(product, products, {
         limit: 8,
         alternativeIds: OUT_OF_STOCK_ALTERNATIVES[product.id],
+        pinnedIds: PINNED_RELATED_PRODUCTS[product.id],
       }),
     [product, products],
   );

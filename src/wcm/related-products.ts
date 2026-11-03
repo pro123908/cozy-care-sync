@@ -16,8 +16,9 @@ import type { Product } from "./data";
 // should see the Tulus XB-102 and other rechargeable aids before Axon models that
 // take batteries.
 // Stock is ignored: a very similar product ranks high even if it is out of stock.
-// The one exception is a hand-picked substitute for an out-of-stock product
-// (OUT_OF_STOCK_ALTERNATIVES), which always leads.
+// The exceptions are hand-picked: a substitute for an out-of-stock product
+// (OUT_OF_STOCK_ALTERNATIVES) and cross-category pins (PINNED_RELATED_PRODUCTS, in
+// stock only); both lead the list, the substitute first.
 
 const GENERIC_BRANDS = new Set(["imported", ""]);
 const STOP_WORDS = new Set([
@@ -50,7 +51,7 @@ function tokensOf(p: Product, brandWords: Set<string>): Set<string> {
 export function getRelatedProducts(
   product: Product,
   products: Product[],
-  options: { limit?: number; alternativeIds?: string[] } = {},
+  options: { limit?: number; alternativeIds?: string[]; pinnedIds?: string[] } = {},
 ): Product[] {
   const limit = options.limit ?? 8;
   const others = products.filter((p) => p.id !== product.id);
@@ -114,5 +115,10 @@ export function getRelatedProducts(
           .map((id) => others.find((p) => p.id === id))
           .find((p): p is Product => !!p && p.price > 0 && p.stock !== "Out of stock")
       : undefined;
-  return (alt ? [alt, ...ranked.filter((p) => p.id !== alt.id)] : ranked).slice(0, limit);
+  const pinned = (options.pinnedIds ?? [])
+    .map((id) => others.find((p) => p.id === id))
+    .filter((p): p is Product => !!p && p.price > 0 && p.stock !== "Out of stock");
+  const lead = [...(alt ? [alt] : []), ...pinned.filter((p) => p.id !== alt?.id)];
+  const leadIds = new Set(lead.map((p) => p.id));
+  return [...lead, ...ranked.filter((p) => !leadIds.has(p.id))].slice(0, limit);
 }

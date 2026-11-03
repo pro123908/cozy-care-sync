@@ -439,6 +439,15 @@ export const OUT_OF_STOCK_ALTERNATIVES: Record<string, string[]> = {
   "ha-007": ["ha-010"],
 };
 
+// Hand-picked cross-category products that lead "You may also like" on a product page
+// (see getRelatedProducts' pinnedIds). Normal related products only come from the same
+// category/brand, so this is the way to surface a product from another category.
+// Skipped while the pinned product is out of stock or unpriced.
+// neb-010 (Mesh Portable Nebulizer) -> heat-008 (EasyCare Electric Hot Water Bottle).
+export const PINNED_RELATED_PRODUCTS: Record<string, string[]> = {
+  "neb-010": ["heat-008"],
+};
+
 // "Limited stock available" notice on the product page — opted in per product, not
 // global, shown when stock_count is 0-5 (0 included: orders are still taken and
 // sourced afterward unless block_when_out_of_stock is on). K-89 = ha-007.
