@@ -18,7 +18,7 @@ import {
 import { getSupabase } from "@/integrations/supabase/client";
 import { SITE_URL } from "@/lib/seo";
 import { trackEngagementEvent, trackMetaEvent } from "@/lib/meta-pixel";
-import { gaEvent } from "@/lib/ga";
+import { trackCheckoutClick } from "@/lib/checkout-events";
 import { CartFlyer } from "./cart-fly";
 import { CompareModalHost, CompareTray } from "./compare";
 import { VoiceSearchButton } from "./voice-search";
@@ -88,10 +88,11 @@ function AppLayout() {
     if (lastTrackedPathRef.current === pathname) return;
     lastTrackedPathRef.current = pathname;
     trackMetaEvent("PageView");
-    gaEvent("page_view", { page_path: pathname, page_location: window.location.href });
   }, [pathname]);
 
   const goCheckout = (items: any[], subtotal: number, shipping: number, total: number) => {
+    // InitiateCheckout is fired here, on the click — not when the checkout page loads.
+    trackCheckoutClick(items, total, user?.email);
     setCartOpen(false);
     setCheckoutData({ items, subtotal, shipping, total });
     navigate({ to: "/checkout" });
@@ -487,7 +488,6 @@ function Header({
     if (term) {
       persistRecentSearch(term);
       trackMetaEvent("Search", { search_string: term });
-      gaEvent("search", { search_term: term });
     }
     clearSearch();
     navigate({ to: "/search", search: { q: term, cat: "all", sort: "relevance", page: 1 } });
@@ -497,7 +497,6 @@ function Header({
     if (search.trim()) {
       persistRecentSearch(search);
       trackMetaEvent("Search", { search_string: search.trim() });
-      gaEvent("search", { search_term: search.trim() });
     }
     clearSearch();
     navigate({
@@ -512,7 +511,6 @@ function Header({
     inputRef.current?.focus();
     persistRecentSearch(term);
     trackMetaEvent("Search", { search_string: term.trim() });
-    gaEvent("search", { search_term: term.trim() });
   };
 
   return (

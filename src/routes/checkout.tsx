@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import type { PlacedOrderData } from "@/wcm/cart";
@@ -8,7 +8,6 @@ import { WellcareLoader } from "@/wcm/loader";
 import { Btn } from "@/wcm/ui";
 import { NOINDEX_FOLLOW_META, canonicalUrl } from "@/lib/seo";
 import { trackMetaEvent, toMetaValue, uniqueContentIds, getMetaBrowserIds, getOrCreateVisitorId } from "@/lib/meta-pixel";
-import { gaEvent } from "@/lib/ga";
 
 const CheckoutContent = lazy(() =>
   import("@/wcm/cart").then((m) => ({ default: m.CheckoutContent })),
@@ -28,7 +27,6 @@ function CheckoutPage() {
   const navigate = useNavigate();
 
   const [placing, setPlacing] = useState(false);
-  const checkoutTrackedRef = useRef(false);
 
   const fallbackItems = cart
     .map((line) => ({ ...line, p: products.find((product) => product.id === line.id) }))
@@ -56,73 +54,6 @@ function CheckoutPage() {
           total: fallbackTotal,
         }
       : null);
-
-  useEffect(() => {
-    if (!resolvedCheckoutData || checkoutTrackedRef.current) return;
-    // When there's no explicit checkoutData (e.g. after a page reload), items and
-    // total are derived from the cart against the live product catalog. Wait for
-    // the real products to load first — otherwise we fire against the static
-    // placeholder catalog and capture a partial, zero-value snapshot, which the
-    // once-guard would then lock in.
-    if (!checkoutData && !productsLoaded) return;
-
-    const itemIds = uniqueContentIds(
-      resolvedCheckoutData.items.map(
-        (item: { p?: { id?: string }; id?: string }) => item.p?.id || item.id,
-      ),
-    );
-    const numItems = resolvedCheckoutData.items.reduce(
-      (sum: number, item: { qty?: number }) => sum + Math.max(1, Number(item.qty) || 1),
-      0,
-    );
-
-    trackMetaEvent(
-      "InitiateCheckout",
-      {
-        content_ids: itemIds,
-        content_type: "product",
-        num_items: numItems,
-        contents: resolvedCheckoutData.items.map(
-          (item: {
-            p?: { id?: string; price?: number };
-            id?: string;
-            qty?: number;
-            unit_price?: number;
-          }) => {
-            const id = item.p?.id || item.id || "";
-            const quantity = Math.max(1, Number(item.qty) || 1);
-            const itemPrice = toMetaValue(Number(item.unit_price ?? item.p?.price ?? 0));
-            return { id, quantity, item_price: itemPrice };
-          },
-        ),
-        value: toMetaValue(resolvedCheckoutData.total),
-        currency: "PKR",
-      },
-      {
-        userData: { email: user?.email },
-      },
-    );
-    gaEvent("begin_checkout", {
-      currency: "PKR",
-      value: resolvedCheckoutData.total,
-      items: resolvedCheckoutData.items.map(
-        (item: {
-          p?: { id?: string; name?: string; price?: number; category_name?: string; cat?: string; brand?: string };
-          id?: string;
-          qty?: number;
-          unit_price?: number;
-        }) => ({
-          item_id: item.p?.id || item.id || "",
-          item_name: item.p?.name,
-          item_category: item.p?.category_name || item.p?.cat,
-          item_brand: item.p?.brand,
-          price: Number(item.unit_price ?? item.p?.price ?? 0),
-          quantity: Math.max(1, Number(item.qty) || 1),
-        }),
-      ),
-    });
-    checkoutTrackedRef.current = true;
-  }, [resolvedCheckoutData, user?.email, checkoutData, productsLoaded]);
 
   const placeOrder = async (data: PlacedOrderData) => {
     setPlacing(true);
@@ -174,19 +105,6 @@ function CheckoutPage() {
           userData: { email: data.ship.email || user?.email, phone: data.ship.phone },
         },
       );
-      gaEvent("add_payment_info", {
-        currency: "PKR",
-        value: data.total,
-        payment_type: data.pay,
-        items: data.items.map((item) => ({
-          item_id: item.p.id,
-          item_name: item.p.name,
-          item_category: item.p.category_name || item.p.cat,
-          item_brand: item.p.brand,
-          price: getUnitPrice(item.p, item.size),
-          quantity: Math.max(1, Number(item.qty) || 1),
-        })),
-      });
 
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
@@ -223,20 +141,6 @@ function CheckoutPage() {
 
       const newOrder: Order = payload.order;
 
-      gaEvent("purchase", {
-        transaction_id: newOrder.id,
-        currency: "PKR",
-        value: data.total,
-        shipping: data.shipping,
-        items: data.items.map((item) => ({
-          item_id: item.p.id,
-          item_name: item.p.name,
-          item_category: item.p.category_name || item.p.cat,
-          item_brand: item.p.brand,
-          price: getUnitPrice(item.p, item.size),
-          quantity: Math.max(1, Number(item.qty) || 1),
-        })),
-      });
 
       setCart([]);
       setCheckoutData(null);

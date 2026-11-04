@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useCallback } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { getSupabase } from "@/integrations/supabase/client";
 import { useWcm } from "@/wcm/context";
@@ -18,8 +18,17 @@ export const Route = createFileRoute("/orders/$orderId")({
 
 function OrderDetailPage() {
   const { orderId } = Route.useParams();
-  const { orders, ordersLoaded, user, setAuthOpen, setOrders, push } = useWcm();
+  const { orders, ordersLoaded, user, setAuthOpen, setOrders, push, loadOrders } = useWcm();
   const navigate = useNavigate();
+
+  // Live refresh: re-read this customer's orders (courier status included).
+  const onRefresh = useCallback(async () => {
+    const supabase = await getSupabase();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session?.user) await loadOrders(session.user.id, session.user.email ?? undefined);
+  }, [loadOrders]);
 
   const onCancel = async () => {
     const supabase = await getSupabase();
@@ -81,7 +90,12 @@ function OrderDetailPage() {
 
   return (
     <Suspense fallback={<WellcareLoader label="Loading order detail" compact />}>
-      <OrderDetail order={order} onClose={() => navigate({ to: "/orders" })} onCancel={onCancel} />
+      <OrderDetail
+        order={order}
+        onClose={() => navigate({ to: "/orders" })}
+        onCancel={onCancel}
+        onRefresh={onRefresh}
+      />
     </Suspense>
   );
 }

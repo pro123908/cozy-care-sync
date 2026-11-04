@@ -13,7 +13,6 @@ import { canonicalUrl } from "@/lib/seo";
 import { buildMetaDescription, buildProductSeoTitle, getSeoDescriptor } from "@/lib/productSeo";
 import { buildOfferPolicies } from "@/lib/merchantSeo";
 import { trackMetaEvent, toMetaValue } from "@/lib/meta-pixel";
-import { gaEvent } from "@/lib/ga";
 
 const ProductDetail = lazy(() =>
   import("@/wcm/products").then((m) => ({ default: m.ProductDetail })),
@@ -123,20 +122,6 @@ function ProductPage() {
         userData: { email: user?.email },
       },
     );
-    gaEvent("view_item", {
-      currency: "PKR",
-      value: getUnitPrice(product),
-      items: [
-        {
-          item_id: product.id,
-          item_name: product.name,
-          item_category: product.category_name || product.cat,
-          item_brand: product.brand,
-          price: getUnitPrice(product),
-          quantity: 1,
-        },
-      ],
-    });
   }, [product?.id, user?.email]);
 
   if (!product && !productsLoaded) {

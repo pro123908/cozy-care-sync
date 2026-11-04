@@ -10,14 +10,22 @@ type WellcareInlineLoaderProps = {
   size?: number;
 };
 
+// The Wellcare Mart icon, grey at first and filling with its real colours from
+// the bottom up, over and over (see .wcm-logo-fill in styles.css). logo-mark.webp
+// is the W / leaf / cross icon cut from the real logo (aspect 119 x 132).
+const LOGO_ASPECT = 119 / 132;
+
 export function WellcareLoader({
   label = "Loading",
   hint = "Please wait a moment",
   compact = false,
   minHeight,
 }: WellcareLoaderProps) {
-  const orbSize = compact ? 34 : 56;
+  const logoHeight = compact ? 40 : 64;
+  const logoWidth = Math.round(logoHeight * LOGO_ASPECT);
   const resolvedMinHeight = minHeight ?? (compact ? "auto" : "clamp(120px, 22vh, 200px)");
+  // The "..." is animated, so drop any the caller already typed.
+  const text = label.replace(/[.\u2026\s]+$/, "");
 
   return (
     <div
@@ -34,52 +42,39 @@ export function WellcareLoader({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: compact ? 10 : 14,
+          gap: compact ? 12 : 16,
           color: "var(--ink-3)",
         }}
       >
         <div
           aria-hidden="true"
-          style={{
-            width: orbSize,
-            height: orbSize,
-            borderRadius: 999,
-            display: "grid",
-            placeItems: "center",
-            background:
-              "radial-gradient(120% 120% at 15% 0%, rgba(255,255,255,.9) 0%, transparent 45%), var(--grad-soft)",
-            border: "1px solid var(--line)",
-            boxShadow: "0 10px 28px -16px rgba(2,6,23,.38)",
-          }}
+          className="wcm-logo-loader"
+          style={{ width: logoWidth, height: logoHeight }}
         >
-          <svg width={compact ? 22 : 30} height={compact ? 22 : 30} viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" fill="none" stroke="var(--line-2)" strokeWidth="2.2" />
-            <circle
-              cx="12"
-              cy="12"
-              r="10"
-              fill="none"
-              stroke="var(--blue-600)"
-              strokeWidth="2.6"
-              strokeDasharray="40 30"
-              strokeLinecap="round"
-            >
-              <animateTransform
-                attributeName="transform"
-                type="rotate"
-                from="0 12 12"
-                to="360 12 12"
-                dur="1s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <path d="M12 7v10M7 12h10" stroke="var(--green-600)" strokeWidth="1.9" />
-          </svg>
+          <img
+            className="wcm-logo-base"
+            src="/logo-mark.webp"
+            alt=""
+            width={logoWidth}
+            height={logoHeight}
+            decoding="async"
+          />
+          <img
+            className="wcm-logo-fill"
+            src="/logo-mark.webp"
+            alt=""
+            width={logoWidth}
+            height={logoHeight}
+            decoding="async"
+          />
         </div>
 
         <div style={{ display: "grid", gap: 3 }}>
-          <div style={{ fontSize: compact ? 13 : 14, fontWeight: 700, color: "var(--ink-2)" }}>
-            {label}
+          <div
+            className="wcm-loader-dots"
+            style={{ fontSize: compact ? 13 : 15, fontWeight: 700, color: "var(--ink-2)" }}
+          >
+            {text}
           </div>
           {!compact && (
             <div style={{ fontSize: 12, color: "var(--ink-4)", letterSpacing: 0.2 }}>{hint}</div>

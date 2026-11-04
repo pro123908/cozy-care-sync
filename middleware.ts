@@ -60,8 +60,8 @@ const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 // src/lib/pdpAnalytics.ts) — navigator.sendBeacon can't set the
 // apikey/Authorization headers Supabase's REST gateway requires regardless
 // of RLS, so the client posts here and this adds those headers server-side
-// before forwarding to Supabase's REST API. Mirrors proxyGaCollect below:
-// best-effort, always 204, the client never waits on a meaningful response.
+// before forwarding to Supabase's REST API. Best-effort, always 204, the
+// client never waits on a meaningful response.
 //
 // Uses the secret key, not the anon/publishable key: analytics_sessions is
 // upserted (on_conflict=session_id, merge-duplicates), and confirmed
@@ -106,10 +106,6 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
     // real IP/geo already resolved, no external lookup needed (unlike
     // supabase/functions/_shared/geo.ts's ip-api.com call, which only
     // exists because Supabase Edge Functions never see these headers).
-    // Not the same "IP gets lost" problem proxyGaCollect has below — that's
-    // about a fresh *outbound* fetch to Google losing the original caller;
-    // here we're reading the *inbound* request's own headers before doing
-    // anything else with it.
     const ipAddress = (request.headers.get("x-forwarded-for") || "").split(",")[0]?.trim() || null;
     const geoCity = request.headers.get("x-vercel-ip-city");
 
@@ -146,7 +142,7 @@ async function proxyPdpTrack(request: Request): Promise<Response> {
       });
     }
   } catch {
-    // Best-effort, same as proxyGaCollect — a dropped analytics batch isn't
+    // Best-effort — a dropped analytics batch isn't
     // worth surfacing to the client, which isn't waiting on this response.
   }
   return new Response(null, { status: 204 });
@@ -188,35 +184,6 @@ async function proxyPresenceTrack(request: Request): Promise<Response> {
     });
   } catch {
     // Best-effort — a dropped presence event isn't worth surfacing.
-  }
-  return new Response(null, { status: 204 });
-}
-
-// First-party proxy for GA4 hit collection: gtag.js is configured (see
-// src/lib/ga.ts, transport_url) to send hits here instead of directly to
-// google-analytics.com. Ad/privacy blocklists near-universally target that
-// domain by name; they don't (and structurally can't, without breaking the
-// rest of the site) block an arbitrary path on our own origin. We just
-// relay the request through server-to-server, unmodified, to the real
-// endpoint. Known limitation: GA resolves visitor geography from the IP of
-// whoever calls its collect endpoint, which after this proxy is Vercel's
-// edge IP, not the visitor's — Country/City reports will be inaccurate.
-// Everything else (events, e-commerce, device/browser via UA) is unaffected.
-async function proxyGaCollect(request: Request, pathname: string, search: string): Promise<Response> {
-  const target = `https://www.google-analytics.com${pathname}${search}`;
-  try {
-    await fetch(target, {
-      method: request.method,
-      headers: {
-        "user-agent": request.headers.get("user-agent") || "",
-        "content-type": request.headers.get("content-type") || "text/plain;charset=UTF-8",
-      },
-      body: request.method === "POST" ? await request.text() : undefined,
-    });
-  } catch {
-    // Best-effort — GA's own collect endpoint doesn't surface errors to
-    // callers either, and the client isn't waiting on this response for
-    // anything.
   }
   return new Response(null, { status: 204 });
 }
@@ -713,10 +680,6 @@ ${entries
 export default async function middleware(request: Request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
-
-  if (pathname.startsWith("/g/")) {
-    return proxyGaCollect(request, pathname, url.search);
-  }
 
   if (pathname === "/t/pdp" && request.method === "POST") {
     return proxyPdpTrack(request);

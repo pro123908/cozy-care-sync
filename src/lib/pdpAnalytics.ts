@@ -11,8 +11,7 @@ import { useEffect, useRef, type RefObject } from "react";
 // can't set the apikey/Authorization headers Supabase's REST gateway
 // requires (unlike src/lib/meta-pixel.ts's raw-fetch calls to meta-track,
 // which can set headers because they're never sent via sendBeacon), so this
-// relays same-origin instead — same trick middleware.ts already uses for
-// GA4 (`/g/*` → proxyGaCollect).
+// relays same-origin through middleware.ts instead.
 // ---------------------------------------------------------------------------
 
 export type PdpEventType =

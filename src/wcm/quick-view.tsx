@@ -12,7 +12,6 @@ import {
 } from "./data";
 import { Icons } from "./icons";
 import { Btn, ProductImage, ProductPhoto, Stars } from "./ui";
-import { gaEvent } from "@/lib/ga";
 import { trackQuickView } from "@/lib/meta-pixel";
 import { CompareToggleButton } from "./compare";
 import { contactOnWhatsApp } from "./out-of-stock";
@@ -103,10 +102,6 @@ export function QuickViewDialog({ product, onClose }: { product: Product; onClos
     product.was && product.was > product.price
       ? Math.round((1 - product.price / product.was) * 100)
       : 0;
-
-  useEffect(() => {
-    gaEvent("quick_view", { item_id: product.id, item_name: product.name });
-  }, [product.id, product.name]);
 
   const openFull = () => {
     trackQuickView("QuickViewDetailsClick", product);

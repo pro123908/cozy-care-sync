@@ -6,6 +6,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Btn, ProductImage } from "./ui";
 import { BundleCountdown, useBundlesActive } from "./bundle-clock";
 import { trackBundleClick } from "@/lib/meta-pixel";
+import { trackCheckoutClick } from "@/lib/checkout-events";
 
 /**
  * Landing page for one ready-made bundle (linked from the ad carousel's
@@ -13,7 +14,7 @@ import { trackBundleClick } from "@/lib/meta-pixel";
  * (computeBundles), so "Add both" just puts the pair in it.
  */
 export function BundlePage({ slug }: { slug: string }) {
-  const { products, productsLoaded, addToCart } = useWcm();
+  const { products, productsLoaded, addToCart, user } = useWcm();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const active = useBundlesActive();
@@ -52,7 +53,10 @@ export function BundlePage({ slug }: { slug: string }) {
     });
     addToCart(a, 1);
     addToCart(b, 1);
-    if (goToCheckout) navigate({ to: "/checkout" });
+    if (goToCheckout) {
+      trackCheckoutClick([{ p: a, qty: 1 }, { p: b, qty: 1 }], price, user?.email);
+      navigate({ to: "/checkout" });
+    }
   };
 
   return (

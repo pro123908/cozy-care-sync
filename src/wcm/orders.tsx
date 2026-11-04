@@ -1,44 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { PKR, getUnitPrice, type Order, type Product } from "./data";
+import { Link } from "@tanstack/react-router";
+import { PKR, getProductSeoPathSegment, getUnitPrice, type Order, type Product } from "./data";
 import { Icons } from "./icons";
 import { ProductImage, Pill, Btn, Section, Row } from "./ui";
 import { useWcm } from "./context";
 import { getSupabase } from "@/integrations/supabase/client";
+import { TrackingHero, TrackingUpdates, useLiveRefresh } from "./order-tracking";
 
 const STATUSES = ["Order placed", "Order confirmed", "Processing", "Out for delivery", "Delivered"];
-
-// Hidden per request 2026-08-07 — flip back to true to re-show the "Track on
-// [courier]'s website" link under the "Out for delivery" step. Logic/URLs
-// (courierTrackingUrl below) are untouched, this only gates the render.
-const SHOW_COURIER_TRACKING_LINK = false;
 
 // Same Facebook Page reviews link the order-delivered-email edge function
 // sends — supabase/functions/order-delivered-email/index.ts. Kept in sync
 // manually since the two run in different deploy targets.
 const FACEBOOK_REVIEW_URL = "https://www.facebook.com/profile.php?id=61564545159068&sk=reviews";
-
-// Courier tracking events (both Leopards' "Activity_datetime" and PostEx's
-// reformatted "updatedAt" — see app/api/postex/bookings/route.ts) arrive as
-// a plain "YYYY-MM-DD HH:MM:SS" string, no timezone. Parsed manually (not
-// `new Date(raw)`) since that space-separated format isn't reliably parsed
-// as local time across browsers — some read it as UTC, some reject it
-// outright. Falls back to the raw string if it doesn't match.
-function formatTrackingEventTime(raw: string): string {
-  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
-  if (!m) return raw;
-  const [, y, mo, d, h, mi] = m;
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi));
-  return date.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
-}
-
-// Both confirmed live 2026-08-07 by actually driving each courier's public
-// tracking page (not from docs): Leopards' is a plain query-string GET,
-// PostEx's is a client-rendered page but reads `?cn=` on load and
-// auto-searches — neither is documented anywhere, found via Playwright.
-function courierTrackingUrl(provider: string, trackingNumber: string): string {
-  if (provider === "postex") return `https://postex.pk/tracking?cn=${encodeURIComponent(trackingNumber)}`;
-  return `https://pk.leopardscourier.com/shipment_tracking_view?cn_number=${encodeURIComponent(trackingNumber)}`;
-}
 
 function statusToStep(status: string): number {
   const map: Record<string, number> = {
@@ -164,7 +138,9 @@ export function OrdersList({
     );
   }
   const { loadOrders, user } = useWcm();
-  const [filter, setFilter] = useState<"all" | "active" | "delivered" | "cancelled" | "returned">("all");
+  const [filter, setFilter] = useState<"all" | "active" | "delivered" | "cancelled" | "returned">(
+    "all",
+  );
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -572,16 +548,49 @@ function trackingDate(order: Order, i: number) {
   return "";
 }
 
+const DetailLabel = ({ children }: { children: React.ReactNode }) => (
+  <div
+    style={{
+      fontSize: 11,
+      color: "var(--ink-4)",
+      fontWeight: 700,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      marginBottom: 14,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const SummaryRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "baseline",
+      gap: 12,
+      fontSize: 14,
+    }}
+  >
+    <span style={{ color: "var(--ink-3)" }}>{label}</span>
+    <span style={{ fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>{value}</span>
+  </div>
+);
+
 export function OrderDetail({
   order,
   onClose,
   onCancel,
   guestPhone,
+  onRefresh,
 }: {
   order: Order;
   onClose: () => void;
   onCancel?: () => Promise<void>;
   guestPhone?: string;
+  /** Re-reads this order (courier status included); called every ~90s while the page is open. */
+  onRefresh?: () => Promise<void>;
 }) {
   const { addToCart, products, submitOrderReview, push, user, setAuthOpen } = useWcm();
   const [cancelling, setCancelling] = useState(false);
@@ -592,19 +601,10 @@ export function OrderDetail({
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
   const [copiedBankField, setCopiedBankField] = useState<"account" | "iban" | null>(null);
-  const [showFullHistory, setShowFullHistory] = useState(false);
-  const [copiedOrderId, setCopiedOrderId] = useState(false);
-
-  const copyOrderId = async () => {
-    try {
-      if (typeof navigator === "undefined" || !navigator.clipboard) return;
-      await navigator.clipboard.writeText(order.id);
-      setCopiedOrderId(true);
-      window.setTimeout(() => setCopiedOrderId(false), 1200);
-    } catch {
-      // noop: order id remains visible even if clipboard API is blocked
-    }
-  };
+  const live = useLiveRefresh(
+    onRefresh,
+    !["Delivered", "Cancelled", "Returned"].includes(order.status),
+  );
   const [localProductReviews, setLocalProductReviews] = useState(order.product_reviews || {});
   const whatsappPhone = import.meta.env.WHATSAPP_NUMBER || "923442345500";
 
@@ -675,7 +675,7 @@ export function OrderDetail({
     }
   };
 
-  const handleContactSupport = () => {
+  const handleContactSupport = (customMessage?: string) => {
     const cleanPhone = whatsappPhone.replace(/\D/g, "");
     if (!cleanPhone) return;
 
@@ -695,7 +695,7 @@ export function OrderDetail({
       itemSummary || "- No items",
     ].join("\n");
 
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(customMessage ?? message)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -715,6 +715,15 @@ export function OrderDetail({
   const items = order.items
     .map((it) => ({ ...it, p: products.find((p) => p.id === it.id) as Product }))
     .filter((x) => x.p);
+  // A cash-on-delivery order hasn't been paid for until it's delivered, so "Total paid" was wrong for it.
+  const totalLabel =
+    order.status === "Delivered"
+      ? "Total paid"
+      : order.status === "Cancelled" || order.status === "Returned"
+        ? "Total"
+        : order.payment.toLowerCase().includes("cash")
+          ? "To pay on delivery"
+          : "Total";
   const productReviews = localProductReviews;
   const hasPendingProductReviews =
     order.status === "Delivered" && items.some(({ p }) => !productReviews[p.id]);
@@ -740,408 +749,37 @@ export function OrderDetail({
         </button>
       )}
 
-      <div
-        className={`wcm-order-detail-head wcm-track-in${order.status === "Delivered" ? " wcm-delivered-glow" : ""}`}
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              rowGap: 2,
-              gap: 8,
-              color: "var(--ink-4)",
-              fontSize: 13,
-            }}
-          >
-            <span
-              style={{
-                fontFamily: "JetBrains Mono, monospace",
-                fontWeight: 700,
-                color: "var(--ink-2)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {order.id}
-            </span>
-            <button
-              type="button"
-              onClick={copyOrderId}
-              className="wcm-copy-id"
-              aria-label="Copy order ID"
-              title="Copy order ID"
-            >
-              {copiedOrderId ? (
-                <span className="wcm-copy-check" style={{ display: "inline-flex" }}>
-                  {Icons.check}
-                </span>
-              ) : (
-                Icons.copy
-              )}
-            </button>
-            <span className="wcm-desktop-only" aria-hidden="true">
-              ·
-            </span>
-            <span style={{ whiteSpace: "nowrap" }}>Placed {order.placed}</span>
-          </div>
-          <h1 style={{ margin: "4px 0 0", fontSize: 26, fontWeight: 800, letterSpacing: -0.4 }}>
-            {order.status === "Delivered"
-              ? "Delivered on " + order.eta
-              : order.status === "Cancelled"
-                ? "Order cancelled"
-                : order.status === "Returned"
-                  ? "Order returned"
-                  : "We're on it!"}
-          </h1>
-        </div>
-        <div className="wcm-order-detail-status-pill wcm-track-in" style={{ animationDelay: "0.05s" }}>
-          <Pill tone={statusTone(order.status)}>
-            {["Delivered", "Cancelled", "Returned"].includes(order.status) ? (
-              Icons.dot
-            ) : (
-              <span style={{ display: "inline-flex", animation: "wcmPulse 1.6s ease-in-out infinite" }}>
-                {Icons.dot}
-              </span>
-            )}{" "}
-            {displayStatus(order.status)}
-          </Pill>
-        </div>
-      </div>
-
-      {statusToStep(order.status) >= 0 && (
-        <div
-          className="wcm-track-in"
-          style={{ animationDelay: "0.08s" }}
-          role="progressbar"
-          aria-valuenow={statusToStep(order.status)}
-          aria-valuemin={0}
-          aria-valuemax={STATUSES.length - 1}
-          aria-label={`Order progress: ${displayStatus(order.status)}`}
-        >
-          <div
-            style={{
-              height: 6,
-              borderRadius: 99,
-              background: "var(--chip)",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              className="wcm-track-progress-fill"
-              style={{
-                height: "100%",
-                borderRadius: 99,
-                width: `${(statusToStep(order.status) / (STATUSES.length - 1)) * 100}%`,
-                background:
-                  order.status === "Delivered" ? "var(--green-500)" : "var(--blue-600)",
-              }}
-            />
-          </div>
-        </div>
-      )}
+      <TrackingHero
+        order={order}
+        step={statusToStep(order.status)}
+        refresh={
+          onRefresh
+            ? {
+                refreshing: live.refreshing,
+                refreshedAt: live.refreshedAt,
+                onRefresh: () => void live.refreshNow(),
+              }
+            : undefined
+        }
+        onContact={handleContactSupport}
+        onUpdated={(title) => push(`Order update: ${title}`, { tone: "blue" })}
+      />
 
       <div className="wcm-order-cols" style={{ display: "grid", gap: 14 }}>
-        <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 22, animationDelay: "0.1s" }}>
-          <div
-            style={{
-              fontSize: 11,
-              color: "var(--ink-4)",
-              fontWeight: 700,
-              letterSpacing: 0.4,
-              textTransform: "uppercase",
-              marginBottom: 14,
-            }}
-          >
-            Tracking timeline
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {STATUSES.map((s, i) => {
-              const done = i <= statusToStep(order.status);
-              const current = i === statusToStep(order.status);
-              return (
-                <div
-                  key={s}
-                  className="wcm-track-step"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "32px 1fr",
-                    gap: 14,
-                    position: "relative",
-                    paddingBottom: i === STATUSES.length - 1 ? 0 : 18,
-                  }}
-                >
-                  {i < STATUSES.length - 1 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: 15,
-                        top: 30,
-                        bottom: 0,
-                        width: 2,
-                        background: "var(--chip)",
-                      }}
-                    >
-                      {i < statusToStep(order.status) && (
-                        <div
-                          className="wcm-track-line-fill"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            background: "var(--green-500)",
-                            animationDelay: `${0.15 + i * 0.12}s`,
-                          }}
-                        />
-                      )}
-                    </div>
-                  )}
-                  <div style={{ position: "relative", width: 32, height: 32, zIndex: 1 }}>
-                    {current && (
-                      <span
-                        className="wcm-track-ping"
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          borderRadius: 99,
-                          background: "var(--blue-600)",
-                        }}
-                      />
-                    )}
-                    <div
-                      className={done ? "wcm-track-step-in" : undefined}
-                      style={{
-                        position: "relative",
-                        width: 32,
-                        height: 32,
-                        borderRadius: 99,
-                        background: done
-                          ? current
-                            ? "var(--blue-600)"
-                            : "var(--green-500)"
-                          : "var(--chip)",
-                        border: done ? "none" : "2px solid var(--line)",
-                        color: "#fff",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        boxShadow: current ? "0 0 0 4px var(--pill-info-bg)" : "none",
-                        transition: "all .2s",
-                        animationDelay: `${i * 0.12}s`,
-                      }}
-                    >
-                      {done ? (
-                        current ? (
-                          <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 99,
-                              background: "var(--card)",
-                            }}
-                          />
-                        ) : (
-                          Icons.check
-                        )
-                      ) : null}
-                    </div>
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: done ? "var(--ink)" : "var(--ink-4)",
-                      }}
-                    >
-                      {s}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
-                      {done ? trackingDate(order, i) : "Pending"}
-                    </div>
-                    {SHOW_COURIER_TRACKING_LINK && i === 3 && done && order.courier && (
-                      <a
-                        href={courierTrackingUrl(order.courier.provider, order.courier.trackingNumber)}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ fontSize: 12, color: "var(--blue-600)", fontWeight: 600, marginTop: 2, display: "inline-block" }}
-                      >
-                        Track on {order.courier.provider === "postex" ? "PostEx" : "Leopards"}'s website ↗
-                      </a>
-                    )}
-                    {current && order.status === "Out for delivery" && !order.rider && (
-                      <div
-                        className="wcm-track-inset-box"
-                        style={{
-                          marginTop: 10,
-                          padding: "10px 12px",
-                          borderRadius: 11,
-                          background: "var(--pill-warn-bg)",
-                          border: "1px solid var(--pill-warn-fg)",
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "var(--pill-warn-fg)",
-                        }}
-                      >
-                        Rider being assigned — you'll receive details shortly
-                      </div>
-                    )}
-                    {current && order.rider && (
-                      <div
-                        className="wcm-track-inset-box"
-                        style={{
-                          marginTop: 10,
-                          padding: "10px 12px",
-                          borderRadius: 11,
-                          background: "var(--blue-50)",
-                          border: "1px solid var(--blue-50)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 99,
-                            background: "var(--blue-600)",
-                            color: "#fff",
-                            fontWeight: 800,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                          }}
-                        >
-                          {order.rider.name
-                            .split(" ")
-                            .map((x) => x[0])
-                            .join("")}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700 }}>{order.rider.name}</div>
-                          <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
-                            Your rider · {order.rider.phone}
-                          </div>
-                        </div>
-                        <Btn variant="outline" size="sm" icon={Icons.phone}>
-                          Call
-                        </Btn>
-                      </div>
-                    )}
-                    {i === 3 &&
-                      done &&
-                      order.courier?.statusHistory &&
-                      order.courier.statusHistory.length > 0 &&
-                      (() => {
-                        const fullHistory = [...order.courier.statusHistory].reverse();
-                        const COLLAPSED_COUNT = 3;
-                        const visibleHistory = showFullHistory
-                          ? fullHistory
-                          : fullHistory.slice(0, COLLAPSED_COUNT);
-                        const hiddenCount = fullHistory.length - COLLAPSED_COUNT;
-                        return (
-                          <div
-                            className="wcm-track-inset-box"
-                            style={{
-                              marginTop: 10,
-                              padding: "10px 12px",
-                              borderRadius: 11,
-                              background: "var(--bg-elev)",
-                              border: "1px solid var(--line)",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 8,
-                            }}
-                          >
-                            {visibleHistory.map((event, eventIndex) => (
-                              <div
-                                key={eventIndex}
-                                className={`wcm-track-history-item${eventIndex >= COLLAPSED_COUNT ? " wcm-track-history-row" : ""}`}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  gap: 10,
-                                  animationDelay: `${(eventIndex - COLLAPSED_COUNT) * 0.04}s`,
-                                }}
-                              >
-                                <span style={{ fontSize: 12.5, color: "var(--ink)" }}>
-                                  {event.statusWithCity || event.status}
-                                </span>
-                                <span
-                                  className="wcm-track-history-time"
-                                  style={{ fontSize: 11.5, color: "var(--ink-4)", whiteSpace: "nowrap" }}
-                                >
-                                  {formatTrackingEventTime(event.at)}
-                                </span>
-                              </div>
-                            ))}
-                            {hiddenCount > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setShowFullHistory((v) => !v)}
-                                className="wcm-track-toggle"
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 5,
-                                  marginTop: 2,
-                                  padding: 0,
-                                  border: "none",
-                                  background: "none",
-                                  color: "var(--blue-600)",
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  cursor: "pointer",
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                {showFullHistory ? "Show less" : `Show ${hiddenCount} more update${hiddenCount === 1 ? "" : "s"}`}
-                                <span
-                                  className={`wcm-track-chevron${showFullHistory ? " open" : ""}`}
-                                  style={{ display: "inline-flex" }}
-                                >
-                                  {Icons.chevD}
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
+        <TrackingUpdates order={order} />
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.15s" }}>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--ink-4)",
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Delivery address
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <Section
+            className="wcm-track-in wcm-track-card"
+            style={{ padding: 20, animationDelay: "0.15s" }}
+          >
+            <DetailLabel>Delivery details</DetailLabel>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
                   background: "var(--green-50)",
                   color: "var(--green-700)",
                   display: "inline-flex",
@@ -1152,50 +790,28 @@ export function OrderDetail({
               >
                 {Icons.pin}
               </div>
-              <div style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
+              <div style={{ minWidth: 0, fontSize: 14, color: "var(--ink-2)", lineHeight: 1.55 }}>
                 {order.customerName && (
-                  <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
-                    {order.customerName}
-                  </div>
+                  <div style={{ fontWeight: 800, color: "var(--ink)" }}>{order.customerName}</div>
                 )}
-                <div>
-                  <span style={{ color: "var(--ink-4)" }}>Address: </span>
-                  {order.address}
-                </div>
-                {order.landmark && (
-                  <div>
-                    <span style={{ color: "var(--ink-4)" }}>Landmark: </span>
-                    {order.landmark}
-                  </div>
-                )}
-                {order.city && (
-                  <div>
-                    <span style={{ color: "var(--ink-4)" }}>City: </span>
-                    {order.city}
+                <div>{order.address}</div>
+                {(order.landmark || order.city) && (
+                  <div style={{ fontSize: 13, color: "var(--ink-4)", marginTop: 2 }}>
+                    {[order.landmark ? `Landmark: ${order.landmark}` : null, order.city]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                 )}
               </div>
             </div>
-          </Section>
-          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.2s" }}>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--ink-4)",
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              Payment
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ height: 1, background: "var(--line-2)", margin: "16px 0" }} />
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 9,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  flexShrink: 0,
                   background: "var(--grad-soft)",
                   color: "var(--blue-700)",
                   display: "inline-flex",
@@ -1398,65 +1014,19 @@ export function OrderDetail({
               </div>
             )}
           </Section>
-          <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.25s" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <Row label="Subtotal" value={PKR(order.subtotal)} />
-              <Row
-                label="Delivery"
-                value={
-                  order.shipping === 0 ? (
-                    <span style={{ color: "var(--pill-success-fg)", fontWeight: 700 }}>Free</span>
-                  ) : (
-                    PKR(order.shipping)
-                  )
-                }
-              />
-              <div style={{ height: 1, background: "var(--line)", margin: "4px 0" }} />
-              <Row
-                label={<span style={{ fontSize: 14, fontWeight: 800 }}>Total paid</span>}
-                value={<span style={{ fontSize: 18, fontWeight: 800 }}>{PKR(order.total)}</span>}
-              />
-            </div>
-            {order.replacesOrderId != null && order.replacementBalanceDue != null && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: order.replacementBalanceDue === 0 ? "var(--pill-success-bg)" : "var(--pill-warn-bg)",
-                  color: order.replacementBalanceDue === 0 ? "var(--pill-success-fg)" : "var(--pill-warn-fg)",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                {order.replacementBalanceDue === 0
-                  ? "This is a replacement order — no extra payment needed, it's an even swap."
-                  : order.replacementBalanceDue > 0
-                    ? `Rs ${(order.total - order.replacementBalanceDue).toLocaleString()} of this is already covered by your original order — you'll pay just Rs ${order.replacementBalanceDue.toLocaleString()} more on delivery.`
-                    : `This replacement order includes a refund — Rs ${Math.abs(order.replacementBalanceDue).toLocaleString()} will be returned to you.`}
-              </div>
-            )}
-          </Section>
         </div>
       </div>
 
-      <Section className="wcm-track-in wcm-hover-card wcm-track-card" style={{ padding: 18, animationDelay: "0.3s" }}>
-        <div
-          style={{
-            fontSize: 11,
-            color: "var(--ink-4)",
-            fontWeight: 700,
-            letterSpacing: 0.4,
-            textTransform: "uppercase",
-            marginBottom: 10,
-          }}
-        >
-          Items in this order
-        </div>
+      <Section
+        className="wcm-track-in wcm-track-card"
+        style={{ padding: 20, animationDelay: "0.2s" }}
+      >
+        <DetailLabel>Order summary</DetailLabel>
         <div style={{ display: "flex", flexDirection: "column" }}>
           {items.map(({ p, qty, size, unit_price }, i) => {
             const review = productReviews[p.id];
             const isEditing = activeReviewProductId === p.id;
+            const productPath = getProductSeoPathSegment(p, products);
 
             return (
               <React.Fragment key={p.id}>
@@ -1471,17 +1041,49 @@ export function OrderDetail({
                     borderTop: i === 0 ? "none" : "1px solid var(--line-2)",
                   }}
                 >
-                  <div
-                    className="wcm-order-detail-item-image"
-                    style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden" }}
+                  <Link
+                    to="/products/$productId"
+                    params={{ productId: productPath }}
+                    className="wcm-order-detail-item-image wcm-item-img-link"
+                    aria-label={`View ${p.name}`}
+                    style={{
+                      display: "block",
+                      width: 56,
+                      height: 56,
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      border: "1px solid var(--line)",
+                      background: "var(--bg-elev)",
+                    }}
                   >
                     <ProductImage product={p} />
-                  </div>
+                  </Link>
                   <div className="wcm-order-detail-item-info">
-                    <div style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 700 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-4)",
+                        fontWeight: 700,
+                        letterSpacing: 0.3,
+                        textTransform: "uppercase",
+                      }}
+                    >
                       {p.brand}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{p.name}</div>
+                    <Link
+                      to="/products/$productId"
+                      params={{ productId: productPath }}
+                      className="wcm-item-link"
+                      style={{
+                        display: "block",
+                        fontSize: 14.5,
+                        fontWeight: 700,
+                        lineHeight: 1.3,
+                        marginTop: 1,
+                      }}
+                    >
+                      {p.name}
+                    </Link>
                     {order.status === "Delivered" && (
                       <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 10 }}>
                         {review ? (
@@ -1546,7 +1148,9 @@ export function OrderDetail({
                                       height={18}
                                       viewBox="0 0 24 24"
                                       fill={
-                                        s <= (reviewHover || reviewRating) ? "#f59e0b" : "var(--line)"
+                                        s <= (reviewHover || reviewRating)
+                                          ? "#f59e0b"
+                                          : "var(--line)"
                                       }
                                     >
                                       <polygon points="12,3 14.7,9 21,9.7 16.2,14 17.6,20.5 12,17.3 6.4,20.5 7.8,14 3,9.7 9.3,9" />
@@ -1712,9 +1316,21 @@ export function OrderDetail({
                     className="wcm-order-detail-item-qty"
                     style={{ fontSize: 13, color: "var(--ink-4)", fontWeight: 600 }}
                   >
-                    Qty {qty}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "2px 9px",
+                        borderRadius: 999,
+                        background: "var(--chip)",
+                        color: "var(--ink-3)",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Qty {qty}
+                    </span>
                     {size ? (
-                      <div style={{ marginTop: 2, fontSize: 11 }}>Selection {size}</div>
+                      <div style={{ marginTop: 4, fontSize: 11 }}>Selection {size}</div>
                     ) : null}
                   </div>
                   <div
@@ -1729,14 +1345,74 @@ export function OrderDetail({
           })}
         </div>
         <div
-          className="wcm-order-detail-actions"
           style={{
+            marginTop: 8,
+            padding: "14px 16px",
+            borderRadius: 12,
+            background: "var(--bg-elev)",
+            border: "1px solid var(--line-2)",
             display: "flex",
-            gap: 10,
-            marginTop: 14,
-            justifyContent: "flex-end",
-            flexWrap: "wrap",
+            flexDirection: "column",
+            gap: 8,
           }}
+        >
+          <SummaryRow label="Subtotal" value={PKR(order.subtotal)} />
+          <SummaryRow
+            label="Delivery"
+            value={
+              order.shipping === 0 ? (
+                <span style={{ color: "var(--pill-success-fg)" }}>Free</span>
+              ) : (
+                PKR(order.shipping)
+              )
+            }
+          />
+          <div style={{ height: 1, background: "var(--line)", margin: "2px 0" }} />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 12,
+            }}
+          >
+            <span style={{ fontSize: 14, fontWeight: 800, color: "var(--ink)" }}>{totalLabel}</span>
+            <span
+              style={{ fontSize: 21, fontWeight: 800, letterSpacing: -0.4, whiteSpace: "nowrap" }}
+            >
+              {PKR(order.total)}
+            </span>
+          </div>
+        </div>
+        {order.replacesOrderId != null && order.replacementBalanceDue != null && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 12px",
+              borderRadius: 10,
+              background:
+                order.replacementBalanceDue === 0
+                  ? "var(--pill-success-bg)"
+                  : "var(--pill-warn-bg)",
+              color:
+                order.replacementBalanceDue === 0
+                  ? "var(--pill-success-fg)"
+                  : "var(--pill-warn-fg)",
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {order.replacementBalanceDue === 0
+              ? "This is a replacement order — no extra payment needed, it's an even swap."
+              : order.replacementBalanceDue > 0
+                ? `Rs ${(order.total - order.replacementBalanceDue).toLocaleString()} of this is already covered by your original order — you'll pay just Rs ${order.replacementBalanceDue.toLocaleString()} more on delivery.`
+                : `This replacement order includes a refund — Rs ${Math.abs(order.replacementBalanceDue).toLocaleString()} will be returned to you.`}
+          </div>
+        )}
+
+        <div
+          className="wcm-order-detail-actions"
+          style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}
         >
           <Btn variant="outline" icon={Icons.refresh} onClick={handleReorder}>
             Reorder
@@ -1769,27 +1445,6 @@ export function OrderDetail({
               {activeReviewProductId ? "Close rating" : "Rate products"}
             </Btn>
           )}
-          {order.status !== "Delivered" &&
-            order.status !== "Cancelled" &&
-            order.status !== "Returned" &&
-            (showCancelConfirm ? (
-              <div
-                className="wcm-order-detail-cancel-confirm"
-                style={{ display: "flex", gap: 8, alignItems: "center" }}
-              >
-                <span style={{ fontSize: 13, color: "var(--ink-3)" }}>Cancel this order?</span>
-                <Btn variant="danger" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? "Cancelling…" : "Yes, cancel"}
-                </Btn>
-                <Btn variant="outline" onClick={() => setShowCancelConfirm(false)}>
-                  No
-                </Btn>
-              </div>
-            ) : (
-              <Btn variant="danger" onClick={() => setShowCancelConfirm(true)}>
-                Cancel order
-              </Btn>
-            ))}
           {order.status === "Delivered" && (
             <Btn
               variant="solid"
@@ -1800,10 +1455,45 @@ export function OrderDetail({
               Rate us on Facebook
             </Btn>
           )}
-          <Btn icon={Icons.phone} onClick={handleContactSupport}>
-            Contact support
-          </Btn>
         </div>
+
+        {order.status !== "Delivered" &&
+          order.status !== "Cancelled" &&
+          order.status !== "Returned" && (
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line-2)" }}>
+              {showCancelConfirm ? (
+                <div
+                  className="wcm-order-detail-cancel-confirm"
+                  style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
+                >
+                  <span style={{ fontSize: 13, color: "var(--ink-3)" }}>Cancel this order?</span>
+                  <Btn size="sm" variant="danger" onClick={handleCancel} disabled={cancelling}>
+                    {cancelling ? "Cancelling…" : "Yes, cancel"}
+                  </Btn>
+                  <Btn size="sm" variant="outline" onClick={() => setShowCancelConfirm(false)}>
+                    No
+                  </Btn>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelConfirm(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "var(--pill-rose-fg)",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  Cancel order
+                </button>
+              )}
+            </div>
+          )}
       </Section>
     </div>
   );

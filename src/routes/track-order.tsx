@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import type { Order } from "@/wcm/data";
 import { WellcareLoader } from "@/wcm/loader";
@@ -103,6 +103,25 @@ function TrackOrderPage() {
     }
   };
 
+  // Silent re-read for the live-refresh on the order page: same lookup, but no
+  // loading state, no URL change and no Meta event, and a failed check just
+  // keeps the order that's already on screen.
+  const refreshOrder = useCallback(async () => {
+    const cleanOrderId = order?.id.trim().toUpperCase();
+    const cleanPhone = phone.trim();
+    if (!cleanOrderId || !cleanPhone) return;
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/guest-order-lookup`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ order_id: cleanOrderId, phone: cleanPhone }),
+      },
+    );
+    const payload = await res.json().catch(() => null);
+    if (res.ok && payload?.order) setOrder(payload.order as Order);
+  }, [order?.id, phone]);
+
   useEffect(() => {
     if (!initialOrderId || !initialPhone) return;
     void lookupOrder(initialOrderId, initialPhone).finally(() => setAutoLookingUp(false));
@@ -172,6 +191,7 @@ function TrackOrderPage() {
           <OrderDetail
             order={order}
             guestPhone={phone}
+            onRefresh={refreshOrder}
             onClose={() => {
               setOrder(null);
               setError("");

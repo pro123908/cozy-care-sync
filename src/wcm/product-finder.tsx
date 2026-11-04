@@ -11,7 +11,6 @@ import {
 } from "./data";
 import { Icons } from "./icons";
 import { Btn, ProductImage, Stars } from "./ui";
-import { gaEvent } from "@/lib/ga";
 import { trackEngagementEvent, trackEngagementEventOnce } from "@/lib/meta-pixel";
 
 // ---------------------------------------------------------------------------
@@ -382,7 +381,6 @@ function ResultRow({
               disabled={blocked}
               onClick={() => {
                 addToCart(product);
-                gaEvent("finder_add_to_cart", { item_id: product.id });
                 trackEngagementEvent("FinderAddToCart", {
                   label: product.name,
                   source: "finder",
@@ -464,12 +462,6 @@ export function ProductFinder({
   useEffect(() => {
     // Wait for the catalog so a deep link doesn't log a false "0 picks".
     if (!resultsKey || !productsLoaded) return;
-    gaEvent("finder_results", {
-      need: needId,
-      refine: refineId,
-      budget: budgetId,
-      result_count: results.length,
-    });
     trackEngagementEvent("FinderResults", {
       label: `${answersLabel} → ${results.length} ${results.length === 1 ? "pick" : "picks"}`,
       source: "finder",
@@ -762,7 +754,6 @@ export function ProductFinder({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => {
-                gaEvent("finder_whatsapp", { need: needId, refine: refineId });
                 trackEngagementEvent("FinderWhatsAppClick", {
                   label: answersLabel || "No answers yet",
                   source: "finder",
@@ -808,7 +799,6 @@ export function ProductFinderEntry({ isMobile }: { isMobile: boolean }) {
       <Btn
         size="sm"
         onClick={() => {
-          gaEvent("finder_open", { source: "home" });
           navigate({ to: "/finder", search: { need: undefined, from: "home page" } });
         }}
       >
