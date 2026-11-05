@@ -178,12 +178,14 @@ export function getDisplayPrice(product: Product): number {
 // the customer.
 // ---------------------------------------------------------------------------
 
-export const FREE_SHIPPING_THRESHOLD = 2000;
-// Outside Karachi the Rs 250 fee stays until Rs 5,000 (tried Rs 2,000 on
+export const FREE_SHIPPING_THRESHOLD = 2500; // Karachi (raised from 2,000 on 2026-11-05)
+// Outside Karachi the delivery fee stays until Rs 5,000 (tried Rs 2,000 on
 // 2026-09-21, reverted the same day). Any applied bundle / mix & match pair ships
 // free everywhere regardless — see computeShipping's hasBundle.
 export const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000;
-export const SHIPPING_COST = 250;
+export const SHIPPING_COST = 250; // Karachi
+// Outside Karachi the courier charges more (~Rs 297 vs ~Rs 171), so the fee is Rs 300 (2026-11-05).
+export const SHIPPING_COST_OTHER_CITIES = 300;
 
 // "Order over Rs 5,000 -> Rs 200 off next order" reward, mirrored from
 // place-order/index.ts's REWARD_COUPON_THRESHOLD/REWARD_COUPON_DISCOUNT
@@ -485,7 +487,7 @@ export function computeShipping(subtotal: number, city?: string | null, hasBundl
   if (hasBundle) return 0;
   const threshold = isKarachiCity(city) ? FREE_SHIPPING_THRESHOLD : FREE_SHIPPING_THRESHOLD_OTHER_CITIES;
   if (subtotal >= threshold) return 0;
-  return SHIPPING_COST;
+  return isKarachiCity(city) ? SHIPPING_COST : SHIPPING_COST_OTHER_CITIES;
 }
 
 // ---------------------------------------------------------------------------

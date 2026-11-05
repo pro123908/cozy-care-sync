@@ -391,7 +391,7 @@ function Header({
         ]
       : []),
     { icon: "✨", text: "Welcome to Well Care Mart", chip: "NEW" },
-    { icon: "🚚", text: "Free delivery in Karachi over Rs 2,000", chip: "KHI" },
+    { icon: "🚚", text: "Free delivery in Karachi over Rs 2,500", chip: "KHI" },
     { icon: "🚚", text: "Free delivery nationwide over Rs 5,000", chip: "PK" },
     {
       icon: "📦",

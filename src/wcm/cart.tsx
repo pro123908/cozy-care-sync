@@ -10,7 +10,7 @@ import {
   isOutOfStockBlocked,
   FREE_SHIPPING_THRESHOLD,
   FREE_SHIPPING_THRESHOLD_OTHER_CITIES,
-  SHIPPING_COST,
+  SHIPPING_COST_OTHER_CITIES,
   REWARD_COUPON_THRESHOLD,
   REWARD_COUPON_DISCOUNT,
   type Product,
@@ -114,7 +114,7 @@ export function CartDrawer({
       return [...c, { id: partner.id, qty: 1 }];
     });
   };
-  // Quick adds that close the gap to the next free-delivery tier (Rs 2,000 Karachi,
+  // Quick adds that close the gap to the next free-delivery tier (Rs 2,500 Karachi,
   // then Rs 5,000 everywhere): in stock, one price, not Karachi-only, not already in
   // the cart. Items that unlock the tier in one tap come first, then the closest below.
   const nextTarget =
@@ -1191,7 +1191,7 @@ export function CheckoutContent({
                       <strong style={{ fontWeight: 800 }}>FREE delivery</strong> to{" "}
                       {ship.city.trim() || "this city"} — orders over{" "}
                       {PKR(FREE_SHIPPING_THRESHOLD_OTHER_CITIES)} ship free. A{" "}
-                      {PKR(SHIPPING_COST)} delivery fee currently applies.
+                      {PKR(SHIPPING_COST_OTHER_CITIES)} delivery fee currently applies.
                     </div>
                   </div>
                 )}

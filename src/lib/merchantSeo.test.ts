@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildMerchantReturnPolicy, buildOfferPolicies, buildOfferShippingDetails } from "./merchantSeo";
 
 describe("buildOfferShippingDetails", () => {
-  it("charges the flat Rs 250 below the nationwide free threshold", () => {
-    expect(buildOfferShippingDetails(1990).shippingRate.value).toBe(250);
-    expect(buildOfferShippingDetails(4999).shippingRate.value).toBe(250);
+  it("charges the Rs 300 outside-Karachi below the nationwide free threshold", () => {
+    expect(buildOfferShippingDetails(1990).shippingRate.value).toBe(300);
+    expect(buildOfferShippingDetails(4999).shippingRate.value).toBe(300);
   });
 
   it("is free from Rs 5,000 (the nationwide rule, not Karachi's lower one)", () => {

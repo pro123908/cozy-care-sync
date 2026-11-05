@@ -45,9 +45,10 @@ type ProductRow = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const FREE_SHIPPING_THRESHOLD = 2000;
+const FREE_SHIPPING_THRESHOLD = 2500; // Karachi (raised from 2,000 on 2026-11-05)
 const FREE_SHIPPING_THRESHOLD_OTHER_CITIES = 5000; // Rs 2,000 was tried 2026-09-21 and reverted
-const SHIPPING_COST = 250;
+const SHIPPING_COST = 250; // Karachi
+const SHIPPING_COST_OTHER_CITIES = 300; // outside Karachi (2026-11-05)
 const MAX_QTY_PER_PRODUCT = 5;
 // Wheelchairs and commode/shower chairs are delivered in Karachi only —
 // mirror of KARACHI_ONLY_CATEGORIES in the storefront's src/wcm/data.ts.
@@ -1326,7 +1327,7 @@ Deno.serve(
 
   const subtotal = finalizedItems.reduce((sum, item) => sum + item.line_total, 0);
 
-  // Free delivery: Rs 2,000 in Karachi, Rs 5,000 elsewhere, and free on any
+  // Free delivery: Rs 2,500 in Karachi, Rs 5,000 elsewhere, and free on any
   // applied bundle everywhere (below). Keep in sync with computeShipping() in
   // the storefront (src/wcm/data.ts).
   const isKarachiAddress = /karachi/i.test((ship.city ?? "").trim());
@@ -1335,7 +1336,7 @@ Deno.serve(
   // hasBundle flag in the storefront).
   const bundleDiscount = computeBundleDiscount(finalizedItems);
   const shipping =
-    subtotal === 0 || bundleDiscount > 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : SHIPPING_COST;
+    subtotal === 0 || bundleDiscount > 0 ? 0 : subtotal >= freeShippingThreshold ? 0 : isKarachiAddress ? SHIPPING_COST : SHIPPING_COST_OTHER_CITIES;
 
   // Validate + atomically redeem the promo code if provided (it's optional —
   // no code = no discount). redeem_coupon re-validates server-side and

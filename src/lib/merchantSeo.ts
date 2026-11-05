@@ -4,16 +4,16 @@ import { SITE_URL } from "./seo";
 // (and consider the products for free Shopping listings). They must match what the
 // store really does, so they're built from the same numbers the checkout uses.
 //
-// Shipping: a flat Rs 250 unless the order reaches the free threshold. Checkout is
-// free over Rs 2,000 in Karachi and over Rs 5,000 everywhere else; the markup only
+// Shipping: Rs 250 in Karachi, Rs 300 elsewhere, unless the order reaches the free threshold. Checkout is
+// free over Rs 2,500 in Karachi and over Rs 5,000 everywhere else; the markup only
 // states the nationwide rule (Rs 5,000), so it never promises more than a shopper
-// outside Karachi gets. Delivery is "3 to 5 working days" per the shipping policy.
+// outside Karachi gets, and the fee stated is the higher (outside-Karachi) one. Delivery is "3 to 5 working days" per the shipping policy.
 // Returns (confirmed by the owner 2026-10-12): damaged or defective items, reported
 // within 3 days of delivery, and the store arranges the pickup at no cost to the
 // customer (owner, 2026-10-12) -> FreeReturn, returned by mail/courier pickup.
 
-const FLAT_SHIPPING_RATE = 250;
-const FREE_SHIPPING_FROM = 5000; // nationwide threshold (Karachi's lower Rs 2,000 is not claimed)
+const FLAT_SHIPPING_RATE = 300; // outside-Karachi rate (Karachi pays Rs 250)
+const FREE_SHIPPING_FROM = 5000; // nationwide threshold (Karachi's lower Rs 2,500 is not claimed)
 const RETURN_WINDOW_DAYS = 3;
 
 export function buildOfferShippingDetails(price: number) {
