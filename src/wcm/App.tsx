@@ -894,20 +894,21 @@ function Header({
                               <ProductImageFallback cat={p.cat} name={p.name} brand={p.brand} swatch={p.swatch} compact />
                             )}
                           </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                              <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {highlightText(p.name, search)}
-                              </div>
-                              {badge && (
-                                <span style={{ flexShrink: 0 }}>
-                                  <Pill tone={badge.tone}>{badge.label}</Pill>
-                                </span>
-                              )}
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              style={{
+                                fontSize: 13.5, fontWeight: 600, color: "var(--ink)", lineHeight: 1.3,
+                                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                                overflow: "hidden", wordBreak: "break-word",
+                              }}
+                            >
+                              {highlightText(p.name, search)}
                             </div>
-                            <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 1 }}>
-                              {highlightText(p.brand, search)} &middot; {p.category_name || p.cat}
-                            </div>
+                            {badge && (
+                              <span style={{ display: "inline-block", marginTop: 3 }}>
+                                <Pill tone={badge.tone}>{badge.label}</Pill>
+                              </span>
+                            )}
                           </div>
                           <div style={{ marginLeft: "auto", fontSize: 13, fontWeight: 700, color: "var(--blue-600)", flexShrink: 0 }}>
                             Rs {p.price.toLocaleString()}
