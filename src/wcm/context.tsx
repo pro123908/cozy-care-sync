@@ -473,6 +473,11 @@ export function WcmProvider({ children }: { children: React.ReactNode }) {
         subtotal: r.subtotal,
         shipping: r.shipping,
         total: r.total,
+        // discount / promo columns exist on orders (select "*" returns them) but
+        // are missing from the generated Database types, hence the cast.
+        discount: (r as { discount?: number | null }).discount ?? 0,
+        promoDiscount: (r as { promo_discount?: number | null }).promo_discount ?? 0,
+        promoCode: (r as { promo_code?: string | null }).promo_code ?? null,
         replacesOrderId: r.replaces_order_id,
         replacementBalanceDue: r.replacement_balance_due,
         rider: (r.rider as { name?: string; phone?: string } | undefined) || undefined,

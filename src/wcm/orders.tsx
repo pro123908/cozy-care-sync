@@ -1367,6 +1367,15 @@ export function OrderDetail({
               )
             }
           />
+          {(order.discount ?? 0) > 0 && (
+            <SummaryRow label="Discount" value={<span style={{ color: "var(--pill-success-fg)" }}>− {PKR(order.discount ?? 0)}</span>} />
+          )}
+          {(order.promoDiscount ?? 0) > 0 && (
+            <SummaryRow
+              label={order.promoCode ? `Promo code (${order.promoCode})` : "Promo code"}
+              value={<span style={{ color: "var(--pill-success-fg)" }}>− {PKR(order.promoDiscount ?? 0)}</span>}
+            />
+          )}
           <div style={{ height: 1, background: "var(--line)", margin: "2px 0" }} />
           <div
             style={{

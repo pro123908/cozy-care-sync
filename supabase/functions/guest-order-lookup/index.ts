@@ -68,7 +68,7 @@ Deno.serve(
   const { data: row, error } = await supabase
     .from("orders")
     .select(
-      "order_code, placed, eta, status, progress, address, city, landmark, customer_name, payment, items, subtotal, shipping, total, rider, phone, user_id, replaces_order_id, replacement_balance_due",
+      "order_code, placed, eta, status, progress, address, city, landmark, customer_name, payment, items, subtotal, shipping, total, discount, promo_discount, promo_code, rider, phone, user_id, replaces_order_id, replacement_balance_due",
     )
     .eq("order_code", orderId)
     .maybeSingle();
@@ -95,15 +95,43 @@ Deno.serve(
     return json({ error: "Could not fetch order reviews" }, 500, origin);
   }
 
-  // An order can have more than one courier_bookings row (e.g. re-booked
-  // after a cancelled attempt) — take the most recently synced one.
+  // An order can have more than one courier_bookings row — either a
+  // legitimate re-book after a cancelled attempt, or a duplicate booking
+  // from PostEx's batch-book race (see
+  // project_postex_duplicate_bookings_batch_book_race memory in the admin
+  // app: the same order got booked twice ~seconds apart, and the duplicate
+  // gets cancelled once caught). Either way, `synced_at` can't tell them
+  // apart: the periodic sync cron stamps every row it touches in a run with
+  // one shared "now", so both rows here carry an identical synced_at
+  // regardless of which was actually created first or is still active.
+  // Rank by status instead — an active/delivered booking is what the
+  // customer actually cares about, so it wins over a cancelled one even if
+  // the cancelled row happens to be the more recently created of the two
+  // (as in the duplicate-booking case above). "Return" gets its own rank
+  // below active but above cancelled: a booking working its way back to
+  // origin is a real, current shipment state the customer should see, not
+  // an abandoned duplicate — lumping it in with "cancel" let a genuinely
+  // dead cancelled booking outrank it on tie-break (hit for real 2026-09-01,
+  // order WCM-20260804-VPW2: a cancelled PostEx booking was shown instead
+  // of the actual Leopards shipment the customer had refused and was
+  // returning). Only falls back to picking the single row present when
+  // every booking for this order is cancelled.
   const { data: courierRows } = await supabase
     .from("courier_bookings")
-    .select("tracking_number, status, status_history, courier")
-    .eq("order_id", orderId)
-    .order("synced_at", { ascending: false })
-    .limit(1);
-  const courierRow = courierRows?.[0] ?? null;
+    .select("tracking_number, status, status_history, courier, created_at")
+    .eq("order_id", orderId);
+  const statusRank = (status: string | null): number => {
+    const s = (status ?? "").toLowerCase();
+    if (s.includes("deliver")) return 0;
+    if (s.includes("cancel")) return 3;
+    if (s.includes("return")) return 2;
+    return 1;
+  };
+  // created_at (real per-row insert time, added for exactly this) breaks
+  // ties within the same rank — synced_at couldn't, per the comment above.
+  const courierRow = courierRows && courierRows.length > 0
+    ? [...courierRows].sort((a, b) => statusRank(a.status) - statusRank(b.status) || (b.created_at > a.created_at ? 1 : -1))[0]
+    : null;
 
   const productReviews = (reviews || []).reduce(
     (acc: Record<string, { rating: number; comment: string }>, review) => {
@@ -134,6 +162,9 @@ Deno.serve(
         subtotal: row.subtotal,
         shipping: row.shipping,
         total: row.total,
+        discount: row.discount ?? 0,
+        promoDiscount: row.promo_discount ?? 0,
+        promoCode: row.promo_code ?? null,
         replacesOrderId: row.replaces_order_id,
         replacementBalanceDue: row.replacement_balance_due,
         rider: row.rider,

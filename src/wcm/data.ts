@@ -2909,6 +2909,13 @@ export type Order = {
   subtotal: number;
   shipping: number;
   total: number;
+  // What was taken off the total: `discount` is a bundle deal or a discount the
+  // store gave on the order; `promoDiscount` is a coupon code. total =
+  // subtotal + shipping - discount - promoDiscount. Shown as rows in the
+  // order summary so the numbers add up for the customer.
+  discount?: number;
+  promoDiscount?: number;
+  promoCode?: string | null;
   // Set when this order was created to replace item(s) from an earlier
   // order (a faulty-product swap). replacementBalanceDue is what the
   // customer actually still owes beyond what they already paid on that
