@@ -685,6 +685,7 @@ export function OrderDetail({
 
     const message = [
       "Hi support, I need help with my order.",
+      ...(order.customerName ? [`Name: ${order.customerName}`] : []),
       `Order ID: ${order.id}`,
       `Status: ${displayStatus(order.status)}`,
       `Placed: ${order.placed}`,
