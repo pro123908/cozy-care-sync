@@ -1329,7 +1329,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ position: "relative", maxWidth: 560, width: "100%", maxHeight: "85vh", background: "var(--card)", border: "1px solid var(--line)", borderRadius: 14, padding: 16, overflow: "auto" }}
+            style={{ position: "relative", maxWidth: 560, width: "fit-content", maxHeight: "calc(100dvh - 40px)", background: "var(--card)", border: "1px solid var(--line)", borderRadius: 14, padding: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 10 }}>
               <button
@@ -1340,7 +1340,7 @@ function TestimonialsSection({ productId }: { productId?: string }) {
                 {Icons.close}
               </button>
             </div>
-            <img src={lightbox} alt="Review screenshot" style={{ width: "100%", height: "auto", borderRadius: 10, display: "block" }} />
+            <img src={lightbox} alt="Review screenshot" style={{ display: "block", margin: "0 auto", maxWidth: "100%", width: "auto", height: "auto", maxHeight: "calc(100dvh - 40px - 32px - 38px)", minHeight: 0, objectFit: "contain", borderRadius: 10 }} />
           </div>
         </div>
       )}
