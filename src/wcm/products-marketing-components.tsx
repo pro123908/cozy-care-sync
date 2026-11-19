@@ -697,15 +697,15 @@ export function TrustRibbon({ compact = false }: { compact?: boolean }) {
   );
 }
 
-// Rounded-DOWN store figures for the homepage (real numbers, checked 2026-10-11:
-// 270 delivered orders, 247 distinct customers with a delivered order, ~46 delivery
-// cities, 198 active products, 4.95 average over 37 showcase reviews from Facebook
-// and Daraz). Rounding down keeps them true as the store grows; bump them by hand
-// every few months rather than showing a live exact count.
+// Rounded-DOWN store figures for the homepage (real numbers, checked 2026-11-19:
+// 419 distinct customers with a delivered order, 85 delivery cities, 201 active
+// products, 4.97 average over 60 showcase reviews from Facebook and Daraz).
+// Rounding down keeps them true as the store grows; bump them by hand every few
+// months rather than showing a live exact count.
 const STORE_STATS = [
-  { icon: Icons.user, value: 240, decimals: 0, suffix: "+", label: "Customers served" },
-  { icon: Icons.pin, value: 40, decimals: 0, suffix: "+", label: "Cities across Pakistan" },
-  { icon: Icons.pkg, value: 190, decimals: 0, suffix: "+", label: "Products" },
+  { icon: Icons.user, value: 400, decimals: 0, suffix: "+", label: "Customers served" },
+  { icon: Icons.pin, value: 80, decimals: 0, suffix: "+", label: "Cities across Pakistan" },
+  { icon: Icons.pkg, value: 200, decimals: 0, suffix: "+", label: "Products" },
   { icon: Icons.starF, value: 4.9, decimals: 1, suffix: "", label: "Average review rating", sub: "Facebook & Daraz" },
 ];
 function CountUp({ value, decimals, suffix, run }: { value: number; decimals: number; suffix: string; run: boolean }) {
