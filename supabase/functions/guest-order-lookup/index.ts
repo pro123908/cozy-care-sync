@@ -116,10 +116,38 @@ Deno.serve(
   // of the actual Leopards shipment the customer had refused and was
   // returning). Only falls back to picking the single row present when
   // every booking for this order is cancelled.
-  const { data: courierRows } = await supabase
+  const { data: postexLeopardsRows } = await supabase
     .from("courier_bookings")
     .select("tracking_number, status, status_history, courier, created_at")
     .eq("order_id", orderId);
+  // Logikea bookings live in their own table (logikea_bookings), not
+  // courier_bookings, so without this the tracking page showed no courier
+  // status at all for a Logikea parcel (order WCM-OJYILLR, 11-18). Mapped to
+  // the same shape the page already reads; its history rows carry
+  // {at, status, message}, and the page wants statusWithCity, so the status
+  // text goes there. "PENDING-" consignments are placeholders written before
+  // the real booking returns, never shown to a customer.
+  const { data: logikeaRows } = await supabase
+    .from("logikea_bookings")
+    .select("consignment_no, status, status_history, booked_at")
+    .eq("order_id", orderId)
+    .not("consignment_no", "like", "PENDING-%");
+  const courierRows = [
+    ...(postexLeopardsRows ?? []),
+    ...(logikeaRows ?? []).map((r) => ({
+      tracking_number: r.consignment_no,
+      status: r.status,
+      status_history: Array.isArray(r.status_history)
+        ? (r.status_history as Array<{ at: string; status: string; message?: string }>).map((e) => ({
+            status: e.status,
+            statusWithCity: e.status,
+            at: e.at,
+          }))
+        : null,
+      courier: "logikea",
+      created_at: r.booked_at,
+    })),
+  ];
   const statusRank = (status: string | null): number => {
     const s = (status ?? "").toLowerCase();
     if (s.includes("deliver")) return 0;

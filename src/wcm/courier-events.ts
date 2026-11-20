@@ -198,6 +198,12 @@ export function describeCourierEvent(status: string, statusWithCity?: string): C
   }
   if (lower === "pending") return { title: "Booked with the courier", kind: "progress" };
 
+  // --- Logikea (Orio) wording: only "Booked" and "Arrived at Origin Hub" seen on real parcels so far ---
+  if (/^booked$|^shipment is booked/.test(lower))
+    return { title: "Booked with the courier", kind: "progress" };
+  if (/^arrived at origin/.test(lower))
+    return { title: "Arrived at the courier's hub", kind: "progress" };
+
   // Unknown wording: show the courier's own text (tidied if it's shouting).
   return {
     title: text && text === text.toUpperCase() ? titleCase(text) : text || "Update",

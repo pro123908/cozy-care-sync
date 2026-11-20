@@ -127,3 +127,17 @@ describe("describeCourierEvent — unknown wording", () => {
     );
   });
 });
+
+describe("describeCourierEvent — Logikea", () => {
+  it("reads the two real Logikea statuses in plain words", () => {
+    expect(describeCourierEvent("Booked", "Booked")).toMatchObject({
+      title: "Booked with the courier",
+      kind: "progress",
+    });
+    expect(describeCourierEvent("Shipment is booked")).toMatchObject({ kind: "progress" });
+    expect(describeCourierEvent("Arrived at Origin Hub", "Arrived at Origin Hub")).toMatchObject({
+      title: "Arrived at the courier's hub",
+      kind: "progress",
+    });
+  });
+});
