@@ -20,7 +20,8 @@ import {
 // internal status name) is wider than that and ran into its neighbour. "Packing" says the same thing.
 const STEP_LABELS = ["Placed", "Confirmed", "Packing", "On the way", "Delivered"];
 
-const providerLabel = (provider: string) => (provider === "postex" ? "PostEx" : "Leopards");
+const providerLabel = (provider: string) =>
+  provider === "postex" ? "PostEx" : provider === "logikea" ? "Logikea" : "Leopards";
 
 // Both are real public tracking pages, confirmed by driving each in a browser (Aug 2026).
 function courierTrackingUrl(provider: string, trackingNumber: string): string {
@@ -526,7 +527,8 @@ export function TrackingHero({
               {contextual.label}
             </Btn>
           )}
-          {order.courier && order.status !== "Cancelled" && (
+          {/* Logikea has no public tracking page for customers, so no external link for it. */}
+          {order.courier && order.courier.provider !== "logikea" && order.status !== "Cancelled" && (
             <Btn
               size="sm"
               variant="outline"
